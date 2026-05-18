@@ -52,9 +52,19 @@ const PLATFORM_INTERESTS = [
 ];
 window.selectedInterests = new Set();
 
+// نظام الطوارئ
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        let il = document.getElementById('initialLoader');
+        if (il && il.style.display !== 'none') {
+            il.classList.add('hidden');
+            setTimeout(() => il.style.display = 'none', 400);
+        }
+    }, 4000);
+});
+
 // ================= نظام التوجيه الذكي =================
 window.addEventListener('hashchange', handleRouting);
-window.addEventListener('load', handleRouting);
 
 function handleRouting() {
     if(!window.currentUser) return; 
@@ -107,14 +117,50 @@ const $ = (id) => document.getElementById(id);
 window.toggleLoginMode = (m) => { $('loginFormContent').style.display = m==='register' ? 'none' : 'block'; $('registerFormContent').style.display = m==='register' ? 'block' : 'none'; };
 window.generateHandles = (n) => { let c = $('handleSuggestions'); if(!n.trim()) { c.innerHTML = ""; return; } let b = tr(n.trim().split(" ")[0]), h = '<div style="font-size:13px;margin-bottom:5px;">اختر المعرف:</div>', o = [b + Math.floor(Math.random()*99+10), b + "_" + Math.floor(Math.random()*999+100), b + new Date().getFullYear()]; o.forEach((x, i) => { h += `<label class="handle-radio-label"><input type="radio" name="selectedHandle" value="${x}" ${i===0?"checked":""}> @${x}</label>`; }); c.innerHTML = h; };
 
+// إصلاح الموقع الجغرافي ليكون ذكي وسريع (Fallback System)
 window.registerUser = () => {
     let d = $('regDisplayName').value.trim(), dbv = $('regDob').value, p = $('regPassword').value.trim(), r = document.getElementsByName('selectedHandle'), sh = null;
     for(let i=0; i<r.length; i++) { if(r[i].checked) { sh = r[i].value; break; } }
     if(!d || !dbv || !p || !sh) return alert("أكمل البيانات"); if(p.length < 6) return alert("كلمة المرور 6 أحرف على الأقل");
     let btn = $('regBtn'), ot = btn.innerText; btn.innerText = "جاري..."; btn.disabled = true;
-    async function gL() { return new Promise(rs => { if("geolocation" in navigator) { navigator.geolocation.getCurrentPosition(async pos => { try { let r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&accept-language=ar`); let l = await r.json(); let c = l.address.city || l.address.town || l.address.village || l.address.state || ""; rs((l.address.country||"") + (c ? " - "+c : "")); } catch(e) { fB(rs); } }, () => fB(rs), {timeout:10000}); } else fB(rs); }); }
-    async function fB(rs) { try { let r = await fetch('https://ipwho.is/'); let l = await r.json(); rs(l.country ? (l.country+(l.city?' - '+l.city:'')) : "غير محدد"); } catch(e) { rs("غير محدد"); } }
-    gL().then(loc => { get(ref(db,`users/${sh}`)).then(s => { if(s.exists()) { alert("المعرف محجوز"); btn.innerText = ot; btn.disabled = false; } else { set(ref(db,`users/${sh}`), { displayName: d, birthdate: dbv, password: p, online: true, profilePic: dA, bio: "مستخدم جديد", isBot: false, location: loc, job: "", education: "", hobbies: "", interests: [] }).then(() => { $('usernameInput').value = sh; $('passwordInput').value = p; window.login(); }); } }).catch(() => { alert("خطأ"); btn.innerText = ot; btn.disabled = false; }); });
+    
+    async function getLoc() {
+        return new Promise(resolve => {
+            let isResolved = false;
+            let finish = (loc) => { if(!isResolved){ isResolved=true; resolve(loc || "غير محدد"); }};
+            setTimeout(() => finish("غير محدد"), 6000); // المهلة القصوى 6 ثواني
+            
+            async function fallback() {
+                try {
+                    let res = await fetch('https://ipapi.co/json/');
+                    let data = await res.json();
+                    finish(data.country_name ? (data.country_name + (data.city ? " - "+data.city : "")) : "غير محدد");
+                } catch(e) { finish("غير محدد"); }
+            }
+
+            if(navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async pos => {
+                    try {
+                        let res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&accept-language=ar`);
+                        let l = await res.json();
+                        let c = l.address.city || l.address.town || l.address.state || "";
+                        finish((l.address.country||"") + (c ? " - "+c : ""));
+                    } catch(e) { fallback(); }
+                }, fallback, {timeout:4000});
+            } else fallback();
+        });
+    }
+
+    getLoc().then(loc => { 
+        get(ref(db,`users/${sh}`)).then(s => { 
+            if(s.exists()) { alert("المعرف محجوز"); btn.innerText = ot; btn.disabled = false; } 
+            else { 
+                set(ref(db,`users/${sh}`), { displayName: d, birthdate: dbv, password: p, online: true, profilePic: dA, bio: "مستخدم جديد", isBot: false, location: loc, job: "", education: "", hobbies: "", interests: [] }).then(() => { 
+                    $('usernameInput').value = sh; $('passwordInput').value = p; window.login(); 
+                }); 
+            } 
+        }).catch(() => { alert("خطأ"); btn.innerText = ot; btn.disabled = false; }); 
+    });
 };
 
 document.body.addEventListener('click', () => { if("Notification" in window && Notification.permission === "default") Notification.requestPermission(); }, {once:true});
@@ -168,12 +214,14 @@ window.checkFriendsBirthdays = () => { let t = new Date(), m = String(t.getMonth
 // ======================== نظام الاهتمامات ========================
 window.renderInterestsModal = () => {
     let c = $('interestsContainer'), h = '';
-    PLATFORM_INTERESTS.forEach(cat => {
-        h += `<div class="interest-chip" onclick="window.toggleInterest(this, '${cat}')">${cat}</div>`;
-    });
-    c.innerHTML = h;
-    $('interestsModal').classList.add('show');
-    document.body.style.overflow = 'hidden';
+    if(c) {
+        PLATFORM_INTERESTS.forEach(cat => {
+            h += `<div class="interest-chip" onclick="window.toggleInterest(this, '${cat}')">${cat}</div>`;
+        });
+        c.innerHTML = h;
+        $('interestsModal').classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
 };
 
 window.toggleInterest = (el, cat) => {
@@ -195,7 +243,7 @@ window.saveUserInterests = () => {
 
 // ======================== تنظيف فيديوهات البوتات نهائيا ========================
 function wipeAllBotVideosForever() {
-    if(!localStorage.getItem('wiped_all_bot_videos_v5')) {
+    if(!localStorage.getItem('wiped_all_bot_videos_v6')) {
         get(ref(db, 'posts')).then(s => {
             if(s.exists()){
                 s.forEach(c => {
@@ -206,26 +254,50 @@ function wipeAllBotVideosForever() {
                 });
             }
         });
-        localStorage.setItem('wiped_all_bot_videos_v5', 'true');
+        localStorage.setItem('wiped_all_bot_videos_v6', 'true');
     }
 }
 
 function fL(u, d) { 
     window.isInitialNotifLoad = true; window.alertedNotifs = new Set(); window.currentUser = u; localStorage.setItem('savedUser', u); 
-    let il = $('initialLoader'); if(il){ il.classList.add('hidden'); setTimeout(()=>il.style.display='none', 400); } 
-    let lw = $('loginModal'); if(lw){ lw.style.opacity='0'; lw.style.pointerEvents='none'; setTimeout(()=>lw.style.display='none', 400); } 
+    
+    let il = $('initialLoader'); 
+    if(il){ 
+        il.classList.add('hidden'); 
+        setTimeout(()=>il.style.display='none', 400); 
+    } 
+    
+    let lw = $('loginModal'); 
+    if(lw){ 
+        lw.style.opacity='0'; 
+        lw.style.pointerEvents='none'; 
+        setTimeout(()=>lw.style.display='none', 400); 
+    } 
+    
     let n = d.displayName || u; $('currentUserDisplay').innerText = n; let p = d.profilePic || dA; 
-    ['myNavAvatar','composerAvatar','myShareAvatar','mobileNavAvatar','modalMyPic'].forEach(x=>$(x).src=p); 
+    ['myNavAvatar','composerAvatar','myShareAvatar','mobileNavAvatar','modalMyPic'].forEach(x=>{ if($(x)) $(x).src=p; }); 
     let ab = $('adminBtn'); if(ab){ ab.style.display = (u.toLowerCase()==='admin21') ? 'flex' : 'none'; } 
     let oRef = ref(db, `users/${u}/online`); set(oRef, true); onDisconnect(oRef).set(false); 
     
-    // إظهار نافذة الاهتمامات لو المستخدم مختارش قبل كدا
     if(!d.interests || d.interests.length === 0) { setTimeout(window.renderInterestsModal, 1000); }
     
     listenToUsers(); 
 }
-if(window.currentUser){ let b=$('loginBtn'); if(b){ b.innerText="جاري..."; b.disabled=true; } get(ref(db, `users/${window.currentUser}`)).then(s => { if(s.exists()){ fL(window.currentUser, s.val()); } else rU(); }).catch(rU); }
-function rU(){ window.isInitialNotifLoad=true; window.alertedNotifs=new Set(); localStorage.removeItem('savedUser'); window.currentUser=null; let b=$('loginBtn'); if(b){ b.innerText="دخول"; b.disabled=false; } let s=$('hideLoginStyle'), l=$('initialLoader'); if(s) s.remove(); if(l) l.style.display='none'; let ab=$('adminBtn'); if(ab) ab.style.display='none'; }
+
+if(window.currentUser){ 
+    let b=$('loginBtn'); if(b){ b.innerText="جاري..."; b.disabled=true; } 
+    get(ref(db, `users/${window.currentUser}`)).then(s => { 
+        if(s.exists()){ fL(window.currentUser, s.val()); } 
+        else rU(); 
+    }).catch(rU); 
+}
+
+function rU(){ 
+    window.isInitialNotifLoad=true; window.alertedNotifs=new Set(); localStorage.removeItem('savedUser'); window.currentUser=null; 
+    let b=$('loginBtn'); if(b){ b.innerText="دخول"; b.disabled=false; } 
+    let s=$('hideLoginStyle'), l=$('initialLoader'); if(s) s.remove(); if(l) l.style.display='none'; 
+    let ab=$('adminBtn'); if(ab) ab.style.display='none'; 
+}
 
 function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window.allUsersData = s.val(); if(window.isInitialLoad){ wipeAllBotVideosForever(); listenToAllFriends(); listenToFriendRequests(); listenToPosts(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); initAndRunBots(); setTimeout(window.checkFriendsBirthdays, 3000); } else { renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); } } }); }
 function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ window.feedLim=5; renderFeed(); } }); }
@@ -343,7 +415,6 @@ function listenToPosts() {
         } 
         window.allPosts = l; 
         
-        // الريلز مقتصرة على الأعضاء الحقيقيين فقط
         window.allReels = l.filter(p => p.video != null && window.allUsersData[p.author] && !window.allUsersData[p.author].isBot); 
         window.renderReelsTopBar();
 
@@ -459,6 +530,20 @@ window.executeShare = () => {
     let nr = push(ref(db, 'posts')); set(nr, {author:window.currentUser, text:c, isShare:true, sharedData:sd, timestamp:Date.now()}).then(() => { if(oa && oa !== window.currentUser) push(ref(db, `users/${oa}/notifications`), {type:'share', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); window.myFriends.forEach(f => { if(c.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); }); window.location.hash=''; window.goHome(); });
 };
 
+// دالة رفع الصور (كانت محذوفة ورجعت تاني)
+window.previewImage = (e) => {
+    let f = e.target.files[0];
+    if(!f) return;
+    let reader = new FileReader();
+    reader.onload = (ev) => {
+        let preview = document.getElementById('editModalPicPreview');
+        let base64Input = document.getElementById('editPicBase64');
+        if(preview) preview.src = ev.target.result;
+        if(base64Input) base64Input.value = ev.target.result;
+    };
+    reader.readAsDataURL(f);
+};
+
 window.previewMedia = (e, type) => { let f = e.target.files[0]; if(!f) return; if(type === 'video' || type === 'reel') { if(f.size > 50*1024*1024) { alert("الفيديو كبير جداً! الحد الأقصى 50 ميجا."); return; } } window.selectedMediaFile = f; window.selectedMediaType = type; let u = URL.createObjectURL(f), img = $('postImagePreview'), vid = $('postVideoPreview'), cont = $('postMediaPreviewContainer'); cont.style.display = 'block'; if(type === 'image') { img.src = u; img.style.display = 'block'; vid.style.display = 'none'; vid.pause(); } else { vid.src = u; vid.style.display = 'block'; img.style.display = 'none'; } };
 window.removeMediaPreview = () => { window.selectedMediaFile = null; window.selectedMediaType = null; $('postMediaPreviewContainer').style.display = 'none'; $('postImagePreview').src = ''; $('postVideoPreview').src = ''; $('postVideoPreview').pause(); };
 
@@ -504,14 +589,11 @@ window.openProfileLogic = (u) => {
     $('profPic').src = d.profilePic || dA; $('profName').innerText = window.getDisplayName(u); $('profHandle').innerText = '@' + u; $('profBio').innerText = d.bio || "لا نبذة."; $('profLocText').innerText = d.location || "غير محدد";
     $('profileAboutArea').innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;border:1px solid var(--border-color);text-align:right;"><h4 style="margin-top:0;color:var(--primary);border-bottom:1px solid #e2e8f0;padding-bottom:10px;">معلومات</h4><div><strong>المدينة:</strong> <br>${d.location||'غير محدد'}</div><div><strong>تاريخ الميلاد:</strong> <br>${d.birthdate||'غير محدد'}</div><div><strong>المهنة:</strong> <br>${d.job||'غير محدد'}</div><div><strong>الدراسة:</strong> <br>${d.education||'غير محدد'}</div><div><strong>الهوايات:</strong> <br>${d.hobbies||'غير محدد'}</div></div>`;
     
-    // إظهار الاهتمامات لو موجودة
     let intArea = $('profInterestsArea');
     if(d.interests && d.interests.length > 0) {
         intArea.style.display = 'flex';
         intArea.innerHTML = d.interests.map(i => `<span style="background:#eef2ff; color:var(--primary); padding:4px 10px; border-radius:12px; font-size:12px; font-weight:700;">${i}</span>`).join('');
-    } else {
-        intArea.style.display = 'none';
-    }
+    } else { intArea.style.display = 'none'; }
 
     let ce = $('profCoverImg'); if(d.coverPic) { ce.src = d.coverPic; ce.style.display = 'block'; } else ce.style.display = 'none';
     $('statPosts').innerText = window.allPosts.filter(p => p.author === u && !p.isReel).length; $('statPhotos').innerText = window.allPosts.filter(p => p.author === u && (p.image || p.video) && !p.isReel).length; $('statFriends').innerText = Object.keys(window.allFriendsData[u] || {}).length;
@@ -590,9 +672,8 @@ window.getSuggestions = () => {
         if(u === window.currentUser || window.myFriends.includes(u)) continue; 
         let d = window.allUsersData[u]; 
         
-        // حساب التوافق في الاهتمامات
         let matchingInterests = 0;
-        if (d.category && myInterests.includes(d.category)) matchingInterests += 5; // البوتات المخصصة
+        if (d.category && myInterests.includes(d.category)) matchingInterests += 5; 
         if (d.interests) { d.interests.forEach(i => { if(myInterests.includes(i)) matchingInterests++; }); }
         
         if(d.type && d.type !== 'user') { sg.push({name:u, data:d, mutualCount:matchingInterests, isSameLocation:false, isPage:true}); continue; } 
@@ -611,7 +692,7 @@ function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(
 
 // ======================== الخوارزمية وتفاعل البوتات ========================
 function initAndRunBots() {
-    get(ref(db, 'botsInitialized_v119')).then(s => {
+    get(ref(db, 'botsInitialized_v120')).then(s => {
         if(!s.exists()) {
             get(ref(db, 'users')).then(us => {
                 let u = {};
@@ -625,7 +706,6 @@ function initAndRunBots() {
                         }
                     }
                 }
-                // توزيع الاهتمامات الـ 20 على البوتات عشوائياً
                 window.botAccounts.forEach((b, i) => { 
                     let botCat = PLATFORM_INTERESTS[i % PLATFORM_INTERESTS.length];
                     u[`users/${b.name}/displayName`] = b.displayName; 
@@ -636,21 +716,20 @@ function initAndRunBots() {
                     u[`users/${b.name}/online`] = true; 
                     u[`users/${b.name}/isBot`] = true; 
                     u[`users/${b.name}/type`] = "user"; 
-                    u[`users/${b.name}/category`] = botCat; // البوت ده مهتم بإيه
+                    u[`users/${b.name}/category`] = botCat; 
                     u[`users/${b.name}/location`] = b.location; 
                 });
-                u['botsInitialized_v119'] = true; update(ref(db), u);
+                u['botsInitialized_v120'] = true; update(ref(db), u);
             });
         }
     });
     
-    // خوارزمية طلبات الصداقة الذكية بناءً على الاهتمامات
+    // إرسال طلبات صداقة ذكية كل 15 ثانية (عشان يوصلك بسرعة)
     setInterval(() => {
         if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
         let myInterests = window.allUsersData[window.currentUser].interests || [];
         if(myInterests.length === 0) return;
 
-        // اختيار البوتات اللي مهتمة بنفس الحاجات اللي إنت مهتم بيها
         let matchingBots = window.botAccounts.filter(b => myInterests.includes(window.allUsersData[b.name]?.category));
         let pool = matchingBots.length > 0 ? matchingBots : window.botAccounts;
         let b = pool[Math.floor(Math.random()*pool.length)];
@@ -660,15 +739,14 @@ function initAndRunBots() {
                 push(ref(db, `users/${window.currentUser}/notifications`), {type:'friend_req', from:b.name, timestamp:Date.now(), read:false}); 
             }); 
         }
-    }, 60000);
+    }, 15000);
 
-    // خوارزمية إنشاء الـ 50 منشور يومياً (نصوص وأخبار من جوجل بناء على الاهتمامات)
     setInterval(() => {
         if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
         let lastRunRef = ref(db, 'botStats/lastTextPostRun');
         get(lastRunRef).then(s => {
             let lastTime = s.exists() ? s.val() : 0, now = Date.now();
-            if(now - lastTime > 600000) { // كل 10 دقائق هينزل مجموعة مقالات (بدون فيديوهات)
+            if(now - lastTime > 600000) { 
                 set(lastRunRef, now);
                 let myInterests = window.allUsersData[window.currentUser].interests || PLATFORM_INTERESTS;
                 let activeBots = window.botAccounts.filter(b => myInterests.includes(window.allUsersData[b.name]?.category));
@@ -677,7 +755,6 @@ function initAndRunBots() {
                     let randomBot = activeBots[Math.floor(Math.random()*activeBots.length)];
                     let botCat = window.allUsersData[randomBot.name].category;
                     
-                    // محاكاة سحب أخبار حقيقية بناءً على المجال
                     let contentLib = [
                         `أحدث التطورات اليوم في مجال ${botCat}، شاركونا رأيكم في التعليقات! 👇`,
                         `مقال جديد ومهم جداً بخصوص ${botCat} قرأته اليوم، حبيت أشاركه معاكم ✨`,
@@ -689,7 +766,6 @@ function initAndRunBots() {
                     let n = Date.now() - Math.floor(Math.random()*1000);
                     let fl = {}; window.botAccounts.sort(()=>0.5-Math.random()).slice(0,10).forEach(x=>fl[x.name]=true);
                     
-                    // نشر صورة عشوائية تناسب المجال (بدون فيديو)
                     let imgUrl = `https://source.unsplash.com/600x400/?${encodeURIComponent(botCat.split(' ')[0])}`;
                     push(ref(db, 'posts'), {author:randomBot.name, text:text, image:imgUrl, timestamp:n, likes:fl});
                 }
@@ -697,7 +773,6 @@ function initAndRunBots() {
         });
     }, 60000);
 
-    // تفاعل البوتات الشامل (مع أي فيديو، ريلز، أو مقال عادي)
     setInterval(() => {
         if(!window.currentUser) return;
         let botAccounts = window.botAccounts.filter(b => b.type === "user");
@@ -705,17 +780,13 @@ function initAndRunBots() {
         let randomBot = botAccounts[Math.floor(Math.random()*botAccounts.length)];
         
         if(window.allPosts && window.allPosts.length > 0) {
-            let randomPost = window.allPosts[Math.floor(Math.random() * window.allPosts.length)];
+            let mediaPosts = window.allPosts.filter(p => p.video || p.isReel);
+            let pool = mediaPosts.length > 0 && Math.random() > 0.3 ? mediaPosts : window.allPosts;
+            let randomPost = pool[Math.floor(Math.random() * pool.length)];
             
-            // عمل لايك على أي حاجة
             set(ref(db, `posts/${randomPost.id}/likes/${randomBot.name}`), true);
+            if(randomPost.video || randomPost.isReel) { set(ref(db, `posts/${randomPost.id}/views/${randomBot.name}`), true); }
             
-            // عمل مشاهدة لو كان ريلز أو فيديو
-            if(randomPost.video || randomPost.isReel) { 
-                set(ref(db, `posts/${randomPost.id}/views/${randomBot.name}`), true); 
-            }
-            
-            // التعليقات على حسب نوع المنشور
             if(Math.random() < 0.20) {
                 let comments = [];
                 if(randomPost.video || randomPost.isReel) comments = ["فيديو عظمة 🔥", "تصوير رائع 👏", "استمر في الإبداع", "ريلز جامد جداً ✨"];
