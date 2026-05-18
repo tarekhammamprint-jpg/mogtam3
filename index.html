@@ -7,6 +7,14 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
+    <style>
+        /* ستايل نافذة الاهتمامات */
+        .interests-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; max-height: 300px; overflow-y: auto; padding: 10px; }
+        .interest-chip { background: #f1f5f9; border: 2px solid #e2e8f0; color: #475569; padding: 10px 18px; border-radius: 999px; font-weight: 700; cursor: pointer; transition: 0.2s; user-select: none; }
+        .interest-chip.selected { background: var(--primary); border-color: var(--primary); color: #fff; transform: scale(1.05); box-shadow: 0 4px 10px rgba(37,99,235,0.3); }
+        #interestsModal .modal-content { text-align: center; max-width: 500px; padding: 30px; }
+        #interestsModal .close-btn { display: none; } /* إخفاء زر الإغلاق عشان يكون إجباري */
+    </style>
 </head>
 <body>
     <div id="initialLoader">
@@ -34,6 +42,16 @@
         </div>
     </div>
     <div id="globalMentionBox" class="mention-box"></div>
+
+    <div class="modal" id="interestsModal" style="background: rgba(15, 23, 42, 0.9);">
+        <div class="modal-content">
+            <h2 style="margin-top:0; color:var(--primary);"><em class="fas fa-magic"></em> صمم تجربتك</h2>
+            <p style="color:var(--text-muted); font-weight:600;">اختر 3 اهتمامات على الأقل ليتم تخصيص المحتوى والأصدقاء لك.</p>
+            <div class="interests-grid" id="interestsContainer">
+                </div>
+            <button onclick="window.saveUserInterests()" class="btn-primary" style="width:100%; padding:15px; font-size:18px;" id="saveInterestsBtn">حفظ والبدء 🚀</button>
+        </div>
+    </div>
 
     <div class="modal" id="statsModal">
         <div style="padding:25px;" class="modal-content">
@@ -122,6 +140,9 @@
                 <div class="profile-handle" id="profHandle">@user</div>
                 <p class="profile-bio" id="profBio">لا توجد نبذة.</p>
                 <p style="font-size:13px;color:#65676b;margin-top:-10px;margin-bottom:15px;" id="profLoc"><em class="fas fa-map-marker-alt"></em> <span id="profLocText">غير محدد</span></p>
+                
+                <div id="profInterestsArea" style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap; margin-bottom:15px;"></div>
+
                 <div class="profile-stats" id="profStats">
                     <div class="stat-box"><span class="stat-num" id="statFriends">0</span><span class="stat-label">صديق</span></div>
                     <div class="stat-box"><span class="stat-num" id="statPosts">0</span><span class="stat-label">منشور</span></div>
