@@ -52,6 +52,7 @@ const PLATFORM_INTERESTS = [
 ];
 window.selectedInterests = new Set();
 
+// نظام الطوارئ: إخفاء شاشة التحميل إجبارياً بعد 4 ثواني لمنع التعليق
 window.addEventListener('load', () => {
     setTimeout(() => {
         let il = document.getElementById('initialLoader');
@@ -121,44 +122,9 @@ window.registerUser = () => {
     for(let i=0; i<r.length; i++) { if(r[i].checked) { sh = r[i].value; break; } }
     if(!d || !dbv || !p || !sh) return alert("أكمل البيانات"); if(p.length < 6) return alert("كلمة المرور 6 أحرف على الأقل");
     let btn = $('regBtn'), ot = btn.innerText; btn.innerText = "جاري..."; btn.disabled = true;
-    
-    async function getLoc() {
-        return new Promise(resolve => {
-            let isResolved = false;
-            let finish = (loc) => { if(!isResolved){ isResolved=true; resolve(loc || "غير محدد"); }};
-            setTimeout(() => finish("غير محدد"), 6000);
-            
-            async function fallback() {
-                try {
-                    let res = await fetch('https://ipapi.co/json/');
-                    let data = await res.json();
-                    finish(data.country_name ? (data.country_name + (data.city ? " - "+data.city : "")) : "غير محدد");
-                } catch(e) { finish("غير محدد"); }
-            }
-
-            if(navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(async pos => {
-                    try {
-                        let res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&accept-language=ar`);
-                        let l = await res.json();
-                        let c = l.address.city || l.address.town || l.address.state || "";
-                        finish((l.address.country||"") + (c ? " - "+c : ""));
-                    } catch(e) { fallback(); }
-                }, fallback, {timeout:4000});
-            } else fallback();
-        });
-    }
-
-    getLoc().then(loc => { 
-        get(ref(db,`users/${sh}`)).then(s => { 
-            if(s.exists()) { alert("المعرف محجوز"); btn.innerText = ot; btn.disabled = false; } 
-            else { 
-                set(ref(db,`users/${sh}`), { displayName: d, birthdate: dbv, password: p, online: true, profilePic: dA, bio: "مستخدم جديد", isBot: false, location: loc, job: "", education: "", hobbies: "", interests: [] }).then(() => { 
-                    $('usernameInput').value = sh; $('passwordInput').value = p; window.login(); 
-                }); 
-            } 
-        }).catch(() => { alert("خطأ"); btn.innerText = ot; btn.disabled = false; }); 
-    });
+    async function gL() { return new Promise(rs => { if("geolocation" in navigator) { navigator.geolocation.getCurrentPosition(async pos => { try { let r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&accept-language=ar`); let l = await r.json(); let c = l.address.city || l.address.town || l.address.village || l.address.state || ""; rs((l.address.country||"") + (c ? " - "+c : "")); } catch(e) { fB(rs); } }, () => fB(rs), {timeout:10000}); } else fB(rs); }); }
+    async function fB(rs) { try { let r = await fetch('https://ipwho.is/'); let l = await r.json(); rs(l.country ? (l.country+(l.city?' - '+l.city:'')) : "غير محدد"); } catch(e) { rs("غير محدد"); } }
+    gL().then(loc => { get(ref(db,`users/${sh}`)).then(s => { if(s.exists()) { alert("المعرف محجوز"); btn.innerText = ot; btn.disabled = false; } else { set(ref(db,`users/${sh}`), { displayName: d, birthdate: dbv, password: p, online: true, profilePic: dA, bio: "مستخدم جديد", isBot: false, location: loc, job: "", education: "", hobbies: "", interests: [] }).then(() => { $('usernameInput').value = sh; $('passwordInput').value = p; window.login(); }); } }).catch(() => { alert("خطأ"); btn.innerText = ot; btn.disabled = false; }); });
 };
 
 document.body.addEventListener('click', () => { if("Notification" in window && Notification.permission === "default") Notification.requestPermission(); }, {once:true});
@@ -239,6 +205,7 @@ window.saveUserInterests = () => {
     }).catch(e => { alert("حدث خطأ"); btn.innerText = ot; btn.disabled = false; });
 };
 
+// ======================== تنظيف فيديوهات البوتات نهائيا ========================
 function wipeAllBotVideosForever() {
     if(!localStorage.getItem('wiped_all_bot_videos_v6')) {
         get(ref(db, 'posts')).then(s => {
@@ -258,6 +225,7 @@ function wipeAllBotVideosForever() {
 function fL(u, d) { 
     window.isInitialNotifLoad = true; window.alertedNotifs = new Set(); window.currentUser = u; localStorage.setItem('savedUser', u); 
     
+    // إخفاء شاشة التحميل بشكل آمن ومؤكد
     let il = $('initialLoader'); 
     if(il){ 
         il.classList.add('hidden'); 
@@ -276,6 +244,7 @@ function fL(u, d) {
     let ab = $('adminBtn'); if(ab){ ab.style.display = (u.toLowerCase()==='admin21') ? 'flex' : 'none'; } 
     let oRef = ref(db, `users/${u}/online`); set(oRef, true); onDisconnect(oRef).set(false); 
     
+    // إظهار نافذة الاهتمامات لو المستخدم مختارش قبل كدا
     if(!d.interests || d.interests.length === 0) { setTimeout(window.renderInterestsModal, 1000); }
     
     listenToUsers(); 
@@ -338,6 +307,7 @@ window.openReelsLogic = (startIndex) => {
     scrollArea.innerHTML = h; modal.classList.add('show'); document.body.style.overflow = 'hidden'; scrollArea.querySelectorAll('.reel-screen').forEach(scr => reelsObserver.observe(scr)); setTimeout(() => { let target = scrollArea.children[startIndex]; if(target) target.scrollIntoView({behavior:'auto'}); }, 100); 
 };
 
+// ======================== دوال المحادثات (الشات) ========================
 window.openChatFromProfile = () => { let t = $('profHandle').innerText.replace('@', ''); window.location.hash=''; setTimeout(() => window.openChat(t), 300); };
 
 window.openChat = (t) => {
@@ -400,6 +370,7 @@ window.sendMessage = () => {
     set(ref(db, `chats_typing/${r}/${window.currentUser}`), false); clearTimeout(tT);
     push(ref(db, `chats/${r}`), {sender:window.currentUser, text:t, timestamp:n, read:false}).then(() => { $('chatInput').value = ''; update(ref(db, `users/${window.currentUser}/recentChats`), {[tg]:n}); update(ref(db, `users/${tg}/recentChats`), {[window.currentUser]:n}); let ur = ref(db, `users/${tg}/unreadChats/${window.currentUser}`); get(ur).then(s => set(ur, (s.exists() ? s.val() : 0) + 1)); });
 };
+// ========================================================================
 
 function listenToPosts() { 
     onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(100)), s => { 
@@ -410,6 +381,7 @@ function listenToPosts() {
         } 
         window.allPosts = l; 
         
+        // الريلز مقتصرة على الأعضاء الحقيقيين فقط وتعمل بأمان
         window.allReels = l.filter(p => p.video != null && window.allUsersData[p.author] && !window.allUsersData[p.author].isBot); 
         window.renderReelsTopBar();
 
@@ -523,19 +495,6 @@ window.executeShare = () => {
     let id = $('sharePostId').value, c = $('shareCaption').value.trim(), p = window.postCache[id] || window.allPosts.find(x => x.id === id); if(!p) return;
     let oa = p.isShare ? p.sharedData.author : p.author, sd = {author:oa, text:p.isShare?(p.sharedData.text||""):(p.text||""), timestamp:p.isShare?p.sharedData.timestamp:p.timestamp}, ti = p.isShare ? p.sharedData.image : p.image, tv = p.isShare ? p.sharedData.video : p.video; if(ti) sd.image = ti; if(tv) sd.video = tv;
     let nr = push(ref(db, 'posts')); set(nr, {author:window.currentUser, text:c, isShare:true, sharedData:sd, timestamp:Date.now()}).then(() => { if(oa && oa !== window.currentUser) push(ref(db, `users/${oa}/notifications`), {type:'share', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); window.myFriends.forEach(f => { if(c.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); }); window.location.hash=''; window.goHome(); });
-};
-
-window.previewImage = (e) => {
-    let f = e.target.files[0];
-    if(!f) return;
-    let reader = new FileReader();
-    reader.onload = (ev) => {
-        let preview = document.getElementById('editModalPicPreview');
-        let base64Input = document.getElementById('editPicBase64');
-        if(preview) preview.src = ev.target.result;
-        if(base64Input) base64Input.value = ev.target.result;
-    };
-    reader.readAsDataURL(f);
 };
 
 window.previewMedia = (e, type) => { let f = e.target.files[0]; if(!f) return; if(type === 'video' || type === 'reel') { if(f.size > 50*1024*1024) { alert("الفيديو كبير جداً! الحد الأقصى 50 ميجا."); return; } } window.selectedMediaFile = f; window.selectedMediaType = type; let u = URL.createObjectURL(f), img = $('postImagePreview'), vid = $('postVideoPreview'), cont = $('postMediaPreviewContainer'); cont.style.display = 'block'; if(type === 'image') { img.src = u; img.style.display = 'block'; vid.style.display = 'none'; vid.pause(); } else { vid.src = u; vid.style.display = 'block'; img.style.display = 'none'; } };
@@ -686,7 +645,7 @@ function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(
 
 // ======================== الخوارزمية وتفاعل البوتات ========================
 function initAndRunBots() {
-    get(ref(db, 'botsInitialized_v121')).then(s => {
+    get(ref(db, 'botsInitialized_v120')).then(s => {
         if(!s.exists()) {
             get(ref(db, 'users')).then(us => {
                 let u = {};
@@ -713,44 +672,26 @@ function initAndRunBots() {
                     u[`users/${b.name}/category`] = botCat; 
                     u[`users/${b.name}/location`] = b.location; 
                 });
-                u['botsInitialized_v121'] = true; update(ref(db), u);
+                u['botsInitialized_v120'] = true; update(ref(db), u);
             });
         }
     });
     
-    // خوارزمية طلبات الصداقة الذكية (كل دقيقتين = 120000 مللي ثانية)
     setInterval(() => {
         if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
         let myInterests = window.allUsersData[window.currentUser].interests || [];
         if(myInterests.length === 0) return;
 
-        // بنسحب البوتات الحالية من الداتا بيز عشان نضمن إن معاهم الاهتمامات
-        let matchingBots = [];
-        for (let key in window.allUsersData) {
-            let u = window.allUsersData[key];
-            if (u.isBot && u.category && myInterests.includes(u.category)) {
-                matchingBots.push(key);
-            }
-        }
-
-        // لو مفيش بوت نفس الاهتمام (احتياطي)، نختار من أي بوت
-        if (matchingBots.length === 0) {
-            for (let key in window.allUsersData) {
-                if (window.allUsersData[key].isBot) matchingBots.push(key);
-            }
-        }
-
-        if (matchingBots.length === 0) return;
-
-        let randomBotId = matchingBots[Math.floor(Math.random() * matchingBots.length)];
-
-        // فحص لو مش صديق ومفيش طلب متبادل
-        if(!window.myFriends.includes(randomBotId) && (!window.currentRequests || !window.currentRequests[randomBotId]) && (!window.sentRequests || !window.sentRequests[randomBotId])) { 
-            set(ref(db, `friendRequests/${window.currentUser}/${randomBotId}`), true).then(() => { 
-                push(ref(db, `users/${window.currentUser}/notifications`), {type:'friend_req', from:randomBotId, timestamp:Date.now(), read:false}); 
+        let matchingBots = window.botAccounts.filter(b => myInterests.includes(window.allUsersData[b.name]?.category));
+        let pool = matchingBots.length > 0 ? matchingBots : window.botAccounts;
+        let b = pool[Math.floor(Math.random()*pool.length)];
+        
+        if(!window.myFriends.includes(b.name) && (!window.currentRequests || !window.currentRequests[b.name])) { 
+            set(ref(db, `friendRequests/${window.currentUser}/${b.name}`), true).then(() => { 
+                push(ref(db, `users/${window.currentUser}/notifications`), {type:'friend_req', from:b.name, timestamp:Date.now(), read:false}); 
             }); 
         }
-    }, 120000); // 120000 = دقيقتين
+    }, 60000);
 
     setInterval(() => {
         if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
@@ -760,18 +701,11 @@ function initAndRunBots() {
             if(now - lastTime > 600000) { 
                 set(lastRunRef, now);
                 let myInterests = window.allUsersData[window.currentUser].interests || PLATFORM_INTERESTS;
-                
-                let activeBots = [];
-                for (let key in window.allUsersData) {
-                    let u = window.allUsersData[key];
-                    if (u.isBot && u.category && myInterests.includes(u.category)) {
-                        activeBots.push(key);
-                    }
-                }
+                let activeBots = window.botAccounts.filter(b => myInterests.includes(window.allUsersData[b.name]?.category));
                 
                 if(activeBots.length > 0) {
-                    let randomBotId = activeBots[Math.floor(Math.random()*activeBots.length)];
-                    let botCat = window.allUsersData[randomBotId].category;
+                    let randomBot = activeBots[Math.floor(Math.random()*activeBots.length)];
+                    let botCat = window.allUsersData[randomBot.name].category;
                     
                     let contentLib = [
                         `أحدث التطورات اليوم في مجال ${botCat}، شاركونا رأيكم في التعليقات! 👇`,
@@ -782,9 +716,10 @@ function initAndRunBots() {
                     ];
                     let text = contentLib[Math.floor(Math.random() * contentLib.length)];
                     let n = Date.now() - Math.floor(Math.random()*1000);
+                    let fl = {}; window.botAccounts.sort(()=>0.5-Math.random()).slice(0,10).forEach(x=>fl[x.name]=true);
                     
                     let imgUrl = `https://source.unsplash.com/600x400/?${encodeURIComponent(botCat.split(' ')[0])}`;
-                    push(ref(db, 'posts'), {author:randomBotId, text:text, image:imgUrl, timestamp:n});
+                    push(ref(db, 'posts'), {author:randomBot.name, text:text, image:imgUrl, timestamp:n, likes:fl});
                 }
             }
         });
@@ -792,10 +727,7 @@ function initAndRunBots() {
 
     setInterval(() => {
         if(!window.currentUser) return;
-        let botAccounts = [];
-        for (let key in window.allUsersData) {
-            if (window.allUsersData[key].isBot) botAccounts.push(key);
-        }
+        let botAccounts = window.botAccounts.filter(b => b.type === "user");
         if(botAccounts.length === 0) return;
         let randomBot = botAccounts[Math.floor(Math.random()*botAccounts.length)];
         
@@ -804,8 +736,8 @@ function initAndRunBots() {
             let pool = mediaPosts.length > 0 && Math.random() > 0.3 ? mediaPosts : window.allPosts;
             let randomPost = pool[Math.floor(Math.random() * pool.length)];
             
-            set(ref(db, `posts/${randomPost.id}/likes/${randomBot}`), true);
-            if(randomPost.video || randomPost.isReel) { set(ref(db, `posts/${randomPost.id}/views/${randomBot}`), true); }
+            set(ref(db, `posts/${randomPost.id}/likes/${randomBot.name}`), true);
+            if(randomPost.video || randomPost.isReel) { set(ref(db, `posts/${randomPost.id}/views/${randomBot.name}`), true); }
             
             if(Math.random() < 0.20) {
                 let comments = [];
@@ -814,7 +746,7 @@ function initAndRunBots() {
                 else comments = ["كلام سليم 100%", "أتفق معك تماماً 👍", "مقال مفيد جداً، شكراً للمشاركة!"];
                 
                 let cText = comments[Math.floor(Math.random()*comments.length)];
-                push(ref(db, `posts/${randomPost.id}/comments`), {author:randomBot, text:cText, timestamp:Date.now()});
+                push(ref(db, `posts/${randomPost.id}/comments`), {author:randomBot.name, text:cText, timestamp:Date.now()});
             }
         }
     }, 45000); 
