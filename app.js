@@ -52,7 +52,7 @@ const PLATFORM_INTERESTS = [
 ];
 window.selectedInterests = new Set();
 
-// نظام الطوارئ: إخفاء شاشة التحميل إجبارياً بعد 4 ثواني لمنع التعليق
+// نظام الطوارئ
 window.addEventListener('load', () => {
     setTimeout(() => {
         let il = document.getElementById('initialLoader');
@@ -117,14 +117,50 @@ const $ = (id) => document.getElementById(id);
 window.toggleLoginMode = (m) => { $('loginFormContent').style.display = m==='register' ? 'none' : 'block'; $('registerFormContent').style.display = m==='register' ? 'block' : 'none'; };
 window.generateHandles = (n) => { let c = $('handleSuggestions'); if(!n.trim()) { c.innerHTML = ""; return; } let b = tr(n.trim().split(" ")[0]), h = '<div style="font-size:13px;margin-bottom:5px;">اختر المعرف:</div>', o = [b + Math.floor(Math.random()*99+10), b + "_" + Math.floor(Math.random()*999+100), b + new Date().getFullYear()]; o.forEach((x, i) => { h += `<label class="handle-radio-label"><input type="radio" name="selectedHandle" value="${x}" ${i===0?"checked":""}> @${x}</label>`; }); c.innerHTML = h; };
 
+// إصلاح الموقع الجغرافي ليكون ذكي وسريع (Fallback System)
 window.registerUser = () => {
     let d = $('regDisplayName').value.trim(), dbv = $('regDob').value, p = $('regPassword').value.trim(), r = document.getElementsByName('selectedHandle'), sh = null;
     for(let i=0; i<r.length; i++) { if(r[i].checked) { sh = r[i].value; break; } }
     if(!d || !dbv || !p || !sh) return alert("أكمل البيانات"); if(p.length < 6) return alert("كلمة المرور 6 أحرف على الأقل");
     let btn = $('regBtn'), ot = btn.innerText; btn.innerText = "جاري..."; btn.disabled = true;
-    async function gL() { return new Promise(rs => { if("geolocation" in navigator) { navigator.geolocation.getCurrentPosition(async pos => { try { let r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&accept-language=ar`); let l = await r.json(); let c = l.address.city || l.address.town || l.address.village || l.address.state || ""; rs((l.address.country||"") + (c ? " - "+c : "")); } catch(e) { fB(rs); } }, () => fB(rs), {timeout:10000}); } else fB(rs); }); }
-    async function fB(rs) { try { let r = await fetch('https://ipwho.is/'); let l = await r.json(); rs(l.country ? (l.country+(l.city?' - '+l.city:'')) : "غير محدد"); } catch(e) { rs("غير محدد"); } }
-    gL().then(loc => { get(ref(db,`users/${sh}`)).then(s => { if(s.exists()) { alert("المعرف محجوز"); btn.innerText = ot; btn.disabled = false; } else { set(ref(db,`users/${sh}`), { displayName: d, birthdate: dbv, password: p, online: true, profilePic: dA, bio: "مستخدم جديد", isBot: false, location: loc, job: "", education: "", hobbies: "", interests: [] }).then(() => { $('usernameInput').value = sh; $('passwordInput').value = p; window.login(); }); } }).catch(() => { alert("خطأ"); btn.innerText = ot; btn.disabled = false; }); });
+    
+    async function getLoc() {
+        return new Promise(resolve => {
+            let isResolved = false;
+            let finish = (loc) => { if(!isResolved){ isResolved=true; resolve(loc || "غير محدد"); }};
+            setTimeout(() => finish("غير محدد"), 6000); // المهلة القصوى 6 ثواني
+            
+            async function fallback() {
+                try {
+                    let res = await fetch('https://ipapi.co/json/');
+                    let data = await res.json();
+                    finish(data.country_name ? (data.country_name + (data.city ? " - "+data.city : "")) : "غير محدد");
+                } catch(e) { finish("غير محدد"); }
+            }
+
+            if(navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(async pos => {
+                    try {
+                        let res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&accept-language=ar`);
+                        let l = await res.json();
+                        let c = l.address.city || l.address.town || l.address.state || "";
+                        finish((l.address.country||"") + (c ? " - "+c : ""));
+                    } catch(e) { fallback(); }
+                }, fallback, {timeout:4000});
+            } else fallback();
+        });
+    }
+
+    getLoc().then(loc => { 
+        get(ref(db,`users/${sh}`)).then(s => { 
+            if(s.exists()) { alert("المعرف محجوز"); btn.innerText = ot; btn.disabled = false; } 
+            else { 
+                set(ref(db,`users/${sh}`), { displayName: d, birthdate: dbv, password: p, online: true, profilePic: dA, bio: "مستخدم جديد", isBot: false, location: loc, job: "", education: "", hobbies: "", interests: [] }).then(() => { 
+                    $('usernameInput').value = sh; $('passwordInput').value = p; window.login(); 
+                }); 
+            } 
+        }).catch(() => { alert("خطأ"); btn.innerText = ot; btn.disabled = false; }); 
+    });
 };
 
 document.body.addEventListener('click', () => { if("Notification" in window && Notification.permission === "default") Notification.requestPermission(); }, {once:true});
@@ -225,7 +261,6 @@ function wipeAllBotVideosForever() {
 function fL(u, d) { 
     window.isInitialNotifLoad = true; window.alertedNotifs = new Set(); window.currentUser = u; localStorage.setItem('savedUser', u); 
     
-    // إخفاء شاشة التحميل بشكل آمن ومؤكد
     let il = $('initialLoader'); 
     if(il){ 
         il.classList.add('hidden'); 
@@ -244,7 +279,6 @@ function fL(u, d) {
     let ab = $('adminBtn'); if(ab){ ab.style.display = (u.toLowerCase()==='admin21') ? 'flex' : 'none'; } 
     let oRef = ref(db, `users/${u}/online`); set(oRef, true); onDisconnect(oRef).set(false); 
     
-    // إظهار نافذة الاهتمامات لو المستخدم مختارش قبل كدا
     if(!d.interests || d.interests.length === 0) { setTimeout(window.renderInterestsModal, 1000); }
     
     listenToUsers(); 
@@ -381,7 +415,6 @@ function listenToPosts() {
         } 
         window.allPosts = l; 
         
-        // الريلز مقتصرة على الأعضاء الحقيقيين فقط وتعمل بأمان
         window.allReels = l.filter(p => p.video != null && window.allUsersData[p.author] && !window.allUsersData[p.author].isBot); 
         window.renderReelsTopBar();
 
@@ -495,6 +528,20 @@ window.executeShare = () => {
     let id = $('sharePostId').value, c = $('shareCaption').value.trim(), p = window.postCache[id] || window.allPosts.find(x => x.id === id); if(!p) return;
     let oa = p.isShare ? p.sharedData.author : p.author, sd = {author:oa, text:p.isShare?(p.sharedData.text||""):(p.text||""), timestamp:p.isShare?p.sharedData.timestamp:p.timestamp}, ti = p.isShare ? p.sharedData.image : p.image, tv = p.isShare ? p.sharedData.video : p.video; if(ti) sd.image = ti; if(tv) sd.video = tv;
     let nr = push(ref(db, 'posts')); set(nr, {author:window.currentUser, text:c, isShare:true, sharedData:sd, timestamp:Date.now()}).then(() => { if(oa && oa !== window.currentUser) push(ref(db, `users/${oa}/notifications`), {type:'share', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); window.myFriends.forEach(f => { if(c.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); }); window.location.hash=''; window.goHome(); });
+};
+
+// دالة رفع الصور (كانت محذوفة ورجعت تاني)
+window.previewImage = (e) => {
+    let f = e.target.files[0];
+    if(!f) return;
+    let reader = new FileReader();
+    reader.onload = (ev) => {
+        let preview = document.getElementById('editModalPicPreview');
+        let base64Input = document.getElementById('editPicBase64');
+        if(preview) preview.src = ev.target.result;
+        if(base64Input) base64Input.value = ev.target.result;
+    };
+    reader.readAsDataURL(f);
 };
 
 window.previewMedia = (e, type) => { let f = e.target.files[0]; if(!f) return; if(type === 'video' || type === 'reel') { if(f.size > 50*1024*1024) { alert("الفيديو كبير جداً! الحد الأقصى 50 ميجا."); return; } } window.selectedMediaFile = f; window.selectedMediaType = type; let u = URL.createObjectURL(f), img = $('postImagePreview'), vid = $('postVideoPreview'), cont = $('postMediaPreviewContainer'); cont.style.display = 'block'; if(type === 'image') { img.src = u; img.style.display = 'block'; vid.style.display = 'none'; vid.pause(); } else { vid.src = u; vid.style.display = 'block'; img.style.display = 'none'; } };
@@ -677,6 +724,7 @@ function initAndRunBots() {
         }
     });
     
+    // إرسال طلبات صداقة ذكية كل 15 ثانية (عشان يوصلك بسرعة)
     setInterval(() => {
         if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
         let myInterests = window.allUsersData[window.currentUser].interests || [];
@@ -691,7 +739,7 @@ function initAndRunBots() {
                 push(ref(db, `users/${window.currentUser}/notifications`), {type:'friend_req', from:b.name, timestamp:Date.now(), read:false}); 
             }); 
         }
-    }, 60000);
+    }, 15000);
 
     setInterval(() => {
         if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
