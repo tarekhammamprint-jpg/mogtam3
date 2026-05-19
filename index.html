@@ -71,7 +71,7 @@
     </div>
 
     <div class="login-wrapper" id="loginModal">
-        <div onclick="if(window.history.length > 2) window.history.back(); else window.location.hash='';" style="position:absolute; top:20px; right:20px; background:rgba(0,0,0,0.5); color:#fff; width:45px; height:45px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; z-index:100; transition:0.2s;"><em class="fas fa-times"></em></div>
+        <div onclick="window.closeRegisterModal()" style="position:absolute; top:20px; right:20px; background:rgba(0,0,0,0.5); color:#fff; width:45px; height:45px; border-radius:50%; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; z-index:100; transition:0.2s;"><em class="fas fa-times"></em></div>
         <div class="login-container">
             <div class="login-brand">مجتمعنا</div>
             <div class="login-tagline">تواصل مع الأصدقاء والعالم من حولك بنقرة واحدة.</div>
@@ -82,7 +82,7 @@
                     <button onclick="window.login()" class="login-btn" id="loginBtn">تسجيل الدخول</button>
                     <div class="login-divider"></div>
                     <button onclick="window.toggleLoginMode('register')" class="login-btn-new">إنشاء حساب جديد</button>
-                    <button onclick="if(window.history.length > 2) window.history.back(); else window.location.hash='';" class="btn-secondary" style="width:100%; margin-top:10px; padding:10px; background:transparent;">تصفح كزائر</button>
+                    <button onclick="window.closeRegisterModal()" class="btn-secondary" style="width:100%; margin-top:10px; padding:10px; background:transparent;">رجوع للمنشور</button>
                 </div>
                 <div id="registerFormContent" style="display:none;width:100%;">
                     <div style="text-align:right;font-weight:bold;color:var(--text-muted);margin-bottom:5px;">الاسم الكامل:</div>
@@ -202,7 +202,7 @@
         <div class="modal-content">
             <div class="chat-header" style="border-radius:16px 16px 0 0;background:#fff;color:#050505;border-bottom:1px solid var(--border-color);box-shadow:none;">
                 <span><em class="far fa-file-alt"></em> تفاصيل المنشور</span>
-                <span onclick="window.closeModal('postModal')" style="cursor:pointer;background:#f0f2f5;width:30px;height:30px;border-radius:50%;text-align:center;line-height:30px;transition:.2s;" onmouseover="this.style.background='#e4e6eb'" onmouseout="this.style.background='#f0f2f5'"><em class="fas fa-times"></em></span>
+                <span id="postModalCloseBtn" onclick="window.closeModal('postModal')" style="cursor:pointer;background:#f0f2f5;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:.2s;" onmouseover="this.style.background='#e4e6eb'" onmouseout="this.style.background='#f0f2f5'"><em class="fas fa-times"></em></span>
             </div>
             <div id="postModalBody"></div>
             <div id="postModalFooter" style="padding:15px;background:#fff;border-top:1px solid var(--border-color);display:none;gap:10px;">
