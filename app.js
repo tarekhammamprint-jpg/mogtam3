@@ -138,17 +138,21 @@ window.toggleLoginMode = (m) => { $('loginFormContent').style.display = m==='reg
 window.generateHandles = (n) => { let c = $('handleSuggestions'); if(!n.trim()) { c.innerHTML = ""; return; } let b = tr(n.trim().split(" ")[0]), h = '<div style="font-size:13px;margin-bottom:5px;">اختر المعرف:</div>', o = [b + Math.floor(Math.random()*99+10), b + "_" + Math.floor(Math.random()*999+100), b + new Date().getFullYear()]; o.forEach((x, i) => { h += `<label class="handle-radio-label"><input type="radio" name="selectedHandle" value="${x}" ${i===0?"checked":""}> @${x}</label>`; }); c.innerHTML = h; };
 
 window.showRegisterModal = () => {
-    let s = $('hideLoginStyle'); if(s) s.remove();
-    let lw = $('loginModal');
-    lw.style.display = 'flex';
-    setTimeout(() => { lw.style.opacity = '1'; lw.style.pointerEvents = 'auto'; }, 10);
+    let s = document.getElementById('hideLoginStyle'); if(s) s.remove();
+    let lw = document.getElementById('loginModal');
+    if(lw) {
+        lw.style.display = 'flex';
+        setTimeout(() => { lw.style.opacity = '1'; lw.style.pointerEvents = 'auto'; }, 10);
+    }
     window.toggleLoginMode('register');
 };
 window.closeRegisterModal = () => {
     let lw = $('loginModal');
-    lw.style.opacity = '0';
-    lw.style.pointerEvents = 'none';
-    setTimeout(() => { lw.style.display = 'none'; }, 400);
+    if(lw) {
+        lw.style.opacity = '0';
+        lw.style.pointerEvents = 'none';
+        setTimeout(() => { lw.style.display = 'none'; }, 400);
+    }
 };
 
 window.topLogin = () => {
@@ -278,27 +282,25 @@ window.saveUserInterests = () => {
     }).catch(e => { alert("حدث خطأ"); btn.innerText = ot; btn.disabled = false; });
 };
 
-// تم تعطيل المكنسة لحفظ الملفات كما هي
-function wipeAllBotVideosForever() { }
+// تم إيقاف المكنسة نهائياً كما طلبت للحفاظ على البيانات
+function wipeAllBotVideosForever() {}
 
 function fL(u, d) { 
     window.isInitialNotifLoad = true; window.alertedNotifs = new Set(); window.currentUser = u; localStorage.setItem('savedUser', u); 
     let il = $('initialLoader'); if(il){ il.classList.add('hidden'); setTimeout(()=>il.style.display='none', 400); } 
     let lw = $('loginModal'); if(lw){ lw.style.opacity='0'; lw.style.pointerEvents='none'; setTimeout(()=>lw.style.display='none', 400); } 
     
-    $('guestNav').style.display = 'none';
-    $('loggedInNav').style.display = 'flex';
+    let guestNav = $('guestNav'); if(guestNav) guestNav.style.display = 'none';
+    let loggedInNav = $('loggedInNav'); if(loggedInNav) loggedInNav.style.display = 'flex';
     let cb = $('composerBox'); if(cb) cb.style.display = 'block';
-    $('sidebarAreaContainer').style.display = 'block';
-    $('bottomNav').style.display = '';
+    let sidebarAreaContainer = $('sidebarAreaContainer'); if(sidebarAreaContainer) sidebarAreaContainer.style.display = 'block';
+    let bottomNav = $('bottomNav'); if(bottomNav) bottomNav.style.display = '';
 
     let n = d.displayName || u; $('currentUserDisplay').innerText = n; let p = d.profilePic || dA; 
     ['myNavAvatar','composerAvatar','myShareAvatar','mobileNavAvatar','modalMyPic'].forEach(x=>{ if($(x)) $(x).src=p; }); 
     let ab = $('adminBtn'); if(ab){ ab.style.display = (u.toLowerCase()==='admin21') ? 'flex' : 'none'; } 
     let oRef = ref(db, `users/${u}/online`); set(oRef, true); onDisconnect(oRef).set(false); 
-    
     if(!d.interests || d.interests.length === 0) { setTimeout(window.renderInterestsModal, 1000); }
-    
     listenToUsers(); 
 }
 
@@ -308,7 +310,7 @@ if(window.currentUser){
         if(s.exists()){ fL(window.currentUser, s.val()); } else rU(); 
     }).catch(rU); 
 } else {
-    rU(); 
+    rU();
 }
 
 function rU(){ 
@@ -321,40 +323,25 @@ function rU(){
     let lw = $('loginModal');
     if(lw) { lw.style.opacity = '0'; lw.style.pointerEvents = 'none'; setTimeout(() => lw.style.display = 'none', 400); }
 
-    $('guestNav').style.display = 'flex';
-    $('loggedInNav').style.display = 'none';
+    let guestNav = $('guestNav'); if(guestNav) guestNav.style.display = 'flex';
+    let loggedInNav = $('loggedInNav'); if(loggedInNav) loggedInNav.style.display = 'none';
     let cb = $('composerBox'); if(cb) cb.style.display = 'none';
-    $('sidebarAreaContainer').style.display = 'none';
-    $('bottomNav').style.display = 'none';
+    let sidebarAreaContainer = $('sidebarAreaContainer'); if(sidebarAreaContainer) sidebarAreaContainer.style.display = 'none';
+    let bottomNav = $('bottomNav'); if(bottomNav) bottomNav.style.display = 'none';
 
     listenToUsers(); 
 }
 
-function listenToUsers(){ 
-    onValue(ref(db,'users'), s => { 
-        if(s.exists()){ 
-            window.allUsersData = s.val(); 
-            if(window.isInitialLoad){ 
-                listenToPosts();
-                if(window.currentUser) {
-                    listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); initAndRunBots(); setTimeout(window.checkFriendsBirthdays, 3000); 
-                }
-            } else { 
-                if(window.currentUser) { renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); }
-            } 
-        } 
-    }); 
-}
-
+function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window.allUsersData = s.val(); if(window.isInitialLoad){ listenToPosts(); if(window.currentUser){ listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); initAndRunBots(); setTimeout(window.checkFriendsBirthdays, 3000); } } else { if(window.currentUser){ renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); } } } }); }
 function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ window.feedLim=5; renderFeed(); } }); }
 function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unreadChats`), s => { window.unreadChatsData = s.exists() ? s.val() : {}; let t=0; if(window.currentChatTarget && window.isChatBoxVisible && window.unreadChatsData[window.currentChatTarget]){ remove(ref(db,`users/${window.currentUser}/unreadChats/${window.currentChatTarget}`)); delete window.unreadChatsData[window.currentChatTarget]; } for(let x in window.unreadChatsData){ let c = window.unreadChatsData[x], p = window.previousUnreadChats[x]||0; t+=c; if(c>p && x!==window.currentChatTarget) window.showToast("رسالة جديدة", `أرسل ${window.getDisplayName(x)} رسالة`, window.allUsersData[x]?.profilePic); } window.previousUnreadChats = {...window.unreadChatsData}; let b1=$('chatBadge'), b2=$('chatBadgeMobile'); if(t>0){ b1.style.display='inline-block'; b1.innerText=t; b2.style.display='inline-block'; b2.innerText=t; } else { b1.style.display='none'; b2.style.display='none'; } renderSidebarUsers(); }); }
 function listenToRecentChats(){ onValue(ref(db,`users/${window.currentUser}/recentChats`), s => { window.recentChatsData = s.exists() ? s.val() : {}; renderSidebarUsers(); }); }
 
 window.renderReelsTopBar = () => { 
     let topBar = $('reelsTopBar'); if(!topBar) return; 
-    let h = '';
-    if(window.currentUser) h += `<label class="reel-add-btn" style="margin:0;"><i class="fas fa-plus"></i> إنشاء ريل<input type="file" style="display:none;" accept="video/*" onchange="window.previewMedia(event, 'reel'); window.scrollTo({top:0, behavior:'smooth'});"></label>`; 
-    let visibleReels = window.allReels.filter(r => window.currentUser ? (r.author === window.currentUser || window.myFriends.includes(r.author) || (window.allUsersData[r.author] && !window.allUsersData[r.author].isBot)) : true); 
+    if(!window.currentUser) { topBar.style.display = 'none'; return; }
+    let h = `<label class="reel-add-btn" style="margin:0;"><i class="fas fa-plus"></i> إنشاء ريل<input type="file" style="display:none;" accept="video/*" onchange="window.previewMedia(event, 'reel'); window.scrollTo({top:0, behavior:'smooth'});"></label>`; 
+    let visibleReels = window.allReels.filter(r => window.currentUser ? (r.author === window.currentUser || window.myFriends.includes(r.author) || (window.allUsersData[r.author] && !window.allUsersData[r.author].isBot)) : false); 
     visibleReels.forEach((r) => { 
         let ap = window.allUsersData[r.author]?.profilePic || dA, an = window.getDisplayName(r.author); 
         let vc = r.views ? Object.keys(r.views).length : 0; 
@@ -365,7 +352,8 @@ window.renderReelsTopBar = () => {
 };
 
 window.generateReelsWidgetHTML = () => { 
-    let visibleReels = window.allReels.filter(r => window.currentUser ? (r.author === window.currentUser || window.myFriends.includes(r.author) || (window.allUsersData[r.author] && !window.allUsersData[r.author].isBot)) : true).slice(0,10); 
+    if(!window.currentUser) return '';
+    let visibleReels = window.allReels.filter(r => window.currentUser ? (r.author === window.currentUser || window.myFriends.includes(r.author) || (window.allUsersData[r.author] && !window.allUsersData[r.author].isBot)) : false).slice(0,10); 
     if(visibleReels.length === 0) return ''; 
     let h = `<div class="reels-container" style="margin-top: 15px;">`; 
     visibleReels.forEach(r => { 
@@ -378,6 +366,7 @@ window.generateReelsWidgetHTML = () => {
 };
 
 window.openReelsLogic = (startIndex) => { 
+    if(!window.currentUser) return window.showRegisterModal();
     let modal = $('reelsViewerModal'), scrollArea = $('reelsScrollArea'), h = ''; 
     window.allReels.forEach(r => { 
         let ap = window.allUsersData[r.author]?.profilePic || dA, an = window.getDisplayName(r.author); 
@@ -466,6 +455,7 @@ function listenToPosts() {
 
         if(window.isInitialLoad){ 
             window.renderedPostIds = new Set(l.map(p=>p.id)); renderFeed(); window.isInitialLoad=false; 
+            handleRouting(); // <--- السطر السحري اللي بيشغل اللينكات من بره الموقع مباشرة
         } else { 
             let hash = window.location.hash; 
             if(hash.startsWith('#/post/')){ let up = window.postCache[decodeURIComponent(hash.replace('#/post/', ''))]; if(up) window.openPostLogic(up.id); } 
@@ -499,7 +489,6 @@ function createPostHTML(p, cp, it=false, im=false) {
     let isLongP = p.text && (p.text.length > 200 || p.text.split('\n').length > 3);
     let pTxt = `<div class="post-content ${isLongP && !im ? 'collapsed' : ''}" id="ptxt_${p.id}">${st}</div>`; if(isLongP && !im) pTxt += `<div class="show-more-btn" onclick="document.getElementById('ptxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`;
     
-    // روابط المستخدم ووقت المنشور (مجهزة للنسخ والفتح في نافذة جديدة)
     let headerLeft = `
     <div style="display:flex; gap:10px; align-items:center;">
         <a href="#/@${p.author}"><img src="${ap}" class="avatar-small"></a>
@@ -547,8 +536,10 @@ function renderFeed() {
     if(!iN){ let t_i = 0; for(let i=0; i<reg.length; i++){ vp.push(reg[i]); if((i+1)%10===0 && t_i<tr.length){ vp.push(tr[t_i]); t_i++; } } }
     vp.slice(0, window.feedLim || 5).forEach((v,i) => { 
         h += createPostHTML(v.p, 'feed', v.it, false); 
-        if((i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget(); 
-        if(i>0 && i%5===0) h += window.generateReelsWidgetHTML(); 
+        // عرض الاقتراحات لو فيه مستخدم مسجل
+        if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget(); 
+        // عرض الريلز لو فيه مستخدم مسجل
+        if(window.currentUser && i>0 && i%5===0) h += window.generateReelsWidgetHTML(); 
     });
     let pf = document.getElementById('postsFeed');
     if(pf) {
@@ -594,7 +585,6 @@ window.renderPostModalLogic = (p) => {
     let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10;
     $('postModalBody').innerHTML = createPostHTML(p, 'modal', it, true);
     
-    // إخفاء الردود لو زائر
     let pf = $('postModalFooter');
     if(pf) pf.style.display = window.currentUser ? 'flex' : 'none';
 
@@ -673,7 +663,10 @@ window.openEditProfileLogic = () => {
 };
 
 window.openProfileLogic = (u) => {
-    if(!u) { window.history.back(); return; }
+    if(!window.currentUser) {
+        window.location.hash = ''; // منع الزوار من الدخول للصفحة
+        return window.showRegisterModal();
+    }
     window.switchProfileTab('posts'); 
     let d = window.allUsersData[u];
     if(!d) {
@@ -706,10 +699,7 @@ function renderProfileData(u, d) {
     let ac = $('profActions');
     let ism = (u === window.currentUser), isf = window.currentUser ? window.myFriends.includes(u) : false, rr = window.currentRequests && window.currentRequests[u];
     
-    if(!window.currentUser) {
-        $('coverEditBtn').style.display = 'none'; 
-        ac.innerHTML = `<button class="btn-primary" onclick="window.showRegisterModal()"><i class="fas fa-user-plus"></i> إضافة</button> <button class="btn-secondary" onclick="window.location.hash=''; window.scrollTo({top:0, behavior:'smooth'});"><i class="fas fa-share"></i> مشاركة</button>`;
-    } else if(ism) { 
+    if(ism) { 
         $('coverEditBtn').style.display = 'flex'; 
         ac.innerHTML = `<button class="btn-primary" onclick="window.openEditProfileModal()"><i class="fas fa-edit"></i> تعديل</button><button class="btn-secondary" onclick="window.location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); let c = $('postContent'); c.value = 'حساب رائع: @${u} ✨'; c.focus();"><i class="fas fa-share"></i> مشاركة</button>`; 
     } else {
@@ -773,14 +763,11 @@ window.unfriend = (t) => { if(!window.currentUser) return; if(confirm(`حذف ا
 window.openRequestsLogic = () => { window.renderSuggestedUsersModal(); $('requestsModal').classList.add('show'); document.body.style.overflow = 'hidden'; };
 window.openStatsLogic = () => { $('statsModal').classList.add('show'); document.body.style.overflow = 'hidden'; get(ref(db, 'users')).then(us => { let r=0, b=0, o=0; if(us.exists()) { let v = us.val(); for(let k in v) { if(v[k].isBot) b++; else r++; if(v[k].online) o++; } } $('statReal').innerText = r; $('statBots').innerText = b; $('statOnline').innerText = o; }); get(ref(db, 'posts')).then(ps => { $('statPosts').innerText = ps.exists() ? Object.keys(ps.val()).length : 0; }); };
 
-// نظام ترتيب طلبات الصداقة بالأحدث في نافذة الطلبات
 function renderRequests() { 
     let c = 0, h = ''; 
     let reqArr = Object.entries(window.currentRequests||{}).map(([k,v]) => ({id:k, time: v===true ? 0 : v})).sort((a,b) => b.time - a.time);
-    
     for(let req of reqArr) { 
-        let s = req.id;
-        c++; 
+        let s = req.id; c++; 
         h += `<div class="req-row"><a href="#/@${s}" style="display:flex;align-items:center;gap:8px;color:inherit;text-decoration:none;"><img src="${window.allUsersData[s]?.profilePic || dA}" class="avatar-small"><strong>${window.getDisplayName(s)}</strong></a><div class="req-actions"><button class="btn-accept" onclick="window.acceptRequest('${s}')"><i class="fas fa-check"></i></button><button class="btn-reject" onclick="window.rejectRequest('${s}')"><i class="fas fa-times"></i></button></div></div>`; 
     } 
     let b1 = $('reqBadge'), b2 = $('reqBadgeMobile'); if(c > 0) { b1.style.display = 'inline-block'; b1.innerText = c; b2.style.display = 'inline-block'; b2.innerText = c; } else { b1.style.display = 'none'; b2.style.display = 'none'; h = '<p style="color:#666;text-align:center;">لا طلبات.</p>'; } $('requestsList').innerHTML = h; window.renderSidebarTop(); 
@@ -815,5 +802,5 @@ window.getSuggestions = () => {
 function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;"><i class="fas ${x.matchesInt ? 'fa-magic' : (x.isPage?'fa-check-circle':'fa-user-friends')}"></i> ${x.matchesInt ? 'نفس اهتماماتك' : (x.isPage?'صفحة رسمية':(x.mutualCount>0?`مشتركون: ${x.mutualCount}`:(x.isSameLocation?'من منطقتك':'عضو جديد')))}</span></a>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
 
 function initAndRunBots() {
-    // تم تأجيل المكنسة كما طلبت، البوتات هتنشر بناء على الاهتمامات وكل دقيقتين طلب صداقة
+    // البوتات وتحديثاتها مؤمنة ولن يتم تغييرها أو مسحها بناء على طلبك
 }
