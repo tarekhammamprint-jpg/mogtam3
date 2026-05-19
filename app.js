@@ -42,7 +42,7 @@ window.getDisplayHandle = (id) => '@' + id;
 window.allReels = [];
 let reelsObserver = null;
 
-// ================= قائمة المجالات الـ 20 =================
+// ================= قائمة المجالات وأسماء البوتات الواقعية =================
 const PLATFORM_INTERESTS = [
     "أخبار وسياسة", "رياضة وكرة قدم", "طبخ ووصفات", "دين وإسلاميات", 
     "تكنولوجيا وتقنية", "سيارات ومحركات", "كوميديا ومقالب", "صحة وطب", 
@@ -52,14 +52,22 @@ const PLATFORM_INTERESTS = [
 ];
 window.selectedInterests = new Set();
 
+const arabNames = ["أحمد", "محمد", "محمود", "خالد", "علي", "حسن", "عمر", "طارق", "يوسف", "كريم", "سارة", "ندى", "منى", "نور", "مريم", "ياسين", "مصطفى", "وليد", "ماجد", "رامي"];
+const engNames = ["ahmed", "mohamed", "mahmoud", "khaled", "ali", "hassan", "omar", "tarek", "yousef", "kareem", "sara", "nada", "mona", "nour", "mariam", "yassin", "mostafa", "waleed", "majed", "rami"];
+
 if(!window.botAccounts || window.botAccounts.length === 0) {
     window.botAccounts = [];
     for(let i=1; i<=60; i++) {
         let cat = PLATFORM_INTERESTS[i % PLATFORM_INTERESTS.length];
+        let n1 = i % arabNames.length;
+        let n2 = (i + 5) % arabNames.length;
+        let dName = arabNames[n1] + " " + arabNames[n2]; // اسم عربي طبيعي جدا
+        let hName = engNames[n1] + "_" + Math.floor(Math.random()*999+100); // يوزر واقعي
+        
         window.botAccounts.push({
-            name: "bot_expert_" + i,
-            displayName: "خبير " + cat + " " + i,
-            pic: `https://ui-avatars.com/api/?name=${encodeURIComponent(cat)}&background=random&color=fff&size=150`,
+            name: hName,
+            displayName: dName,
+            pic: `https://ui-avatars.com/api/?name=${encodeURIComponent(dName)}&background=random&color=fff&size=150`,
             cover: "",
             location: "مصر",
             category: cat,
@@ -68,6 +76,7 @@ if(!window.botAccounts || window.botAccounts.length === 0) {
     }
 }
 
+// نظام الطوارئ
 window.addEventListener('load', () => {
     setTimeout(() => {
         let il = document.getElementById('initialLoader');
@@ -78,6 +87,7 @@ window.addEventListener('load', () => {
     }, 4000);
 });
 
+// ================= نظام التوجيه الذكي =================
 window.addEventListener('hashchange', handleRouting);
 
 function handleRouting() {
@@ -381,6 +391,7 @@ window.sendMessage = () => {
     push(ref(db, `chats/${r}`), {sender:window.currentUser, text:t, timestamp:n, read:false}).then(() => { $('chatInput').value = ''; update(ref(db, `users/${window.currentUser}/recentChats`), {[tg]:n}); update(ref(db, `users/${tg}/recentChats`), {[window.currentUser]:n}); let ur = ref(db, `users/${tg}/unreadChats/${window.currentUser}`); get(ur).then(s => set(ur, (s.exists() ? s.val() : 0) + 1)); });
 };
 
+// ======================== تعديل فلترة الأخبار ========================
 function listenToPosts() { 
     onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(100)), s => { 
         let l = []; 
@@ -663,7 +674,6 @@ window.unfriend = (t) => { if(confirm(`حذف الصداقة؟`)) { let up = {};
 window.openRequestsLogic = () => { window.renderSuggestedUsersModal(); $('requestsModal').classList.add('show'); document.body.style.overflow = 'hidden'; };
 window.openStatsLogic = () => { $('statsModal').classList.add('show'); document.body.style.overflow = 'hidden'; get(ref(db, 'users')).then(us => { let r=0, b=0, o=0; if(us.exists()) { let v = us.val(); for(let k in v) { if(v[k].isBot) b++; else r++; if(v[k].online) o++; } } $('statReal').innerText = r; $('statBots').innerText = b; $('statOnline').innerText = o; }); get(ref(db, 'posts')).then(ps => { $('statPosts').innerText = ps.exists() ? Object.keys(ps.val()).length : 0; }); };
 
-// ترتيب الطلبات
 function renderRequests() { 
     let c = 0, h = ''; 
     let reqArr = Object.entries(window.currentRequests||{}).map(([k,v]) => ({id:k, time: v===true ? 0 : v})).sort((a,b) => b.time - a.time);
@@ -704,9 +714,21 @@ window.getSuggestions = () => {
 };
 function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card" onclick="window.openProfile('${x.name}')"><img src="${x.data.profilePic||dA}"><span class="s-name">${window.getDisplayName(x.name)}</span><span class="s-mutual"><i class="fas ${x.matchesInt ? 'fa-magic' : (x.isPage?'fa-check-circle':'fa-user-friends')}"></i> ${x.matchesInt ? 'نفس اهتماماتك' : (x.isPage?'صفحة رسمية':(x.mutualCount>0?`مشتركون: ${x.mutualCount}`:(x.isSameLocation?'من منطقتك':'عضو جديد')))}</span>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
 
-// ======================== الخوارزمية وتفاعل البوتات ========================
+// ======================== الخوارزمية وتفاعل البوتات وإصلاح الأسماء ========================
 function initAndRunBots() {
-    get(ref(db, 'botsInitialized_v135')).then(s => {
+    
+    // دالة المكنسة لمسح أي بوت قديم فضيحة
+    if(!localStorage.getItem('wiped_old_bots_v140')) {
+        get(ref(db, 'posts')).then(s => {
+            if(s.exists()){ s.forEach(c => { let p = c.val(); if(p.author && p.author.startsWith('bot_expert_')) remove(ref(db, `posts/${c.key}`)); }); }
+        });
+        get(ref(db, 'users')).then(s => {
+            if(s.exists()){ s.forEach(c => { if(c.key.startsWith('bot_expert_')) remove(ref(db, `users/${c.key}`)); }); }
+        });
+        localStorage.setItem('wiped_old_bots_v140', 'true');
+    }
+
+    get(ref(db, 'botsInitialized_v140')).then(s => {
         if(!s.exists()) {
             get(ref(db, 'users')).then(us => {
                 let u = {};
@@ -722,12 +744,12 @@ function initAndRunBots() {
                     u[`users/${b.name}/category`] = b.category; 
                     u[`users/${b.name}/location`] = b.location; 
                 });
-                u['botsInitialized_v135'] = true; update(ref(db), u);
+                u['botsInitialized_v140'] = true; update(ref(db), u);
             });
         }
     });
     
-    // خوارزمية طلبات الصداقة الذكية (كل دقيقتين)
+    // خوارزمية طلبات الصداقة الذكية
     setInterval(() => {
         if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
         let myInterests = window.allUsersData[window.currentUser].interests || [];
@@ -740,8 +762,9 @@ function initAndRunBots() {
                 matchingBots.push(key);
             }
         }
+
         if (matchingBots.length === 0) return;
-        
+
         let randomBotId = matchingBots[Math.floor(Math.random() * matchingBots.length)];
 
         if(!window.myFriends.includes(randomBotId) && (!window.currentRequests || !window.currentRequests[randomBotId]) && (!window.sentRequests || !window.sentRequests[randomBotId])) { 
@@ -751,13 +774,13 @@ function initAndRunBots() {
         }
     }, 120000); 
 
-    // جلب أخبار حقيقية 100% من وكالة أخبار سكاي نيوز (كل دقيقتين)
+    // جلب أخبار حقيقية أو نصوص مخصصة 
     setInterval(() => {
         if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
         let lastRunRef = ref(db, 'botStats/lastTextPostRun');
         get(lastRunRef).then(s => {
             let lastTime = s.exists() ? s.val() : 0, now = Date.now();
-            if(now - lastTime > 120000) {  // نشر كل دقيقتين
+            if(now - lastTime > 120000) { 
                 set(lastRunRef, now); 
                 
                 let myInterests = window.allUsersData[window.currentUser].interests || PLATFORM_INTERESTS;
@@ -771,7 +794,6 @@ function initAndRunBots() {
                     let randomBotId = activeBots[Math.floor(Math.random()*activeBots.length)];
                     let botCat = window.allUsersData[randomBotId].category;
                     
-                    // روابط وكالات الأخبار الحقيقية الموزعة حسب المجال
                     let rssFeeds = {
                         "أخبار وسياسة": "https://www.skynewsarabia.com/rss.xml",
                         "رياضة وكرة قدم": "https://www.skynewsarabia.com/rss.xml?category=sport",
@@ -782,21 +804,32 @@ function initAndRunBots() {
                         "فنون وتصميم": "https://www.skynewsarabia.com/rss.xml?category=arts"
                     };
                     
-                    let feedUrl = rssFeeds[botCat] || "https://www.skynewsarabia.com/rss.xml";
+                    let feedUrl = rssFeeds[botCat];
                     
-                    // جلب الأخبار بالصور الحقيقية
-                    fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`)
-                    .then(r => r.json())
-                    .then(data => {
-                        if(data && data.items && data.items.length > 0) {
-                            let item = data.items[Math.floor(Math.random() * Math.min(10, data.items.length))];
-                            let cleanDesc = item.description.replace(/(<([^>]+)>)/gi, "").substring(0, 180) + "...";
-                            let text = `🔴 أخبار عاجلة: ${item.title}\n\n${cleanDesc}\n\nللمزيد من الأخبار، تابعوني!`;
-                            let imgUrl = item.enclosure?.link || item.thumbnail || `https://source.unsplash.com/600x400/?${encodeURIComponent(botCat.split(' ')[0])}`;
-                            
-                            push(ref(db, 'posts'), {author:randomBotId, text:text, image:imgUrl, timestamp:Date.now()});
-                        }
-                    }).catch(e => { console.log("RSS Fetch Error"); });
+                    if(feedUrl) {
+                        // سحب أخبار حقيقية للمجالات المتاحة
+                        fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`)
+                        .then(r => r.json())
+                        .then(data => {
+                            if(data && data.items && data.items.length > 0) {
+                                let item = data.items[Math.floor(Math.random() * Math.min(10, data.items.length))];
+                                let cleanDesc = item.description.replace(/(<([^>]+)>)/gi, "").substring(0, 180) + "...";
+                                let text = `🔴 ${item.title}\n\n${cleanDesc}\n\nللمزيد من الأخبار، تابعوني!`;
+                                let imgUrl = item.enclosure?.link || item.thumbnail || `https://source.unsplash.com/600x400/?${encodeURIComponent(botCat.split(' ')[0])}`;
+                                push(ref(db, 'posts'), {author:randomBotId, text:text, image:imgUrl, timestamp:Date.now()});
+                            }
+                        }).catch(e => { console.log("RSS Fetch Error"); });
+                    } else {
+                        // مجالات (دين، طبخ، إلخ) تنشر مواضيع للنقاش
+                        let contentLib = [
+                            `معلومة سريعة في ${botCat}: هل تعلم أن الاهتمام بهذا المجال زاد جداً مؤخراً؟ شاركونا رأيكم! 👇`,
+                            `أفضل النصائح في ${botCat} جمعتها لكم اليوم، أتمنى تستفيدوا منها ✨`,
+                            `نقاش مفتوح: ما هو رأيكم في التطورات الأخيرة الخاصة بـ ${botCat}؟ 🤔`
+                        ];
+                        let text = contentLib[Math.floor(Math.random() * contentLib.length)];
+                        let imgUrl = `https://source.unsplash.com/random/600x400/?nature`;
+                        push(ref(db, 'posts'), {author:randomBotId, text:text, image:imgUrl, timestamp:Date.now()});
+                    }
                 }
             }
         });
@@ -824,7 +857,7 @@ function initAndRunBots() {
                 let comments = [];
                 if(randomPost.video || randomPost.isReel) comments = ["فيديو عظمة 🔥", "تصوير رائع 👏", "استمر في الإبداع", "ريلز جامد جداً ✨"];
                 else if (randomPost.image) comments = ["صورة جميلة جداً 😍", "اللقطة دي روعة", "إبداع متواصل 🎨"];
-                else comments = ["كلام سليم 100%", "أتفق معك تماماً 👍", "مقال مفيد جداً، شكراً للمشاركة!"];
+                else comments = ["كلام سليم 100%", "أتفق معك تماماً 👍", "موضوع مفيد جداً، شكراً للمشاركة!"];
                 
                 let cText = comments[Math.floor(Math.random()*comments.length)];
                 push(ref(db, `posts/${randomPost.id}/comments`), {author:randomBot, text:cText, timestamp:Date.now()});
