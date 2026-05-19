@@ -1,342 +1,210 @@
-<!DOCTYPE html>
-<html lang="ar" dir="rtl">
-<head>
-    <meta charset="UTF-8" />
-    <meta content="width=device-width,initial-scale=1.0" name="viewport" />
-    <title>مجتمعنا - منصة تواصل</title>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css" />
-    <style>
-        /* ستايل نافذة الاهتمامات */
-        .interests-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; max-height: 300px; overflow-y: auto; padding: 10px; }
-        .interest-chip { background: #f1f5f9; border: 2px solid #e2e8f0; color: #475569; padding: 10px 18px; border-radius: 999px; font-weight: 700; cursor: pointer; transition: 0.2s; user-select: none; }
-        .interest-chip.selected { background: var(--primary); border-color: var(--primary); color: #fff; transform: scale(1.05); box-shadow: 0 4px 10px rgba(37,99,235,0.3); }
-        #interestsModal .modal-content { text-align: center; max-width: 500px; padding: 30px; }
-        #interestsModal .close-btn { display: none; } /* إخفاء زر الإغلاق عشان يكون إجباري */
-    </style>
-</head>
-<body>
-    <div id="initialLoader">
-        <div class="login-brand" style="margin-bottom:20px;">مجتمعنا</div>
-        <div style="color:var(--primary);font-size:20px;font-weight:700;">
-            <em class="fas fa-circle-notch fa-spin"></em> جاري التحميل...
-        </div>
-    </div>
-    
-    <script>
-        const $=(id)=>document.getElementById(id);
-        if(!localStorage.getItem('savedUser')){
-            let il=$('initialLoader');if(il)il.style.display='none';
-        }else{
-            let s=document.createElement('style');s.id='hideLoginStyle';
-            s.innerHTML='#loginModal{display:none!important}';document.head.appendChild(s);
-        }
-    </script>
+:root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --secondary: #ec4899;
+    --bg-main: #f8fafc;
+    --bg-card: #ffffff;
+    --text-main: #0f172a;
+    --text-muted: #64748b;
+    --border-color: #e2e8f0;
+    --success: #10b981;
+    --danger: #ef4444;
+}
 
-    <div id="toastNotification" class="toast-notification">
-        <img id="toastImg" src="" />
-        <div class="toast-content">
-            <div class="toast-title" id="toastTitle">إشعار جديد</div>
-            <div class="toast-body" id="toastBody">محتوى الإشعار...</div>
-        </div>
-    </div>
-    <div id="globalMentionBox" class="mention-box"></div>
+* { box-sizing: border-box; font-family: 'Cairo', sans-serif; margin: 0; padding: 0; }
+body { background: var(--bg-main); color: var(--text-main); font-size: 15px; direction: rtl; }
+a { text-decoration: none; color: inherit; }
 
-    <div class="modal" id="interestsModal" style="background: rgba(15, 23, 42, 0.9);">
-        <div class="modal-content">
-            <h2 style="margin-top:0; color:var(--primary);"><em class="fas fa-magic"></em> صمم تجربتك</h2>
-            <p style="color:var(--text-muted); font-weight:600;">اختر 3 اهتمامات على الأقل ليتم تخصيص المحتوى والأصدقاء لك.</p>
-            <div class="interests-grid" id="interestsContainer">
-                </div>
-            <button onclick="window.saveUserInterests()" class="btn-primary" style="width:100%; padding:15px; font-size:18px;" id="saveInterestsBtn">حفظ والبدء 🚀</button>
-        </div>
-    </div>
+/* ================= Navbar & Search ================= */
+.navbar { position: sticky; top: 0; z-index: 50; background: var(--bg-card); display: flex; justify-content: space-between; align-items: center; padding: 10px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border-bottom: 1px solid var(--border-color); }
+.nav-brand { font-size: 24px; font-weight: 800; color: var(--primary); cursor: pointer; letter-spacing: -0.5px; }
 
-    <div class="modal" id="statsModal">
-        <div style="padding:25px;" class="modal-content">
-            <span onclick="window.closeModal('statsModal')" class="close-btn"><em class="fas fa-times"></em></span>
-            <h3 style="margin-top:0;text-align:center;color:#7c3aed;"><em class="fas fa-chart-line"></em> إحصائيات المنصة</h3>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:20px;">
-                <div style="background:#f8fafc;padding:15px;border-radius:12px;text-align:center;border:1px solid #e2e8f0;">
-                    <span style="display:block;font-size:24px;font-weight:800;color:#7c3aed;" id="statReal">0</span><span style="font-size:13px;color:#64748b;">أعضاء</span>
-                </div>
-                <div style="background:#f8fafc;padding:15px;border-radius:12px;text-align:center;border:1px solid #e2e8f0;">
-                    <span style="display:block;font-size:24px;font-weight:800;color:#7c3aed;" id="statBots">0</span><span style="font-size:13px;color:#64748b;">حسابات آلية</span>
-                </div>
-                <div style="background:#f8fafc;padding:15px;border-radius:12px;text-align:center;border:1px solid #e2e8f0;">
-                    <span style="display:block;font-size:24px;font-weight:800;color:#7c3aed;" id="statPosts">0</span><span style="font-size:13px;color:#64748b;">منشورات</span>
-                </div>
-                <div style="background:#f8fafc;padding:15px;border-radius:12px;text-align:center;border:1px solid #e2e8f0;">
-                    <span style="display:block;font-size:24px;font-weight:800;color:#7c3aed;" id="statOnline">0</span><span style="font-size:13px;color:#64748b;">متصل الآن</span>
-                </div>
-            </div>
-        </div>
-    </div>
+.search-container { position: relative; flex: 1; max-width: 250px; margin: 0 15px; display: flex; align-items: center; justify-content: flex-end;}
+.search-icon { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #64748b; z-index: 10; pointer-events: none; }
+.search-bar { width: 100%; padding: 10px 40px 10px 15px !important; border-radius: 20px; background: #f1f5f9; border: 1px solid #e2e8f0; outline: none; font-size: 14px; transition: 0.2s; }
+.search-bar:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
+.search-results-dropdown { position: absolute; top: calc(100% + 5px); right: 0; width: 100%; background: #fff; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); max-height: 350px; overflow-y: auto; display: none; border: 1px solid var(--border-color); z-index: 100; }
+.search-result-item { display: flex; align-items: center; gap: 10px; padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #f1f5f9; }
+.search-result-item:hover { background: #f8fafc; }
 
-    <div class="login-wrapper" id="loginModal">
-        <div class="login-container">
-            <div class="login-brand">مجتمعنا</div>
-            <div class="login-tagline">تواصل مع الأصدقاء والعالم من حولك بنقرة واحدة.</div>
-            <div class="login-box">
-                <div id="loginFormContent" style="width:100%;">
-                    <input placeholder="المعرف الخاص بك (مثال: @eslam)" class="login-input" id="usernameInput" type="text" dir="ltr" />
-                    <input placeholder="كلمة المرور" class="login-input" id="passwordInput" type="password" />
-                    <button onclick="window.login()" class="login-btn" id="loginBtn">تسجيل الدخول</button>
-                    <div class="login-divider"></div>
-                    <button onclick="window.toggleLoginMode('register')" class="login-btn-new">إنشاء حساب جديد</button>
-                </div>
-                <div id="registerFormContent" style="display:none;width:100%;">
-                    <div style="text-align:right;font-weight:bold;color:var(--text-muted);margin-bottom:5px;">الاسم الكامل:</div>
-                    <input placeholder="مثال: إسلام أبو همام" class="login-input" id="regDisplayName" type="text" oninput="window.generateHandles(this.value)" />
-                    <div style="text-align:right;font-weight:bold;color:var(--text-muted);margin-bottom:5px;">تاريخ الميلاد:</div>
-                    <input type="date" class="input-input login-input" id="regDob" />
-                    <div style="text-align:right;font-weight:bold;color:var(--text-muted);margin-bottom:5px;">كلمة المرور:</div>
-                    <input placeholder="كلمة المرور" class="login-input" id="regPassword" type="password" />
-                    <div id="handleSuggestions" style="display:flex;flex-direction:column;margin-bottom:15px;"></div>
-                    <button onclick="window.registerUser()" class="login-btn" id="regBtn" style="background:var(--secondary);margin-top:10px;">إنشاء الحساب الآن</button>
-                    <div class="login-divider"></div>
-                    <button onclick="window.toggleLoginMode('login')" class="login-btn-new" style="background:#64748b;">لدي حساب بالفعل</button>
-                </div>
-            </div>
-        </div>
-    </div>
+.nav-actions { display: flex; align-items: center; gap: 10px; }
+.nav-btn { background: #f1f5f9; border: none; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; font-size: 18px; color: var(--text-main); position: relative; transition: 0.2s; display: flex; justify-content: center; align-items: center; }
+.nav-btn:hover { background: #e2e8f0; }
+.badge { position: absolute; top: -5px; right: -5px; background: var(--danger); color: #fff; font-size: 11px; padding: 2px 6px; border-radius: 10px; border: 2px solid #fff; display: none; font-weight: bold; }
+.nav-user-container { position: relative; cursor: pointer; }
+.nav-user { display: flex; align-items: center; gap: 8px; background: #f1f5f9; padding: 5px 12px 5px 5px; border-radius: 20px; transition: 0.2s; font-weight: 600; }
+.nav-user:hover { background: #e2e8f0; }
+.avatar-small { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
 
-    <div class="modal" id="editProfileModal">
-        <div class="modal-content" style="padding:25px;">
-            <span onclick="window.closeModal('editProfileModal')" class="close-btn"><em class="fas fa-times"></em></span>
-            <h3 style="margin-top:0;text-align:center;color:var(--text-main);font-weight:800;">تعديل الملف الشخصي</h3>
-            <div style="text-align:center;margin-bottom:20px;">
-                <img src="" id="editModalPicPreview" class="profile-pic-large" style="width:100px;height:100px;margin-bottom:10px;border-width:3px;" />
-                <label class="file-upload-label" style="display:inline-block;padding:8px 20px;"><em class="fas fa-camera"></em> تغيير الصورة<input type="file" style="display:none" accept="image/*" onchange="window.previewImage(event)" /></label>
-            </div>
-            <input type="hidden" id="editPicBase64" />
-            <div style="text-align:right;margin-bottom:5px;font-weight:bold;color:var(--text-muted);">النبذة التعريفية:</div>
-            <input type="text" id="editBio" class="modal-input" placeholder="اكتب نبذة قصيرة عنك..." />
-            <div style="text-align:right;margin-bottom:5px;font-weight:bold;color:var(--text-muted);">الموقع/البلد:</div>
-            <input type="text" id="editLocation" class="modal-input" placeholder="المدينة، البلد..." />
-            <div style="text-align:right;margin-bottom:5px;font-weight:bold;color:var(--text-muted);">تاريخ الميلاد:</div>
-            <input type="date" id="editDobProfile" class="modal-input" />
-            <div style="text-align:right;margin-bottom:5px;font-weight:bold;color:var(--text-muted);">المهنة:</div>
-            <input type="text" id="editJob" class="modal-input" placeholder="مثال: مطور ويب، مهندس..." />
-            <div style="text-align:right;margin-bottom:5px;font-weight:bold;color:var(--text-muted);">الدراسة:</div>
-            <input type="text" id="editEducation" class="modal-input" placeholder="مثال: جامعة القاهرة..." />
-            <div style="text-align:right;margin-bottom:5px;font-weight:bold;color:var(--text-muted);">الهوايات:</div>
-            <input type="text" id="editHobbies" class="modal-input" placeholder="مثال: القراءة، التصميم..." />
-            <button onclick="window.saveProfile()" class="btn-primary" id="saveProfileBtn" style="width:100%;padding:12px;font-size:16px;margin-top:10px;"><em class="fas fa-save"></em> حفظ التعديلات</button>
-        </div>
-    </div>
+.dropdown-menu { position: absolute; top: 100%; left: 0; background: #fff; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); border: 1px solid var(--border-color); min-width: 200px; display: none; margin-top: 10px; z-index: 100; overflow: hidden; }
+.dropdown-item { padding: 12px 15px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 10px; }
+.dropdown-item:hover { background: #f8fafc; }
 
-    <div class="modal" id="profileModal">
-        <div class="modal-content">
-            <div onclick="window.closeModal('profileModal')" class="close-btn"><em class="fas fa-times"></em></div>
-            <div class="profile-cover" id="profCover">
-                <img id="profCoverImg" src="" style="display:none;width:100%;height:100%;object-fit:cover;" />
-                <label class="cover-edit-btn" id="coverEditBtn" style="display:none;"><em class="fas fa-camera"></em> إضافة غلاف<input type="file" accept="image/*" style="display:none;" onchange="window.previewCoverImage(event)" /></label>
-            </div>
-            <div class="profile-header-info">
-                <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="profile-pic-large" id="profPic" />
-                <h2 class="profile-name" id="profName">الاسم</h2>
-                <div class="profile-handle" id="profHandle">@user</div>
-                <p class="profile-bio" id="profBio">لا توجد نبذة.</p>
-                <p style="font-size:13px;color:#65676b;margin-top:-10px;margin-bottom:15px;" id="profLoc"><em class="fas fa-map-marker-alt"></em> <span id="profLocText">غير محدد</span></p>
-                
-                <div id="profInterestsArea" style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap; margin-bottom:15px;"></div>
+/* Guest Header Styles */
+.guest-input { border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 10px; font-size: 13px; outline: none; width: 130px; background: #f1f5f9; }
+.guest-input:focus { border-color: var(--primary); background: #fff; }
 
-                <div class="profile-stats" id="profStats">
-                    <div class="stat-box"><span class="stat-num" id="statFriends">0</span><span class="stat-label">صديق</span></div>
-                    <div class="stat-box"><span class="stat-num" id="statPosts">0</span><span class="stat-label">منشور</span></div>
-                    <div class="stat-box"><span class="stat-num" id="statPhotos">0</span><span class="stat-label">ميديا</span></div>
-                </div>
-                <div class="profile-actions-bar" id="profActions"></div>
-            </div>
-            
-            <div class="profile-tabs">
-                <button onclick="window.switchProfileTab('posts')" id="btnTabPosts" class="tab-btn active">المقالات</button>
-                <button onclick="window.switchProfileTab('reels')" id="btnTabReels" class="tab-btn">الريلز</button>
-                <button onclick="window.switchProfileTab('photos')" id="btnTabPhotos" class="tab-btn">الميديا</button>
-                <button onclick="window.switchProfileTab('friends')" id="btnTabFriends" class="tab-btn">الأصدقاء</button>
-                <button onclick="window.switchProfileTab('about')" id="btnTabAbout" class="tab-btn">حول</button>
-            </div>
-            
-            <div class="tab-content" id="tab-posts">
-                <div style="display:none;background:#fff;padding:15px;border-radius:12px;margin-bottom:15px;border:1px solid var(--border-color);" id="profEditSection"></div>
-                <div style="display:flex;flex-direction:column;gap:15px;" id="profilePostsFeed"></div>
-            </div>
-            <div style="display:none;" class="tab-content" id="tab-reels">
-                <div class="photo-grid" id="profileReelsGrid" style="gap:10px;"></div>
-            </div>
-            <div style="display:none;" class="tab-content" id="tab-photos">
-                <div class="photo-grid" id="profilePhotosGrid"></div>
-            </div>
-            <div style="display:none;" class="tab-content" id="tab-friends">
-                <div class="friend-grid" id="profileFriendsList"></div>
-            </div>
-            <div style="display:none;" class="tab-content" id="tab-about">
-                <div id="profileAboutArea"></div>
-            </div>
-        </div>
-    </div>
+/* ================= Layout ================= */
+.main-container { display: flex; max-width: 1000px; margin: 20px auto; gap: 20px; padding: 0 15px; position: relative; }
+.feed-area { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 15px; }
+.sidebar-placeholder { width: 320px; flex-shrink: 0; }
+.sidebar { width: 320px; position: sticky; top: 85px; max-height: calc(100vh - 100px); overflow-y: auto; background: var(--bg-card); border-radius: 16px; padding: 15px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: 0.3s; }
+.sidebar-title { font-weight: bold; margin-bottom: 15px; color: var(--text-muted); font-size: 16px; }
 
-    <div class="modal" id="requestsModal">
-        <div style="padding:25px;" class="modal-content">
-            <span onclick="window.closeModal('requestsModal')" class="close-btn"><em class="fas fa-times"></em></span>
-            <h3 style="margin-top:0;color:#1c1e21;"><em class="fas fa-user-friends" style="color:var(--primary);"></em> طلبات الصداقة</h3>
-            <div id="requestsList"></div>
-            <h3 style="margin-top:20px;border-top:1px solid var(--border-color);padding-top:20px;color:#1c1e21;"><em class="fas fa-users" style="color:var(--secondary);"></em> مقترحات</h3>
-            <div id="usersList"></div>
-        </div>
-    </div>
+/* ================= Posts & Composer ================= */
+.composer-box, .post { background: var(--bg-card); border-radius: 16px; padding: 15px; border: 1px solid var(--border-color); box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+.composer-input { width: 100%; border: none; outline: none; resize: none; background: transparent; font-size: 16px; font-weight: 500; }
+.post-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+.post-user-info { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.post-user-info:hover .post-author { color: var(--primary); }
+.post-author { font-weight: 800; font-size: 15px; color: var(--text-main); transition: 0.2s; }
+.post-time { font-size: 12px; color: var(--text-muted); }
+.post-time:hover { text-decoration: underline; }
+.post-controls button { background: transparent; border: none; cursor: pointer; color: var(--text-muted); transition: 0.2s; }
+.post-controls button:hover { color: var(--danger); }
+.post-content { font-size: 15px; line-height: 1.6; margin-bottom: 10px; white-space: pre-wrap; word-wrap: break-word; }
+.post-content.collapsed { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.show-more-btn { color: var(--primary); cursor: pointer; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+.post-media { width: 100%; max-height: 500px; border-radius: 12px; object-fit: contain; background: #1e293b; margin-bottom: 10px; }
+.shared-post-box { border: 1px solid var(--border-color); border-radius: 12px; padding: 12px; margin-top: 10px; background: #f8fafc; }
 
-    <div class="modal" id="shareModal">
-        <div class="modal-content" style="padding:20px;">
-            <span onclick="window.closeModal('shareModal')" class="close-btn"><em class="fas fa-times"></em></span>
-            <h3 style="margin-top:0;border-bottom:1px solid var(--border-color);padding-bottom:15px;color:#1c1e21;text-align:center;">مشاركة المنشور</h3>
-            <div style="display:flex;gap:12px;margin-bottom:15px;">
-                <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="myShareAvatar" class="avatar-small" />
-                <textarea oninput="window.handleMentionInput(this)" id="shareCaption" class="composer-input" placeholder="قل شيئاً عن هذا..." rows="3" style="flex:1;border:none;outline:0;background:#f0f2f5;padding:12px;border-radius:12px;"></textarea>
-            </div>
-            <div id="sharePreview" class="shared-post-box" style="margin-bottom:20px;"></div>
-            <input type="hidden" id="sharePostId" />
-            <button onclick="window.executeShare()" class="btn-primary" style="width:100%;padding:12px;font-size:16px;"><em class="fas fa-share"></em> نشر المشاركة</button>
-        </div>
-    </div>
+/* ================= Actions & Comments ================= */
+.post-actions-bar { display: flex; justify-content: space-between; border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 5px 0; margin-bottom: 10px; }
+.action-btn { flex: 1; background: transparent; border: none; padding: 8px; font-size: 14px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-radius: 8px; transition: 0.2s; display: flex; justify-content: center; align-items: center; gap: 5px; }
+.action-btn:hover { background: #f1f5f9; }
+.comments-section { display: flex; flex-direction: column; gap: 10px; }
+.comment { display: flex; gap: 8px; align-items: flex-start; }
+.comment-text-box { background: #f1f5f9; padding: 8px 12px; border-radius: 16px; border-top-right-radius: 4px; display: inline-block; max-width: 90%; }
+.comment-author { font-weight: 700; font-size: 13px; margin-bottom: 2px; }
+.comment-author:hover { text-decoration: underline; color: var(--primary); }
+.comment-input-area { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+.comment-input { flex: 1; border: 1px solid var(--border-color); border-radius: 20px; padding: 8px 15px; outline: none; background: #f8fafc; transition: 0.2s; }
+.comment-input:focus { border-color: var(--primary); background: #fff; }
 
-    <div class="modal" id="postModal">
-        <div class="modal-content">
-            <div class="chat-header" style="border-radius:16px 16px 0 0;background:#fff;color:#050505;border-bottom:1px solid var(--border-color);box-shadow:none;">
-                <span><em class="far fa-file-alt"></em> تفاصيل المنشور</span>
-                <span onclick="window.closeModal('postModal')" style="cursor:pointer;background:#f0f2f5;width:30px;height:30px;border-radius:50%;text-align:center;line-height:30px;transition:.2s;" onmouseover="this.style.background='#e4e6eb'" onmouseout="this.style.background='#f0f2f5'"><em class="fas fa-times"></em></span>
-            </div>
-            <div id="postModalBody"></div>
-            <div id="postModalFooter" style="padding:15px;background:#fff;border-top:1px solid var(--border-color);display:flex;gap:10px;">
-                <input type="hidden" id="modalPostId" /><input type="hidden" id="modalPostAuthor" /><input type="hidden" id="modalReplyToId" />
-                <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="modalMyPic" class="avatar-small" />
-                <input oninput="window.handleMentionInput(this)" onkeypress="if(event.key==='Enter') window.submitModalComment()" placeholder="اكتب تعليقاً... @" class="comment-input" id="modalCommentInput" type="text" style="margin-top:0;" />
-                <button onclick="window.submitModalComment()" class="btn-primary" style="padding:10px 15px;border-radius:20px;"><em class="fas fa-paper-plane"></em></button>
-            </div>
-        </div>
-    </div>
+/* ================= Buttons ================= */
+.btn-primary { background: var(--primary); color: #fff; border: none; padding: 8px 15px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+.btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+.btn-secondary { background: #e2e8f0; color: var(--text-main); border: none; padding: 8px 15px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; }
+.btn-secondary:hover { background: #cbd5e1; }
 
-    <div class="modal" id="reelsViewerModal">
-        <div class="modal-content">
-            <span onclick="window.closeReelsViewer()" class="close-reel-btn"><em class="fas fa-times"></em></span>
-            <div class="reels-scroll-area" id="reelsScrollArea"></div>
-        </div>
-    </div>
+/* ================= Reels & Widgets ================= */
+.reels-container { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; }
+.reels-container::-webkit-scrollbar { height: 6px; }
+.reels-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.reel-thumb { min-width: 120px; width: 120px; height: 200px; border-radius: 12px; overflow: hidden; position: relative; cursor: pointer; background: #000; flex-shrink: 0; box-shadow: 0 2px 5px rgba(0,0,0,0.1); transition: 0.2s; }
+.reel-thumb:hover { transform: scale(1.03); }
+.reel-thumb video { width: 100%; height: 100%; object-fit: cover; opacity: 0.8; }
+.reel-add-btn { min-width: 120px; width: 120px; height: 200px; border-radius: 12px; background: #fff; border: 2px dashed var(--primary); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--primary); font-weight: bold; cursor: pointer; flex-shrink: 0; text-align: center; gap: 10px; }
+.r-author-pic { position: absolute; top: 10px; right: 10px; width: 30px; height: 30px; border-radius: 50%; border: 2px solid #fff; z-index: 2; object-fit: cover; }
+.r-author-name { position: absolute; bottom: 30px; right: 10px; color: #fff; font-size: 12px; font-weight: bold; z-index: 2; text-shadow: 0 1px 2px rgba(0,0,0,0.8); }
+.r-views { position: absolute; bottom: 10px; right: 10px; color: #fff; font-size: 11px; z-index: 2; }
 
-    <div class="navbar">
-        <div onclick="window.goHome()" class="nav-brand">مجتمعنا</div>
-        <div class="search-container">
-            <em class="fas fa-search search-icon"></em>
-            <input onkeyup="window.handleGlobalSearch(this.value)" onblur="if(this.value===''){this.placeholder='بحث';}" onfocus="this.placeholder='ابحث عن أصدقاء...'" placeholder="بحث" id="globalSearch" class="search-bar" type="text" />
-            <div class="search-results-dropdown" id="searchResults"></div>
-        </div>
-        <div class="nav-actions">
-            <button onclick="window.openAdminStats()" style="display:none;background:#7c3aed;color:#fff;" class="nav-btn hide-on-mobile" id="adminBtn"><em class="fas fa-shield-alt"></em></button>
-            <button onclick="window.toggleSidebar()" class="nav-btn hide-on-mobile"><em class="fas fa-comment-dots"></em> <span class="badge" id="chatBadge">0</span></button>
-            <button onclick="window.openRequestsModal()" class="nav-btn hide-on-mobile"><em class="fas fa-user-friends"></em> <span class="badge" id="reqBadge">0</span></button>
-            <div onclick="window.toggleDropdown('userMenuDropdown')" class="nav-user-container hide-on-mobile">
-                <div class="nav-user">
-                    <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="avatar-small" id="myNavAvatar" />
-                    <span class="text-name" id="currentUserDisplay">ضيف</span>
-                    <em class="fas fa-chevron-down" style="font-size:12px;color:#65676b;"></em>
-                </div>
-                <div class="dropdown-menu" id="userMenuDropdown">
-                    <div onclick="window.openProfile(window.currentUser)" class="dropdown-item"><em class="fas fa-cog" style="color:var(--primary);"></em> تعديل البيانات</div>
-                    <div style="color:#e41e3f;" onclick="window.logoutUser()" class="dropdown-item"><em class="fas fa-sign-out-alt"></em> تسجيل خروج</div>
-                </div>
-            </div>
-            <div onclick="window.toggleDropdown('notifDropdown')" class="notif-container">
-                <button class="nav-btn" style="background:transparent;font-size:22px;"><em class="fas fa-bell"></em> <span class="badge" id="notifBadge">0</span></button>
-                <div class="dropdown-menu" id="notifDropdown" style="padding:0; overflow:hidden;"></div>
-            </div>
-        </div>
-    </div>
+.suggested-widget { background: #fff; border: 1px solid var(--border-color); border-radius: 16px; padding: 15px; margin-bottom: 15px; overflow: hidden; }
+.suggested-carousel { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; }
+.suggested-card { min-width: 140px; border: 1px solid var(--border-color); border-radius: 12px; padding: 10px; text-align: center; flex-shrink: 0; background: #f8fafc; }
+.suggested-card img { width: 60px; height: 60px; border-radius: 50%; object-fit: cover; margin-bottom: 5px; }
 
-    <div class="bottom-nav">
-        <div class="b-nav-item" onclick="window.goHome()"><em class="fas fa-home"></em></div>
-        <div class="b-nav-item" onclick="window.openRequestsModal()"><em class="fas fa-user-friends"></em><span class="badge" id="reqBadgeMobile" style="display:none;">0</span></div>
-        <div class="b-nav-item" onclick="window.toggleSidebar()"><em class="fas fa-comment-dots"></em><span class="badge" id="chatBadgeMobile" style="display:none;">0</span></div>
-        <div class="b-nav-item" onclick="window.toggleDropdown('mobileUserMenuDropdown')">
-            <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="avatar-small" id="mobileNavAvatar" style="width:26px;height:26px;" />
-            <div class="dropdown-menu bottom-up-menu" id="mobileUserMenuDropdown">
-                <div onclick="window.openProfile(window.currentUser)" class="dropdown-item"><em class="fas fa-cog" style="color:var(--primary);"></em> تعديل</div>
-                <div style="color:#e41e3f;" onclick="window.logoutUser()" class="dropdown-item"><em class="fas fa-sign-out-alt"></em> خروج</div>
-            </div>
-        </div>
-    </div>
+/* ================= Modals ================= */
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.6); z-index: 1000; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.3s; }
+.modal.show { display: flex; opacity: 1; }
+.modal-content { background: var(--bg-card); width: 90%; max-width: 600px; border-radius: 16px; max-height: 90vh; overflow-y: auto; position: relative; box-shadow: 0 25px 50px rgba(0,0,0,0.25); transform: translateY(20px); transition: transform 0.3s; }
+.modal.show .modal-content { transform: translateY(0); }
+.close-btn { position: absolute; top: 15px; left: 15px; background: #f1f5f9; width: 35px; height: 35px; border-radius: 50%; text-align: center; line-height: 35px; cursor: pointer; font-size: 16px; transition: 0.2s; z-index: 10; }
+.close-btn:hover { background: #e2e8f0; color: var(--danger); }
 
-    <div class="main-container">
-        <div class="feed-area">
-            <div onclick="window.showNewPosts()" class="new-posts-btn" id="newPostsBtn">عرض المنشورات الجديدة ⬆️</div>
-            <div id="reelsTopBar" class="reels-container" style="display: none;"></div>
-            
-            <div class="composer-box">
-                <div style="display:flex;gap:10px;margin-bottom:10px;direction:rtl;">
-                    <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="avatar-small" id="composerAvatar" />
-                    <textarea oninput="window.handleMentionInput(this)" placeholder="بم تفكر؟ @" rows="2" class="composer-input" id="postContent"></textarea>
-                </div>
-                <div style="display:none;position:relative;margin-bottom:10px;" id="postMediaPreviewContainer">
-                    <img style="max-width:100%;max-height:300px;border-radius:12px;object-fit:cover;display:none;" id="postImagePreview" />
-                    <video id="postVideoPreview" controls="" style="max-width:100%;max-height:300px;border-radius:12px;background:#000;display:none;"></video>
-                    <span style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);color:#fff;cursor:pointer;border-radius:50%;width:30px;height:30px;text-align:center;line-height:30px;font-weight:bold;z-index:5;" onclick="window.removeMediaPreview()"><em class="fas fa-times"></em></span>
-                </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border-color);padding-top:10px;">
-                    <div style="display:flex;gap:5px;">
-                        <label class="file-upload-label" style="color:var(--primary);"><em class="fas fa-image"></em> صورة<input onchange="window.previewMedia(event,'image')" style="display:none;" accept="image/*" type="file" /></label>
-                        <label class="file-upload-label" style="color:#eab308;"><em class="fas fa-video"></em> فيديو<input onchange="window.previewMedia(event,'video')" style="display:none;" accept="video/*" type="file" /></label>
-                        <label class="file-upload-label" style="color:#d946ef;" title="رفع ريل قصير"><em class="fas fa-play-circle"></em> ريلز<input onchange="window.previewMedia(event,'reel')" style="display:none;" accept="video/mp4,video/x-m4v,video/*" type="file" /></label>
-                    </div>
-                    <button onclick="window.publishPost()" id="publishBtn" class="btn-primary" style="padding:8px 25px;"><em class="fas fa-paper-plane"></em> نشر</button>
-                </div>
-            </div>
-            
-            <div id="postsFeed"></div>
-        </div>
-        
-        <div class="sidebar-placeholder">
-            <div id="sidebarArea" class="sidebar">
-                <div id="sidebarTopSection" style="margin-bottom:20px;border-bottom:1px solid var(--border-color);padding-bottom:15px;"></div>
-                <div class="sidebar-title"><em class="fas fa-comments"></em> المحادثات والأصدقاء</div>
-                <input type="text" id="chatSearchInput" placeholder="ابحث للمراسلة..." class="comment-input" style="width:100%;margin-bottom:15px;padding:12px 15px;border-radius:12px;box-sizing:border-box;" onkeyup="window.searchChatUsers(this.value)" />
-                <div id="chatSearchBox" style="display:none;margin-bottom:15px;border-bottom:1px solid var(--border-color);padding-bottom:10px;"></div>
-                <div id="msgRequestsHeader" class="sidebar-title" style="margin-bottom:10px;display:none;color:#f59e0b;"><em class="fas fa-envelope"></em> طلبات المراسلة</div>
-                <div style="margin-bottom:20px;" id="msgRequestsList"></div>
-                <div id="friendsList"></div>
-            </div>
-        </div>
-    </div>
+/* ================= Profile ================= */
+.profile-cover { width: 100%; height: 250px; background: #e2e8f0; position: relative; border-radius: 16px 16px 0 0; overflow: hidden; }
+.profile-header-info { padding: 0 20px 20px; text-align: center; position: relative; margin-top: -60px; background: #fff; border-radius: 0 0 16px 16px; border: 1px solid var(--border-color); border-top: none; }
+.profile-pic-large { width: 120px; height: 120px; border-radius: 50%; border: 4px solid #fff; object-fit: cover; background: #fff; position: relative; z-index: 2; margin: 0 auto 10px; display: block; }
+.profile-name { font-size: 24px; font-weight: 800; margin: 0; color: var(--text-main); }
+.profile-handle { color: var(--text-muted); font-size: 15px; margin-bottom: 10px; }
+.profile-bio { font-size: 15px; margin-bottom: 15px; }
+.profile-stats { display: flex; justify-content: center; gap: 30px; margin: 15px 0; padding: 15px 0; border-top: 1px solid #f1f5f9; border-bottom: 1px solid #f1f5f9; }
+.stat-box { display: flex; flex-direction: column; align-items: center; }
+.stat-num { font-weight: 800; font-size: 18px; color: var(--text-main); }
+.stat-label { font-size: 13px; color: var(--text-muted); }
+.profile-actions-bar { display: flex; justify-content: center; gap: 10px; }
+.cover-edit-btn { position: absolute; bottom: 15px; left: 15px; background: rgba(255,255,255,0.9); padding: 8px 15px; border-radius: 8px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+.profile-tabs { display: flex; background: #fff; padding: 0 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 15px; border-radius: 16px; overflow-x: auto; }
+.tab-btn { flex: 1; padding: 15px; background: transparent; border: none; font-size: 15px; font-weight: 700; color: var(--text-muted); cursor: pointer; border-bottom: 3px solid transparent; white-space: nowrap; transition: 0.2s; }
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+.photo-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.photo-grid img, .photo-grid video { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 8px; }
+.friend-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.friend-card { display: flex; align-items: center; gap: 10px; padding: 10px; border: 1px solid var(--border-color); border-radius: 12px; background: #f8fafc; cursor: pointer; }
+.friend-card img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
 
-    <div id="floatingChat" class="floating-chat" onclick="window.restoreChat()">
-        <img src="" id="floatingChatAvatar" />
-        <span class="floating-badge" id="floatingChatBadge">0</span>
-    </div>
+/* ================= Reels Viewer ================= */
+.close-reel-btn { position: absolute; top: 20px; right: 20px; color: #fff; font-size: 24px; z-index: 50; cursor: pointer; background: rgba(0,0,0,0.5); width: 40px; height: 40px; border-radius: 50%; text-align: center; line-height: 40px; }
+.reels-scroll-area { height: 100vh; width: 100%; max-width: 500px; margin: 0 auto; overflow-y: scroll; scroll-snap-type: y mandatory; background: #000; position: relative; }
+.reel-screen { height: 100vh; width: 100%; scroll-snap-align: start; position: relative; display: flex; justify-content: center; align-items: center; background: #000; }
+.reel-screen video { height: 100%; width: 100%; object-fit: contain; }
+.reel-overlay { position: absolute; bottom: 0; left: 0; width: 100%; height: 40%; background: linear-gradient(to top, rgba(0,0,0,0.8), transparent); pointer-events: none; }
+.reel-side-actions { position: absolute; bottom: 80px; left: 15px; display: flex; flex-direction: column; gap: 20px; z-index: 10; }
+.reel-action-btn { background: transparent; border: none; color: #fff; font-size: 24px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.reel-action-btn span { font-size: 13px; font-weight: bold; }
+.reel-info { position: absolute; bottom: 20px; right: 15px; z-index: 10; color: #fff; width: 70%; text-align: right; }
+.r-author-hdr { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; cursor: pointer; }
+.r-author-hdr img { width: 40px; height: 40px; border-radius: 50%; border: 2px solid #fff; }
 
-    <div id="chatBox" class="chat-box">
-        <div class="chat-header">
-            <div onclick="window.openProfile(window.currentChatTarget)" style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
-                <img id="chatHeaderAvatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" style="width:38px;height:38px;border-radius:50%;object-fit:cover;border:1px solid rgba(255,255,255,.4);" />
-                <div style="display:flex;flex-direction:column;line-height:1.2;">
-                    <span id="chatTargetName" style="font-weight:800;font-size:16px;">الاسم</span>
-                    <span id="chatTypingStatus" style="font-size:11px;color:#bfdbfe;font-weight:700;display:none;align-items:center;gap:4px;margin-top:3px;">يكتب الآن</span>
-                    <div class="typing-dots-header" style="font-size:11px;color:rgb(191,219,254);font-weight:700;display:none;align-items:center;gap:4px;margin-top:3px;"><div></div><div></div><div></div></div>
-                </div>
-            </div>
-            <div style="display:flex;gap:10px;">
-                <span onclick="window.minimizeChat(event)" style="cursor:pointer;background:rgba(0,0,0,.2);width:30px;height:30px;border-radius:50%;text-align:center;line-height:30px;transition:.2s;" onmouseover="this.style.background='rgba(0,0,0,.4)'" onmouseout="this.style.background='rgba(0,0,0,.2)'"><em class="fas fa-minus"></em></span>
-                <span onclick="window.closeChat(event)" style="cursor:pointer;background:rgba(0,0,0,.2);width:30px;height:30px;border-radius:50%;text-align:center;line-height:30px;transition:.2s;" onmouseover="this.style.background='rgba(0,0,0,.4)'" onmouseout="this.style.background='rgba(0,0,0,.2)'"><em class="fas fa-times"></em></span>
-            </div>
-        </div>
-        <div id="chatMessages" class="chat-messages"></div>
-        <div class="chat-input-area">
-            <label style="cursor:pointer;color:var(--primary);font-size:22px;padding:5px 5px;"><em class="fas fa-image"></em><input type="file" style="display:none;" accept="image/*" onchange="window.sendChatMedia(event,'image')" /></label>
-            <label style="cursor:pointer;color:#eab308;font-size:22px;padding:5px 5px;"><em class="fas fa-video"></em><input type="file" style="display:none;" accept="video/*" onchange="window.sendChatMedia(event,'video')" /></label>
-            <input oninput="window.handleChatInput()" onkeypress="if(event.key==='Enter') window.sendMessage()" placeholder="رسالة..." class="chat-input" id="chatInput" type="text" style="padding:10px 15px;" />
-            <button onclick="window.sendMessage()" class="chat-send"><em class="fas fa-paper-plane"></em></button>
-        </div>
-    </div>
+/* ================= Chat Box ================= */
+.floating-chat { position: fixed; bottom: 20px; left: 20px; width: 60px; height: 60px; border-radius: 50%; background: var(--primary); cursor: pointer; display: none; align-items: center; justify-content: center; box-shadow: 0 10px 25px rgba(37,99,235,0.4); z-index: 99; border: 3px solid #fff; transition: transform 0.2s; }
+.floating-chat:hover { transform: scale(1.1); }
+.floating-chat img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.floating-badge { position: absolute; top: -5px; right: -5px; background: var(--danger); color: #fff; font-size: 12px; font-weight: bold; padding: 2px 8px; border-radius: 12px; border: 2px solid #fff; }
 
-    <script type="module" src="app.js"></script>
-</body>
-</html>
+.chat-box { position: fixed; bottom: 0; left: 80px; width: 320px; height: 450px; background: var(--bg-card); border-radius: 16px 16px 0 0; box-shadow: 0 -5px 25px rgba(0,0,0,0.15); display: flex; flex-direction: column; z-index: 100; border: 1px solid var(--border-color); transform: translateY(100%); transition: transform 0.3s ease-in-out; }
+.chat-box.show { transform: translateY(0); }
+.chat-header { background: var(--primary); color: #fff; padding: 10px 15px; border-radius: 15px 15px 0 0; display: flex; justify-content: space-between; align-items: center; }
+.chat-messages { flex: 1; padding: 15px; overflow-y: auto; background: #f8fafc; display: flex; flex-direction: column; gap: 10px; }
+.msg { max-width: 80%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.4; position: relative; }
+.msg.me { background: var(--primary); color: #fff; align-self: flex-end; border-bottom-left-radius: 4px; }
+.msg.other { background: #e2e8f0; color: var(--text-main); align-self: flex-start; border-bottom-right-radius: 4px; }
+.chat-input-area { padding: 10px; background: #fff; border-top: 1px solid var(--border-color); display: flex; gap: 8px; align-items: center; }
+.chat-input { flex: 1; border: 1px solid var(--border-color); border-radius: 20px; padding: 10px 15px; outline: none; background: #f1f5f9; }
+.chat-send { background: var(--primary); color: #fff; border: none; width: 38px; height: 38px; border-radius: 50%; cursor: pointer; }
+
+/* ================= Login Page (تم تحويلها لـ Modal ذكي) ================= */
+.login-wrapper { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(15,23,42,0.8); align-items: center; justify-content: center; z-index: 2000; transition: opacity 0.4s; }
+.login-wrapper.show { display: flex; }
+.login-container { display: flex; max-width: 900px; width: 90%; align-items: center; gap: 50px; }
+.login-brand { font-size: 50px; font-weight: 800; color: var(--primary); margin-bottom: 15px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+.login-tagline { font-size: 24px; color: var(--text-main); line-height: 1.3; }
+.login-box { position: relative; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); width: 400px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
+.login-input { width: 100%; padding: 15px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; outline: none; }
+.login-input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(37,99,235,0.2); }
+.login-btn { width: 100%; background: var(--primary); color: #fff; border: none; padding: 15px; font-size: 18px; font-weight: 700; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+.login-btn:hover { background: var(--primary-hover); }
+.login-divider { width: 100%; height: 1px; background: #ddd; margin: 20px 0; }
+.login-btn-new { background: #42b72a; color: #fff; border: none; padding: 15px 20px; font-size: 16px; font-weight: 700; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+.login-btn-new:hover { background: #36a420; }
+
+/* ================= Utility & Mobile ================= */
+.status-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid #fff; }
+.status-dot.online { background: #10b981; }
+.status-dot.offline { background: #cbd5e1; }
+.user-row { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+.user-row:hover { background: #f1f5f9; }
+.user-info { display: flex; align-items: center; gap: 10px; font-weight: 600; flex: 1; }
+.req-row { display: flex; justify-content: space-between; align-items: center; padding: 12px; border: 1px solid var(--border-color); border-radius: 12px; margin-bottom: 10px; background: #f8fafc; }
+.req-actions { display: flex; gap: 5px; }
+.bottom-nav { display: none; position: fixed; bottom: 0; left: 0; width: 100%; background: var(--bg-card); border-top: 1px solid var(--border-color); justify-content: space-around; padding: 10px 0; z-index: 50; }
+.b-nav-item { font-size: 22px; color: var(--text-muted); cursor: pointer; position: relative; padding: 5px 20px; }
+
+@media (max-width: 768px) {
+    .hide-on-mobile { display: none !important; }
+    .bottom-nav { display: flex !important; } /* Only if logged in handled by JS */
+    .sidebar-placeholder { display: none !important; }
+    .main-container { margin-bottom: 60px; }
+    .guest-input { display: none; }
+    .login-container { flex-direction: column; text-align: center; gap: 20px; }
+    .sidebar { position: fixed; top: 60px; right: -100%; width: 280px; height: calc(100vh - 120px); z-index: 40; box-shadow: -5px 0 25px rgba(0,0,0,0.1); }
+    .sidebar.mobile-show { right: 0; }
+    .chat-box { width: 100%; left: 0; border-radius: 16px 16px 0 0; bottom: 55px; height: calc(100vh - 55px); z-index: 100; }
+    .chat-box:not(.show) { display: none !important; }
+}
+
+#initialLoader { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #fff; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.4s; }
+#initialLoader.hidden { opacity: 0; pointer-events: none; }
+.toast-notification { position: fixed; bottom: 20px; right: 20px; background: #fff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 12px; padding: 15px; border-right: 4px solid var(--primary); transform: translateX(120%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275); z-index: 1000; min-width: 250px; }
+.toast-notification.show { transform: translateX(0); }
