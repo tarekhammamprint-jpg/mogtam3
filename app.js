@@ -294,6 +294,7 @@ window.switchProfileTab = (t) => { ['posts','reels','photos','friends','about'].
 window.handleGlobalSearch = (q) => { let r = $('searchResults'); if(!q.trim()){ r.style.display='none'; return; } let h=''; for(let u in window.allUsersData) { let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())) { h += `<a href="#/@${u}" class="search-result-item" onclick="$('searchResults').style.display='none'; $('globalSearch').value='';" style="text-decoration:none; color:inherit;"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"> <div style="display:flex;flex-direction:column;line-height:1.2;"><span>${d}</span><span style="font-size:11px;color:#64748b;">@${u}</span></div></a>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#666;">لا توجد نتائج</div>'; r.style.display='block'; };
 window.searchChatUsers = (q) => { let r=$('chatSearchBox'), f=$('friendsList'), rh=$('msgRequestsHeader'), rl=$('msgRequestsList'); if(!q.trim()){ r.style.display='none'; f.style.display='block'; if(rl&&rl.innerHTML!==''){ rh.style.display='block'; rl.style.display='block'; } return; } f.style.display='none'; rh.style.display='none'; rl.style.display='none'; let h=''; for(let u in window.allUsersData){ if(u===window.currentUser) continue; let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())){ h += `<div class="user-row" onclick="window.openChat('${u}')"><div class="user-info"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"><span>${d}</span></div><button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:4px;"><i class="fas fa-comment-dots"></i></button></div>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#64748b;font-size:14px;">لا توجد نتائج</div>'; r.style.display='block'; };
 
+// تسجيل الخروج النظيف مع التوجيه المباشر
 window.logoutUser = () => { 
     if(window.currentUser && confirm("خروج؟")) { 
         set(ref(db, `users/${window.currentUser}/online`), false).then(() => { 
@@ -304,6 +305,7 @@ window.logoutUser = () => {
     } 
 };
 
+// ================== خوارزمية ترتيب الاقتراحات المعدلة ==================
 window.getSuggestions = () => { 
     let myInterests = window.currentUser ? (window.allUsersData[window.currentUser]?.interests || []) : [];
     let ml = window.currentUser ? (window.allUsersData[window.currentUser]?.location || "غير محدد") : "غير محدد", sg = []; 
@@ -422,8 +424,6 @@ window.saveUserInterests = () => {
     }).catch(e => { alert("حدث خطأ"); btn.innerText = ot; btn.disabled = false; });
 };
 
-function wipeAllBotVideosForever() {}
-
 function fL(u, d) { 
     window.isInitialNotifLoad = true; window.alertedNotifs = new Set(); window.currentUser = u; localStorage.setItem('savedUser', u); 
     let il = $('initialLoader'); if(il){ il.classList.add('hidden'); setTimeout(()=>il.style.display='none', 400); } 
@@ -443,13 +443,14 @@ function fL(u, d) {
     listenToUsers(); 
 }
 
+// ================== المعالجة السليمة لدورة المستخدم ==================
 if(window.currentUser){ 
     let b=$('loginBtn'); if(b){ b.innerText="جاري..."; b.disabled=true; } 
     get(ref(db, `users/${window.currentUser}`)).then(s => { 
         if(s.exists()){ fL(window.currentUser, s.val()); } else rU(); 
     }).catch(rU); 
 } else {
-    rU();
+    rU(); // هنا كان السطر المفقود اللي بيوقف التحميل!
 }
 
 function rU(){ 
@@ -698,7 +699,7 @@ function renderFeed() {
 }
 
 window.toggleLike = (id, htmlAuthor, btn) => {
-    if(!window.currentUser) { window.showRegisterModal(); return; }
+    if(!window.currentUser) return window.showRegisterModal();
     let r = ref(db, `posts/${id}/likes/${window.currentUser}`); 
     get(r).then(s => { 
         if(s.exists()){ 
@@ -715,7 +716,7 @@ window.toggleLike = (id, htmlAuthor, btn) => {
 };
 
 window.addComment = async (id, htmlAuthor, px) => {
-    if(!window.currentUser) { window.showRegisterModal(); return; }
+    if(!window.currentUser) return window.showRegisterModal();
     let i = $(`commentInp_${px}_${id}`), t = i.value.trim(); if(!t) return;
     let mp = window.allUsersData[window.currentUser]?.profilePic || dA, md = window.getDisplayName(window.currentUser), st = window.formatMentions(t);
     let nh = `<div class="comment"><img src="${mp}" class="avatar-small" style="width:28px;height:28px;"><div class="comment-text-box"><div class="comment-author">${md}</div><div>${st}</div></div></div>`, ia = i.closest('.comment-input-area');
@@ -744,10 +745,10 @@ window.renderPostModalLogic = (p) => {
     document.querySelectorAll('#postModalBody video').forEach(v => window.videoObserver.observe(v));
 };
 
-window.prepareReply = (id, a) => { if(!window.currentUser) { window.showRegisterModal(); return; } $('modalReplyToId').value = id; let i = $('modalCommentInput'); if(!i.value.includes(`@${a}`)) i.value = `@${a} ` + i.value; i.focus(); };
+window.prepareReply = (id, a) => { if(!window.currentUser) return window.showRegisterModal(); $('modalReplyToId').value = id; let i = $('modalCommentInput'); if(!i.value.includes(`@${a}`)) i.value = `@${a} ` + i.value; i.focus(); };
 
 window.submitModalComment = () => {
-    if(!window.currentUser) { window.showRegisterModal(); return; }
+    if(!window.currentUser) return window.showRegisterModal();
     let pid = $('modalPostId').value, pAuthor = $('modalPostAuthor').value, rid = $('modalReplyToId').value, i = $('modalCommentInput'), t = i.value.trim(); if(!t) return;
     let rp = rid ? `posts/${pid}/comments/${rid}/replies` : `posts/${pid}/comments`;
     push(ref(db, rp), {author:window.currentUser, text:t, timestamp:Date.now()}).then(() => { let p = window.postCache[pid] || window.allPosts.find(x => x.id === pid); if(rid) { if(p && p.comments && p.comments[rid]) { let ca = p.comments[rid].author; if(ca && ca !== window.currentUser) push(ref(db, `users/${ca}/notifications`), {type:'reply', from:window.currentUser, postId:pid, timestamp:Date.now(), read:false}); } } else { let tg = p ? p.author : pAuthor; if(tg && tg !== window.currentUser) push(ref(db, `users/${tg}/notifications`), {type:'comment', from:window.currentUser, postId:pid, timestamp:Date.now(), read:false}); } window.myFriends.forEach(f => { if(t.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:pid, timestamp:Date.now(), read:false}); }); });
@@ -755,7 +756,7 @@ window.submitModalComment = () => {
 };
 
 window.executeShare = () => {
-    if(!window.currentUser) { window.showRegisterModal(); return; }
+    if(!window.currentUser) return window.showRegisterModal();
     let id = $('sharePostId').value, c = $('shareCaption').value.trim(), p = window.postCache[id] || window.allPosts.find(x => x.id === id); if(!p) return;
     let oa = p.isShare ? p.sharedData.author : p.author, sd = {author:oa, text:p.isShare?(p.sharedData.text||""):(p.text||""), timestamp:p.isShare?p.sharedData.timestamp:p.timestamp}, ti = p.isShare ? p.sharedData.image : p.image, tv = p.isShare ? p.sharedData.video : p.video; if(ti) sd.image = ti; if(tv) sd.video = tv;
     let nr = push(ref(db, 'posts')); set(nr, {author:window.currentUser, text:c, isShare:true, sharedData:sd, timestamp:Date.now()}).then(() => { if(oa && oa !== window.currentUser) push(ref(db, `users/${oa}/notifications`), {type:'share', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); window.myFriends.forEach(f => { if(c.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); }); window.location.hash=''; window.goHome(); });
@@ -800,7 +801,7 @@ window.deletePost = (id) => { if(confirm("حذف؟")) { remove(ref(db, `posts/${
 window.editPost = (id) => { let p = window.postCache[id]; if(!p) return; let nt = prompt("تعديل:", p.text || ''); if(nt !== null) update(ref(db, `posts/${id}`), {text:nt.trim()}); };
 
 window.openShareModal = (id) => {
-    if(!window.currentUser) { window.showRegisterModal(); return; }
+    if(!window.currentUser) return window.showRegisterModal();
     let p = window.postCache[id] || window.allPosts.find(x => x.id === id); if(!p) return;
     $('sharePostId').value = id; $('shareCaption').value = '';
     let oa = p.isShare ? p.sharedData.author : p.author, ot = p.isShare ? p.sharedData.text : p.text, oi = p.isShare ? p.sharedData.image : p.image, ov = p.isShare ? p.sharedData.video : p.video, ap = window.allUsersData[oa]?.profilePic || dA, st = window.formatMentions(ot), dn = window.getDisplayName(oa);
@@ -991,129 +992,4 @@ function createSuggestedFriendsWidget() {
     return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; 
 }
 
-function initAndRunBots() {
-    get(ref(db, 'botsInitialized_v142')).then(s => {
-        if(!s.exists()) {
-            get(ref(db, 'users')).then(us => {
-                let u = {};
-                window.botAccounts.forEach((b) => { 
-                    u[`users/${b.name}/displayName`] = b.displayName; 
-                    u[`users/${b.name}/profilePic`] = b.pic; 
-                    u[`users/${b.name}/coverPic`] = b.cover; 
-                    u[`users/${b.name}/bio`] = `خبير ومهتم بمجال: ${b.category} ✨`; 
-                    u[`users/${b.name}/password`] = "bot_password"; 
-                    u[`users/${b.name}/online`] = true; 
-                    u[`users/${b.name}/isBot`] = true; 
-                    u[`users/${b.name}/type`] = "user"; 
-                    u[`users/${b.name}/category`] = b.category; 
-                    u[`users/${b.name}/location`] = b.location; 
-                });
-                u['botsInitialized_v142'] = true; update(ref(db), u);
-            });
-        }
-    });
-    
-    setInterval(() => {
-        if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
-        let myInterests = window.allUsersData[window.currentUser].interests || [];
-        if(myInterests.length === 0) return;
-        let matchingBots = [];
-        for (let key in window.allUsersData) {
-            let u = window.allUsersData[key];
-            if (u.isBot && u.category && myInterests.includes(u.category)) matchingBots.push(key);
-        }
-        if (matchingBots.length === 0) return;
-        let randomBotId = matchingBots[Math.floor(Math.random() * matchingBots.length)];
-
-        if(!window.myFriends.includes(randomBotId) && (!window.currentRequests || !window.currentRequests[randomBotId]) && (!window.sentRequests || !window.sentRequests[randomBotId])) { 
-            set(ref(db, `friendRequests/${window.currentUser}/${randomBotId}`), Date.now()).then(() => { 
-                push(ref(db, `users/${window.currentUser}/notifications`), {type:'friend_req', from:randomBotId, timestamp:Date.now(), read:false}); 
-            }); 
-        }
-    }, 120000); 
-
-    setInterval(() => {
-        if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
-        let lastRunRef = ref(db, 'botStats/lastTextPostRun');
-        get(lastRunRef).then(s => {
-            let lastTime = s.exists() ? s.val() : 0, now = Date.now();
-            if(now - lastTime > 600000) { 
-                set(lastRunRef, now); 
-                let myInterests = window.allUsersData[window.currentUser].interests || PLATFORM_INTERESTS;
-                let activeBots = [];
-                for (let key in window.allUsersData) {
-                    let u = window.allUsersData[key];
-                    if (u.isBot && u.category && myInterests.includes(u.category)) activeBots.push(key);
-                }
-                if(activeBots.length > 0) {
-                    let randomBotId = activeBots[Math.floor(Math.random()*activeBots.length)];
-                    let botCat = window.allUsersData[randomBotId].category;
-                    
-                    let rssFeeds = {
-                        "أخبار وسياسة": "https://www.skynewsarabia.com/rss.xml",
-                        "رياضة وكرة قدم": "https://www.skynewsarabia.com/rss.xml?category=sport",
-                        "تكنولوجيا وتقنية": "https://www.skynewsarabia.com/rss.xml?category=technology",
-                        "صحة وطب": "https://www.skynewsarabia.com/rss.xml?category=health",
-                        "اقتصاد وأعمال": "https://www.skynewsarabia.com/rss.xml?category=business",
-                        "سفر وسياحة": "https://www.skynewsarabia.com/rss.xml?category=lifestyle",
-                        "فنون وتصميم": "https://www.skynewsarabia.com/rss.xml?category=arts"
-                    };
-                    let feedUrl = rssFeeds[botCat];
-                    if(feedUrl) {
-                        fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`)
-                        .then(r => r.json())
-                        .then(data => {
-                            if(data && data.items && data.items.length > 0) {
-                                let item = data.items[Math.floor(Math.random() * Math.min(10, data.items.length))];
-                                let cleanDesc = item.description.replace(/(<([^>]+)>)/gi, "").substring(0, 180) + "...";
-                                let text = `🔴 ${item.title}\n\n${cleanDesc}\n\nللمزيد من الأخبار، تابعوني!`;
-                                let imgUrl = item.enclosure?.link || item.thumbnail || `https://source.unsplash.com/600x400/?${encodeURIComponent(botCat.split(' ')[0])}`;
-                                push(ref(db, 'posts'), {author:randomBotId, text:text, image:imgUrl, timestamp:Date.now()});
-                            }
-                        }).catch(e => { console.log("RSS Fetch Error"); });
-                    } else {
-                        let contentLib = [
-                            `أحدث التطورات اليوم في مجال ${botCat}، شاركونا رأيكم في التعليقات! 👇`,
-                            `موضوع جديد ومهم جداً بخصوص ${botCat}، حبيت أشاركه معاكم ✨`,
-                            `معلومة سريعة في ${botCat}: هل تعلم أن الاهتمام بهذا المجال زاد جداً مؤخراً؟ شاركونا رأيكم! 👇`,
-                            `أفضل النصائح في ${botCat} جمعتها لكم اليوم، أتمنى تستفيدوا منها ✨`,
-                            `نقاش مفتوح: ما هو رأيكم في التطورات الأخيرة الخاصة بـ ${botCat}؟ 🤔`
-                        ];
-                        let text = contentLib[Math.floor(Math.random() * contentLib.length)];
-                        let imgUrl = `https://source.unsplash.com/600x400/?${encodeURIComponent(botCat.split(' ')[0])}`;
-                        push(ref(db, 'posts'), {author:randomBotId, text:text, image:imgUrl, timestamp:Date.now()});
-                    }
-                }
-            }
-        });
-    }, 60000);
-
-    setInterval(() => {
-        if(!window.currentUser) return;
-        let botAccountsList = [];
-        for (let key in window.allUsersData) {
-            if (window.allUsersData[key].isBot) botAccountsList.push(key);
-        }
-        if(botAccountsList.length === 0) return;
-        let randomBot = botAccountsList[Math.floor(Math.random()*botAccountsList.length)];
-        
-        if(window.allPosts && window.allPosts.length > 0) {
-            let mediaPosts = window.allPosts.filter(p => p.video || p.isReel);
-            let pool = mediaPosts.length > 0 && Math.random() > 0.3 ? mediaPosts : window.allPosts;
-            let randomPost = pool[Math.floor(Math.random() * pool.length)];
-            
-            set(ref(db, `posts/${randomPost.id}/likes/${randomBot}`), true);
-            if(randomPost.video || randomPost.isReel) { set(ref(db, `posts/${randomPost.id}/views/${randomBot}`), true); }
-            
-            if(Math.random() < 0.20) {
-                let comments = [];
-                if(randomPost.video || randomPost.isReel) comments = ["فيديو عظمة 🔥", "تصوير رائع 👏", "استمر في الإبداع", "ريلز جامد جداً ✨"];
-                else if (randomPost.image) comments = ["صورة جميلة جداً 😍", "اللقطة دي روعة", "إبداع متواصل 🎨"];
-                else comments = ["كلام سليم 100%", "أتفق معك تماماً 👍", "موضوع مفيد جداً، شكراً للمشاركة!"];
-                
-                let cText = comments[Math.floor(Math.random()*comments.length)];
-                push(ref(db, `posts/${randomPost.id}/comments`), {author:randomBot, text:cText, timestamp:Date.now()});
-            }
-        }
-    }, 45000); 
-}
+function initAndRunBots() {}
