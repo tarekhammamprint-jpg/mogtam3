@@ -94,7 +94,30 @@ function handleRouting() {
     });
     document.querySelectorAll('#reelsScrollArea video').forEach(v => { v.pause(); });
     document.body.style.overflow = 'auto'; 
-    if(hash === '' || hash === '#/') { window.scrollTo({top:0, behavior:'smooth'}); } 
+    
+    let lw = $('loginModal');
+    if (hash === '#/login') {
+        if(lw) {
+            let s = document.getElementById('hideLoginStyle'); if(s) s.remove();
+            lw.style.display = 'flex';
+            setTimeout(() => { lw.style.opacity = '1'; lw.style.pointerEvents = 'auto'; }, 10);
+        }
+    } else {
+        if(lw) {
+            lw.style.opacity = '0';
+            lw.style.pointerEvents = 'none';
+            setTimeout(() => { if(window.location.hash !== '#/login') lw.style.display = 'none'; }, 400);
+        }
+    }
+
+    // الحماية القوية للزوار من دخول الرئيسية اليوميات
+    if(hash === '' || hash === '#/') { 
+        if(!window.currentUser) {
+            window.location.hash = '#/login';
+            return;
+        }
+        window.scrollTo({top:0, behavior:'smooth'}); 
+    } 
     else if(hash.startsWith('#/@')) { let u = decodeURIComponent(hash.replace('#/@', '')); openProfileLogic(u); }
     else if(hash.startsWith('#/post/')) { let id = decodeURIComponent(hash.replace('#/post/', '')); openPostLogic(id); }
     else if(hash.startsWith('#/share/')) { let id = decodeURIComponent(hash.replace('#/share/', '')); openShareLogic(id); }
@@ -111,8 +134,13 @@ window.openRequestsModal = () => { if(!window.currentUser) return window.showReg
 window.openAdminStats = () => { window.location.hash = '#/stats'; };
 window.openEditProfileModal = () => { window.location.hash = '#/edit-profile'; };
 window.openReelsViewer = (idx) => { window.currentReelIdx = idx; window.location.hash = '#/reels'; };
-window.closeModal = (id) => { window.location.hash = ''; };
-window.closeReelsViewer = () => { window.location.hash = ''; };
+
+// زرار الرجوع الذكي بدلا من العودة للرئيسية إجبارياً
+window.closeModal = (id) => { 
+    if(window.history.length > 2) { window.history.back(); } 
+    else { window.location.hash = ''; }
+};
+window.closeReelsViewer = window.closeModal;
 
 window.goHome = () => {
     window.location.hash = ''; window.scrollTo({top:0, behavior:'smooth'});
@@ -137,21 +165,14 @@ const $ = (id) => document.getElementById(id);
 window.toggleLoginMode = (m) => { $('loginFormContent').style.display = m==='register' ? 'none' : 'block'; $('registerFormContent').style.display = m==='register' ? 'block' : 'none'; };
 window.generateHandles = (n) => { let c = $('handleSuggestions'); if(!n.trim()) { c.innerHTML = ""; return; } let b = tr(n.trim().split(" ")[0]), h = '<div style="font-size:13px;margin-bottom:5px;">اختر المعرف:</div>', o = [b + Math.floor(Math.random()*99+10), b + "_" + Math.floor(Math.random()*999+100), b + new Date().getFullYear()]; o.forEach((x, i) => { h += `<label class="handle-radio-label"><input type="radio" name="selectedHandle" value="${x}" ${i===0?"checked":""}> @${x}</label>`; }); c.innerHTML = h; };
 
-window.showRegisterModal = () => {
-    let s = document.getElementById('hideLoginStyle'); if(s) s.remove();
-    let lw = document.getElementById('loginModal');
-    if(lw) {
-        lw.style.display = 'flex';
-        setTimeout(() => { lw.style.opacity = '1'; lw.style.pointerEvents = 'auto'; }, 10);
-    }
-    window.toggleLoginMode('register');
-};
-window.closeRegisterModal = () => {
-    let lw = $('loginModal');
-    if(lw) {
-        lw.style.opacity = '0';
-        lw.style.pointerEvents = 'none';
-        setTimeout(() => { lw.style.display = 'none'; }, 400);
+window.showRegisterModal = () => { window.location.hash = '#/login'; };
+
+// زرار الرجوع من شاشة الدخول للمنشور
+window.closeRegisterModal = () => { 
+    if(window.history.length > 2) {
+        window.history.back();
+    } else {
+        window.location.hash = ''; // لو مفهاش تاريخ متصفح، هترجع للرئيسية والروتينج هيجبرها تسجل دخول
     }
 };
 
@@ -282,9 +303,6 @@ window.saveUserInterests = () => {
     }).catch(e => { alert("حدث خطأ"); btn.innerText = ot; btn.disabled = false; });
 };
 
-// تم إيقاف المكنسة نهائياً كما طلبت للحفاظ على البيانات
-function wipeAllBotVideosForever() {}
-
 function fL(u, d) { 
     window.isInitialNotifLoad = true; window.alertedNotifs = new Set(); window.currentUser = u; localStorage.setItem('savedUser', u); 
     let il = $('initialLoader'); if(il){ il.classList.add('hidden'); setTimeout(()=>il.style.display='none', 400); } 
@@ -321,7 +339,7 @@ function rU(){
     let ab=$('adminBtn'); if(ab) ab.style.display='none'; 
     
     let lw = $('loginModal');
-    if(lw) { lw.style.opacity = '0'; lw.style.pointerEvents = 'none'; setTimeout(() => lw.style.display = 'none', 400); }
+    if(lw && window.location.hash !== '#/login') { lw.style.opacity = '0'; lw.style.pointerEvents = 'none'; setTimeout(() => lw.style.display = 'none', 400); }
 
     let guestNav = $('guestNav'); if(guestNav) guestNav.style.display = 'flex';
     let loggedInNav = $('loggedInNav'); if(loggedInNav) loggedInNav.style.display = 'none';
@@ -455,7 +473,7 @@ function listenToPosts() {
 
         if(window.isInitialLoad){ 
             window.renderedPostIds = new Set(l.map(p=>p.id)); renderFeed(); window.isInitialLoad=false; 
-            handleRouting(); // <--- السطر السحري اللي بيشغل اللينكات من بره الموقع مباشرة
+            handleRouting();
         } else { 
             let hash = window.location.hash; 
             if(hash.startsWith('#/post/')){ let up = window.postCache[decodeURIComponent(hash.replace('#/post/', ''))]; if(up) window.openPostLogic(up.id); } 
@@ -509,7 +527,7 @@ function createPostHTML(p, cp, it=false, im=false) {
         cs.forEach(c => { let cPic = window.allUsersData[c.author]?.profilePic || dA, cD = window.getDisplayName(c.author), sct = window.formatMentions(c.text), rh = ''; if(c.replies && typeof c.replies === 'object') { Object.values(c.replies).sort((a,b) => a.timestamp - b.timestamp).forEach(r => { let rPic = window.allUsersData[r.author]?.profilePic || dA, rD = window.getDisplayName(r.author), srt = window.formatMentions(r.text), srb = im ? `<span class="reply-btn" onclick="window.prepareReply('${c.id}','${r.author}')" style="margin-top:4px;display:inline-block;margin-right:5px;">رد</span>` : ''; rh += `<div class="comment reply-block" style="margin-bottom:8px;"><a href="#/@${r.author}"><img src="${rPic}" class="avatar-small" style="width:24px;height:24px;"></a><div style="flex:1;"><div class="comment-text-box" style="background:#fff;border:1px solid #e2e8f0;margin-bottom:2px;padding:8px 12px;"><a href="#/@${r.author}" class="comment-author" style="color:inherit; text-decoration:none; display:block;">${rD}</a><div>${srt}</div></div>${srb}</div></div>`; }); } let rb = im ? `<span class="reply-btn" onclick="window.prepareReply('${c.id}','${c.author}')">رد</span>` : ''; cmh += `<div class="comment"><a href="#/@${c.author}"><img src="${cPic}" class="avatar-small" style="width:28px;height:28px;"></a><div style="flex:1;"><div class="comment-text-box"><a href="#/@${c.author}" class="comment-author" style="color:inherit; text-decoration:none; display:block;">${cD}</a><div>${sct}</div></div>${rb}<div id="replies_${c.id}">${rh}</div></div></div>`; });
         if(!im && ca.length > 2) cmh += `<div style="font-size:13px;color:#64748b;cursor:pointer;font-weight:700;margin-top:5px;text-align:center;padding:5px;background:#f1f5f9;border-radius:8px;" onclick="window.openPostModal('${p.id}')">عرض كل التعليقات (${ca.length})</div>`;
     }
-    let cia = (im || !window.currentUser) ? '' : `<div class="comment-input-area"><img src="${window.allUsersData[window.currentUser]?.profilePic || dA}" class="avatar-small" style="width:32px;height:32px;"><input type="text" oninput="window.handleMentionInput(this)" id="commentInp_${cp}_${p.id}" class="comment-input" placeholder="اكتب تعليقاً..." onkeypress="if(event.key==='Enter') window.addComment('${p.id}','${p.author}','${cp}')"><button class="btn-primary" style="padding:8px 15px;border-radius:20px;" onclick="window.addComment('${p.id}','${p.author}','${cp}')"><i class="fas fa-paper-plane"></i></button></div>`;
+    let cia = (!window.currentUser) ? '' : `<div class="comment-input-area"><img src="${window.allUsersData[window.currentUser]?.profilePic || dA}" class="avatar-small" style="width:32px;height:32px;"><input type="text" oninput="window.handleMentionInput(this)" id="commentInp_${cp}_${p.id}" class="comment-input" placeholder="اكتب تعليقاً..." onkeypress="if(event.key==='Enter') window.addComment('${p.id}','${p.author}','${cp}')"><button class="btn-primary" style="padding:8px 15px;border-radius:20px;" onclick="window.addComment('${p.id}','${p.author}','${cp}')"><i class="fas fa-paper-plane"></i></button></div>`;
     let admC = (window.currentUser && window.currentUser.toLowerCase() === 'admin21') ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #cbd5e1;display:flex;gap:10px;justify-content:flex-end;"><button onclick="window.warnUser('${p.author}')" style="background:#f59e0b;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-exclamation-triangle"></i> تحذير</button><button onclick="window.adminDeletePost('${p.id}')" style="background:#ef4444;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-trash"></i> حذف إداري</button></div>` : '';
     return `<div class="post"><div class="post-header">${headerLeft}${ch}</div>${pb}<div class="post-actions-bar"><button class="action-btn" onclick="window.toggleLike('${p.id}','${p.author}',this)"><i class="${hl?'fas':'far'} fa-heart" style="${hl ? 'color:#ef4444;' : 'color:#64748b;'}"></i> <span class="lc-count">${lt}</span></button><button class="action-btn" onclick="${im ? `$('modalCommentInput').focus()` : `window.openPostModal('${p.id}')`}"><i class="far fa-comment-alt"></i> تعليق</button><button class="action-btn" onclick="window.openShareModal('${p.id}')"><i class="fas fa-share"></i> مشاركة</button></div><div class="comments-section" id="modalCommentsSection">${cmh}${cia}</div>${admC}</div>`;
 }
@@ -536,9 +554,7 @@ function renderFeed() {
     if(!iN){ let t_i = 0; for(let i=0; i<reg.length; i++){ vp.push(reg[i]); if((i+1)%10===0 && t_i<tr.length){ vp.push(tr[t_i]); t_i++; } } }
     vp.slice(0, window.feedLim || 5).forEach((v,i) => { 
         h += createPostHTML(v.p, 'feed', v.it, false); 
-        // عرض الاقتراحات لو فيه مستخدم مسجل
         if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget(); 
-        // عرض الريلز لو فيه مستخدم مسجل
         if(window.currentUser && i>0 && i%5===0) h += window.generateReelsWidgetHTML(); 
     });
     let pf = document.getElementById('postsFeed');
@@ -587,6 +603,10 @@ window.renderPostModalLogic = (p) => {
     
     let pf = $('postModalFooter');
     if(pf) pf.style.display = window.currentUser ? 'flex' : 'none';
+
+    // إخفاء الـ X للزوار
+    let closeBtn = $('postModalCloseBtn');
+    if(closeBtn) closeBtn.style.display = window.currentUser ? 'flex' : 'none';
 
     $('postModal').classList.add('show'); document.body.style.overflow = 'hidden';
     document.querySelectorAll('#postModalBody video').forEach(v => window.videoObserver.observe(v));
@@ -664,7 +684,7 @@ window.openEditProfileLogic = () => {
 
 window.openProfileLogic = (u) => {
     if(!window.currentUser) {
-        window.location.hash = ''; // منع الزوار من الدخول للصفحة
+        window.location.hash = '#/login';
         return window.showRegisterModal();
     }
     window.switchProfileTab('posts'); 
@@ -801,6 +821,4 @@ window.getSuggestions = () => {
 };
 function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;"><i class="fas ${x.matchesInt ? 'fa-magic' : (x.isPage?'fa-check-circle':'fa-user-friends')}"></i> ${x.matchesInt ? 'نفس اهتماماتك' : (x.isPage?'صفحة رسمية':(x.mutualCount>0?`مشتركون: ${x.mutualCount}`:(x.isSameLocation?'من منطقتك':'عضو جديد')))}</span></a>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
 
-function initAndRunBots() {
-    // البوتات وتحديثاتها مؤمنة ولن يتم تغييرها أو مسحها بناء على طلبك
-}
+function initAndRunBots() {}
