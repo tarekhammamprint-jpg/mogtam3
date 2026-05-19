@@ -42,7 +42,6 @@ window.getDisplayHandle = (id) => '@' + id;
 window.allReels = [];
 let reelsObserver = null;
 
-// ================= قائمة المجالات وأسماء البوتات الواقعية =================
 const PLATFORM_INTERESTS = [
     "أخبار وسياسة", "رياضة وكرة قدم", "طبخ ووصفات", "دين وإسلاميات", 
     "تكنولوجيا وتقنية", "سيارات ومحركات", "كوميديا ومقالب", "صحة وطب", 
@@ -98,22 +97,35 @@ function handleRouting() {
     document.body.style.overflow = 'auto'; 
     
     let lw = $('loginModal');
-    if (hash === '#/login') {
+    // التحكم الذكي في شاشة الدخول وأزرار الإغلاق للزوار
+    if (hash === '#/login' || (!window.currentUser && (hash === '' || hash === '#/'))) {
         if(lw) {
             let s = document.getElementById('hideLoginStyle'); if(s) s.remove();
             lw.style.display = 'flex';
             setTimeout(() => { lw.style.opacity = '1'; lw.style.pointerEvents = 'auto'; }, 10);
         }
-        window.toggleLoginMode('login'); // فتح صفحة الدخول افتراضياً عند تسجيل الخروج
+        let closeBtn = document.getElementById('loginModalCloseBtn');
+        if(closeBtn) closeBtn.style.display = 'none'; // إخفاء الـ X في الصفحة الرئيسية
+        let guestBtn = document.getElementById('guestBrowseBtn');
+        if(guestBtn) guestBtn.style.display = 'none';
+        
+        window.toggleLoginMode('login');
     } else {
         if(lw) {
             lw.style.opacity = '0';
             lw.style.pointerEvents = 'none';
-            setTimeout(() => { if(window.location.hash !== '#/login') lw.style.display = 'none'; }, 400);
+            setTimeout(() => { if(window.location.hash !== '#/login' && window.location.hash !== '') lw.style.display = 'none'; }, 400);
         }
     }
 
-    if(hash === '' || hash === '#/') { window.scrollTo({top:0, behavior:'smooth'}); } 
+    // منع الزوار من دخول اليوميات تماماً وتوجيههم لصفحة الدخول
+    if(hash === '' || hash === '#/') { 
+        if(!window.currentUser) {
+            window.location.replace('#/login');
+            return;
+        }
+        window.scrollTo({top:0, behavior:'smooth'}); 
+    } 
     else if(hash.startsWith('#/@')) { let u = decodeURIComponent(hash.replace('#/@', '')); openProfileLogic(u); }
     else if(hash.startsWith('#/post/')) { let id = decodeURIComponent(hash.replace('#/post/', '')); openPostLogic(id); }
     else if(hash.startsWith('#/share/')) { let id = decodeURIComponent(hash.replace('#/share/', '')); openShareLogic(id); }
@@ -128,12 +140,11 @@ window.openPostModal = (id) => { window.location.hash = '#/post/' + id; };
 window.openShareModal = (id) => { window.location.hash = '#/share/' + id; };
 
 // توجيهات الزوار الآمنة
-window.openRequestsModal = () => { if(!window.currentUser) return window.location.hash = '#/login'; window.location.hash = '#/requests'; };
+window.openRequestsModal = () => { if(!window.currentUser) return window.showRegisterModal(); window.location.hash = '#/requests'; };
 window.openAdminStats = () => { window.location.hash = '#/stats'; };
 window.openEditProfileModal = () => { window.location.hash = '#/edit-profile'; };
-window.openReelsViewer = (idx) => { if(!window.currentUser) return window.location.hash = '#/login'; window.currentReelIdx = idx; window.location.hash = '#/reels'; };
+window.openReelsViewer = (idx) => { if(!window.currentUser) return window.showRegisterModal(); window.currentReelIdx = idx; window.location.hash = '#/reels'; };
 
-// زرار الرجوع الذكي بدلا من العودة للرئيسية إجبارياً
 window.closeModal = (id) => { 
     if(window.history.length > 2) { window.history.back(); } 
     else { window.location.hash = ''; }
@@ -141,6 +152,10 @@ window.closeModal = (id) => {
 window.closeReelsViewer = window.closeModal;
 
 window.goHome = () => {
+    if(!window.currentUser) {
+        window.location.replace('#/login');
+        return;
+    }
     window.location.hash = ''; window.scrollTo({top:0, behavior:'smooth'});
     $('chatBox').classList.remove('show'); $('floatingChat').style.display='none';
     if(window.chatUnsubscribe){ window.chatUnsubscribe(); window.chatUnsubscribe=null; }
@@ -163,19 +178,29 @@ const $ = (id) => document.getElementById(id);
 window.toggleLoginMode = (m) => { $('loginFormContent').style.display = m==='register' ? 'none' : 'block'; $('registerFormContent').style.display = m==='register' ? 'block' : 'none'; };
 window.generateHandles = (n) => { let c = $('handleSuggestions'); if(!n.trim()) { c.innerHTML = ""; return; } let b = tr(n.trim().split(" ")[0]), h = '<div style="font-size:13px;margin-bottom:5px;">اختر المعرف:</div>', o = [b + Math.floor(Math.random()*99+10), b + "_" + Math.floor(Math.random()*999+100), b + new Date().getFullYear()]; o.forEach((x, i) => { h += `<label class="handle-radio-label"><input type="radio" name="selectedHandle" value="${x}" ${i===0?"checked":""}> @${x}</label>`; }); c.innerHTML = h; };
 
-window.showRegisterModal = () => { window.location.hash = '#/login'; };
+// دالة إظهار نافذة التسجيل عند تفاعل الزوار مع المنشورات
+window.showRegisterModal = () => { 
+    let s = document.getElementById('hideLoginStyle'); if(s) s.remove();
+    let lw = document.getElementById('loginModal');
+    if(lw) {
+        lw.style.display = 'flex';
+        setTimeout(() => { lw.style.opacity = '1'; lw.style.pointerEvents = 'auto'; }, 10);
+    }
+    let closeBtn = document.getElementById('loginModalCloseBtn');
+    if(closeBtn) closeBtn.style.display = 'flex'; // إظهار الـ X لأنه فوق منشور
+    let guestBtn = document.getElementById('guestBrowseBtn');
+    if(guestBtn) guestBtn.style.display = 'block';
+    
+    window.toggleLoginMode('register'); 
+};
 
-// الإغلاق الذكي لشاشة الدخول (يرجع للمنشور ولا يحوله للرئيسية)
+// الإغلاق الذكي لشاشة الدخول دون تصفير الرابط (يرجعك مكان ما كنت)
 window.closeRegisterModal = () => { 
     let lw = $('loginModal');
     if(lw) {
         lw.style.opacity = '0';
         lw.style.pointerEvents = 'none';
         setTimeout(() => { lw.style.display = 'none'; }, 400);
-    }
-    if(window.location.hash === '#/login') {
-        if(window.history.length > 2) window.history.back();
-        else window.location.hash = ''; 
     }
 };
 
@@ -271,12 +296,12 @@ window.switchProfileTab = (t) => { ['posts','reels','photos','friends','about'].
 window.handleGlobalSearch = (q) => { let r = $('searchResults'); if(!q.trim()){ r.style.display='none'; return; } let h=''; for(let u in window.allUsersData) { let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())) { h += `<a href="#/@${u}" class="search-result-item" onclick="$('searchResults').style.display='none'; $('globalSearch').value='';" style="text-decoration:none; color:inherit;"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"> <div style="display:flex;flex-direction:column;line-height:1.2;"><span>${d}</span><span style="font-size:11px;color:#64748b;">@${u}</span></div></a>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#666;">لا توجد نتائج</div>'; r.style.display='block'; };
 window.searchChatUsers = (q) => { let r=$('chatSearchBox'), f=$('friendsList'), rh=$('msgRequestsHeader'), rl=$('msgRequestsList'); if(!q.trim()){ r.style.display='none'; f.style.display='block'; if(rl&&rl.innerHTML!==''){ rh.style.display='block'; rl.style.display='block'; } return; } f.style.display='none'; rh.style.display='none'; rl.style.display='none'; let h=''; for(let u in window.allUsersData){ if(u===window.currentUser) continue; let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())){ h += `<div class="user-row" onclick="window.openChat('${u}')"><div class="user-info"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"><span>${d}</span></div><button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:4px;"><i class="fas fa-comment-dots"></i></button></div>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#64748b;font-size:14px;">لا توجد نتائج</div>'; r.style.display='block'; };
 
-// تسجيل الخروج النظيف مع التوجيه المباشر
+// تسجيل الخروج النظيف لمنع التكرار والحبس
 window.logoutUser = () => { 
     if(window.currentUser && confirm("خروج؟")) { 
         set(ref(db, `users/${window.currentUser}/online`), false).then(() => { 
             localStorage.removeItem('savedUser'); 
-            window.location.replace('#/login'); // يوديك صفحة الدخول إجبارياً
+            window.location.replace('#/login'); 
             window.location.reload(); 
         }); 
     } 
@@ -317,6 +342,9 @@ window.saveUserInterests = () => {
     }).catch(e => { alert("حدث خطأ"); btn.innerText = ot; btn.disabled = false; });
 };
 
+// تم إيقاف المكنسة
+function wipeAllBotVideosForever() {}
+
 function fL(u, d) { 
     window.isInitialNotifLoad = true; window.alertedNotifs = new Set(); window.currentUser = u; localStorage.setItem('savedUser', u); 
     let il = $('initialLoader'); if(il){ il.classList.add('hidden'); setTimeout(()=>il.style.display='none', 400); } 
@@ -353,13 +381,20 @@ function rU(){
     let ab=$('adminBtn'); if(ab) ab.style.display='none'; 
     
     let lw = $('loginModal');
-    if(lw && window.location.hash !== '#/login') { lw.style.opacity = '0'; lw.style.pointerEvents = 'none'; setTimeout(() => lw.style.display = 'none', 400); }
+    if(lw && window.location.hash !== '#/login' && !window.location.hash.startsWith('#/post/')) { 
+        lw.style.opacity = '0'; lw.style.pointerEvents = 'none'; setTimeout(() => lw.style.display = 'none', 400); 
+    }
 
     let guestNav = $('guestNav'); if(guestNav) guestNav.style.display = 'flex';
     let loggedInNav = $('loggedInNav'); if(loggedInNav) loggedInNav.style.display = 'none';
     let cb = $('composerBox'); if(cb) cb.style.display = 'none';
     let sidebarAreaContainer = $('sidebarAreaContainer'); if(sidebarAreaContainer) sidebarAreaContainer.style.display = 'none';
     let bottomNav = $('bottomNav'); if(bottomNav) bottomNav.style.display = 'none';
+
+    // توجيه إجباري للزوار لصفحة الدخول لمنع عرض اليوميات
+    if(window.location.hash === '' || window.location.hash === '#/') {
+        window.location.replace('#/login');
+    }
 
     listenToUsers(); 
 }
@@ -398,7 +433,9 @@ window.generateReelsWidgetHTML = () => {
 };
 
 window.openReelsLogic = (startIndex) => { 
-    if(!window.currentUser) { window.location.hash = '#/login'; return; }
+    if(!window.currentUser) {
+        window.location.replace('#/login'); return;
+    }
     let modal = $('reelsViewerModal'), scrollArea = $('reelsScrollArea'), h = ''; 
     window.allReels.forEach(r => { 
         let ap = window.allUsersData[r.author]?.profilePic || dA, an = window.getDisplayName(r.author); 
@@ -409,10 +446,10 @@ window.openReelsLogic = (startIndex) => {
     scrollArea.innerHTML = h; modal.classList.add('show'); document.body.style.overflow = 'hidden'; scrollArea.querySelectorAll('.reel-screen').forEach(scr => reelsObserver.observe(scr)); setTimeout(() => { let target = scrollArea.children[startIndex]; if(target) target.scrollIntoView({behavior:'auto'}); }, 100); 
 };
 
-window.openChatFromProfile = () => { if(!window.currentUser) { window.location.hash = '#/login'; return; } let t = $('profHandle').innerText.replace('@', ''); window.location.hash=''; setTimeout(() => window.openChat(t), 300); };
+window.openChatFromProfile = () => { if(!window.currentUser) return window.showRegisterModal(); let t = $('profHandle').innerText.replace('@', ''); window.location.hash=''; setTimeout(() => window.openChat(t), 300); };
 
 window.openChat = (t) => {
-    if(!window.currentUser) { window.location.hash = '#/login'; return; }
+    if(!window.currentUser) return window.showRegisterModal();
     window.location.hash = ''; 
     document.querySelectorAll('.modal').forEach(m => { if(m.id!=='interestsModal') m.classList.remove('show'); }); 
     document.body.style.overflow = 'auto';
@@ -473,6 +510,7 @@ window.sendMessage = () => {
     push(ref(db, `chats/${r}`), {sender:window.currentUser, text:t, timestamp:n, read:false}).then(() => { $('chatInput').value = ''; update(ref(db, `users/${window.currentUser}/recentChats`), {[tg]:n}); update(ref(db, `users/${tg}/recentChats`), {[window.currentUser]:n}); let ur = ref(db, `users/${tg}/unreadChats/${window.currentUser}`); get(ur).then(s => set(ur, (s.exists() ? s.val() : 0) + 1)); });
 };
 
+// دالة منع تحميل اليوميات للزوار
 function listenToPosts() { 
     onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(100)), s => { 
         let l = []; 
@@ -547,6 +585,12 @@ function createPostHTML(p, cp, it=false, im=false) {
 }
 
 function renderFeed() {
+    let pf = document.getElementById('postsFeed');
+    if(!window.currentUser) {
+        if(pf) pf.innerHTML = ''; // اليوميات معطلة تماماً للزوار
+        return;
+    }
+    
     let h='', sg=window.getSuggestions?window.getSuggestions():[], iN=window.currentUser?window.myFriends.length===0:true, vp=[], reg=[], tr=[];
     let myInterests = window.currentUser ? (window.allUsersData[window.currentUser]?.interests || []) : [];
 
@@ -571,7 +615,7 @@ function renderFeed() {
         if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget(); 
         if(window.currentUser && i>0 && i%5===0) h += window.generateReelsWidgetHTML(); 
     });
-    let pf = document.getElementById('postsFeed');
+    
     if(pf) {
         pf.innerHTML = h || '<p style="text-align:center;color:#666;padding:20px;">المنشورات تظهر هنا.</p>'; 
         document.querySelectorAll('#postsFeed video').forEach(v => window.videoObserver.observe(v));
@@ -579,7 +623,7 @@ function renderFeed() {
 }
 
 window.toggleLike = (id, htmlAuthor, btn) => {
-    if(!window.currentUser) { window.location.hash = '#/login'; return; }
+    if(!window.currentUser) return window.showRegisterModal();
     let r = ref(db, `posts/${id}/likes/${window.currentUser}`); 
     get(r).then(s => { 
         if(s.exists()){ 
@@ -596,7 +640,7 @@ window.toggleLike = (id, htmlAuthor, btn) => {
 };
 
 window.addComment = async (id, htmlAuthor, px) => {
-    if(!window.currentUser) { window.location.hash = '#/login'; return; }
+    if(!window.currentUser) return window.showRegisterModal();
     let i = $(`commentInp_${px}_${id}`), t = i.value.trim(); if(!t) return;
     let mp = window.allUsersData[window.currentUser]?.profilePic || dA, md = window.getDisplayName(window.currentUser), st = window.formatMentions(t);
     let nh = `<div class="comment"><img src="${mp}" class="avatar-small" style="width:28px;height:28px;"><div class="comment-text-box"><div class="comment-author">${md}</div><div>${st}</div></div></div>`, ia = i.closest('.comment-input-area');
@@ -626,10 +670,10 @@ window.renderPostModalLogic = (p) => {
     document.querySelectorAll('#postModalBody video').forEach(v => window.videoObserver.observe(v));
 };
 
-window.prepareReply = (id, a) => { if(!window.currentUser) { window.location.hash = '#/login'; return; } $('modalReplyToId').value = id; let i = $('modalCommentInput'); if(!i.value.includes(`@${a}`)) i.value = `@${a} ` + i.value; i.focus(); };
+window.prepareReply = (id, a) => { if(!window.currentUser) return window.showRegisterModal(); $('modalReplyToId').value = id; let i = $('modalCommentInput'); if(!i.value.includes(`@${a}`)) i.value = `@${a} ` + i.value; i.focus(); };
 
 window.submitModalComment = () => {
-    if(!window.currentUser) { window.location.hash = '#/login'; return; }
+    if(!window.currentUser) return window.showRegisterModal();
     let pid = $('modalPostId').value, pAuthor = $('modalPostAuthor').value, rid = $('modalReplyToId').value, i = $('modalCommentInput'), t = i.value.trim(); if(!t) return;
     let rp = rid ? `posts/${pid}/comments/${rid}/replies` : `posts/${pid}/comments`;
     push(ref(db, rp), {author:window.currentUser, text:t, timestamp:Date.now()}).then(() => { let p = window.postCache[pid] || window.allPosts.find(x => x.id === pid); if(rid) { if(p && p.comments && p.comments[rid]) { let ca = p.comments[rid].author; if(ca && ca !== window.currentUser) push(ref(db, `users/${ca}/notifications`), {type:'reply', from:window.currentUser, postId:pid, timestamp:Date.now(), read:false}); } } else { let tg = p ? p.author : pAuthor; if(tg && tg !== window.currentUser) push(ref(db, `users/${tg}/notifications`), {type:'comment', from:window.currentUser, postId:pid, timestamp:Date.now(), read:false}); } window.myFriends.forEach(f => { if(t.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:pid, timestamp:Date.now(), read:false}); }); });
@@ -637,7 +681,7 @@ window.submitModalComment = () => {
 };
 
 window.executeShare = () => {
-    if(!window.currentUser) { window.location.hash = '#/login'; return; }
+    if(!window.currentUser) return window.showRegisterModal();
     let id = $('sharePostId').value, c = $('shareCaption').value.trim(), p = window.postCache[id] || window.allPosts.find(x => x.id === id); if(!p) return;
     let oa = p.isShare ? p.sharedData.author : p.author, sd = {author:oa, text:p.isShare?(p.sharedData.text||""):(p.text||""), timestamp:p.isShare?p.sharedData.timestamp:p.timestamp}, ti = p.isShare ? p.sharedData.image : p.image, tv = p.isShare ? p.sharedData.video : p.video; if(ti) sd.image = ti; if(tv) sd.video = tv;
     let nr = push(ref(db, 'posts')); set(nr, {author:window.currentUser, text:c, isShare:true, sharedData:sd, timestamp:Date.now()}).then(() => { if(oa && oa !== window.currentUser) push(ref(db, `users/${oa}/notifications`), {type:'share', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); window.myFriends.forEach(f => { if(c.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); }); window.location.hash=''; window.goHome(); });
@@ -682,7 +726,7 @@ window.deletePost = (id) => { if(confirm("حذف؟")) { remove(ref(db, `posts/${
 window.editPost = (id) => { let p = window.postCache[id]; if(!p) return; let nt = prompt("تعديل:", p.text || ''); if(nt !== null) update(ref(db, `posts/${id}`), {text:nt.trim()}); };
 
 window.openShareModal = (id) => {
-    if(!window.currentUser) { window.location.hash = '#/login'; return; }
+    if(!window.currentUser) return window.showRegisterModal();
     let p = window.postCache[id] || window.allPosts.find(x => x.id === id); if(!p) return;
     $('sharePostId').value = id; $('shareCaption').value = '';
     let oa = p.isShare ? p.sharedData.author : p.author, ot = p.isShare ? p.sharedData.text : p.text, oi = p.isShare ? p.sharedData.image : p.image, ov = p.isShare ? p.sharedData.video : p.video, ap = window.allUsersData[oa]?.profilePic || dA, st = window.formatMentions(ot), dn = window.getDisplayName(oa);
@@ -698,7 +742,7 @@ window.openEditProfileLogic = () => {
 
 window.openProfileLogic = (u) => {
     if(!window.currentUser) {
-        window.location.replace('#/login'); // السر هنا! عشان ميعملش Loop لما تدوس رجوع
+        window.location.replace('#/login'); 
         return;
     }
     window.switchProfileTab('posts'); 
@@ -835,104 +879,4 @@ window.getSuggestions = () => {
 };
 function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;"><i class="fas ${x.matchesInt ? 'fa-magic' : (x.isPage?'fa-check-circle':'fa-user-friends')}"></i> ${x.matchesInt ? 'نفس اهتماماتك' : (x.isPage?'صفحة رسمية':(x.mutualCount>0?`مشتركون: ${x.mutualCount}`:(x.isSameLocation?'من منطقتك':'عضو جديد')))}</span></a>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
 
-function initAndRunBots() {
-    get(ref(db, 'botsInitialized_v141')).then(s => {
-        if(!s.exists()) {
-            get(ref(db, 'users')).then(us => {
-                let u = {};
-                window.botAccounts.forEach((b) => { 
-                    u[`users/${b.name}/displayName`] = b.displayName; 
-                    u[`users/${b.name}/profilePic`] = b.pic; 
-                    u[`users/${b.name}/coverPic`] = b.cover; 
-                    u[`users/${b.name}/bio`] = `خبير ومهتم بمجال: ${b.category} ✨`; 
-                    u[`users/${b.name}/password`] = "bot_password"; 
-                    u[`users/${b.name}/online`] = true; 
-                    u[`users/${b.name}/isBot`] = true; 
-                    u[`users/${b.name}/type`] = "user"; 
-                    u[`users/${b.name}/category`] = b.category; 
-                    u[`users/${b.name}/location`] = b.location; 
-                });
-                u['botsInitialized_v141'] = true; update(ref(db), u);
-            });
-        }
-    });
-    
-    setInterval(() => {
-        if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
-        let myInterests = window.allUsersData[window.currentUser].interests || [];
-        if(myInterests.length === 0) return;
-        let matchingBots = [];
-        for (let key in window.allUsersData) {
-            let u = window.allUsersData[key];
-            if (u.isBot && u.category && myInterests.includes(u.category)) matchingBots.push(key);
-        }
-        if (matchingBots.length === 0) return;
-        let randomBotId = matchingBots[Math.floor(Math.random() * matchingBots.length)];
-
-        if(!window.myFriends.includes(randomBotId) && (!window.currentRequests || !window.currentRequests[randomBotId]) && (!window.sentRequests || !window.sentRequests[randomBotId])) { 
-            set(ref(db, `friendRequests/${window.currentUser}/${randomBotId}`), Date.now()).then(() => { 
-                push(ref(db, `users/${window.currentUser}/notifications`), {type:'friend_req', from:randomBotId, timestamp:Date.now(), read:false}); 
-            }); 
-        }
-    }, 120000); 
-
-    setInterval(() => {
-        if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
-        let lastRunRef = ref(db, 'botStats/lastTextPostRun');
-        get(lastRunRef).then(s => {
-            let lastTime = s.exists() ? s.val() : 0, now = Date.now();
-            if(now - lastTime > 600000) { 
-                set(lastRunRef, now); 
-                let myInterests = window.allUsersData[window.currentUser].interests || PLATFORM_INTERESTS;
-                let activeBots = [];
-                for (let key in window.allUsersData) {
-                    let u = window.allUsersData[key];
-                    if (u.isBot && u.category && myInterests.includes(u.category)) activeBots.push(key);
-                }
-                if(activeBots.length > 0) {
-                    let randomBotId = activeBots[Math.floor(Math.random()*activeBots.length)];
-                    let botCat = window.allUsersData[randomBotId].category;
-                    let contentLib = [
-                        `أحدث التطورات اليوم في مجال ${botCat}، شاركونا رأيكم في التعليقات! 👇`,
-                        `موضوع جديد ومهم جداً بخصوص ${botCat}، حبيت أشاركه معاكم ✨`,
-                        `معلومة سريعة في ${botCat}: هل تعلم أن الاهتمام بهذا المجال زاد جداً مؤخراً؟ شاركونا رأيكم! 👇`,
-                        `أفضل النصائح في ${botCat} جمعتها لكم اليوم، أتمنى تستفيدوا منها ✨`,
-                        `نقاش مفتوح: ما هو رأيكم في التطورات الأخيرة الخاصة بـ ${botCat}؟ 🤔`
-                    ];
-                    let text = contentLib[Math.floor(Math.random() * contentLib.length)];
-                    let imgUrl = `https://source.unsplash.com/600x400/?${encodeURIComponent(botCat.split(' ')[0])}`;
-                    push(ref(db, 'posts'), {author:randomBotId, text:text, image:imgUrl, timestamp:Date.now()});
-                }
-            }
-        });
-    }, 60000);
-
-    setInterval(() => {
-        if(!window.currentUser) return;
-        let botAccountsList = [];
-        for (let key in window.allUsersData) {
-            if (window.allUsersData[key].isBot) botAccountsList.push(key);
-        }
-        if(botAccountsList.length === 0) return;
-        let randomBot = botAccountsList[Math.floor(Math.random()*botAccountsList.length)];
-        
-        if(window.allPosts && window.allPosts.length > 0) {
-            let mediaPosts = window.allPosts.filter(p => p.video || p.isReel);
-            let pool = mediaPosts.length > 0 && Math.random() > 0.3 ? mediaPosts : window.allPosts;
-            let randomPost = pool[Math.floor(Math.random() * pool.length)];
-            
-            set(ref(db, `posts/${randomPost.id}/likes/${randomBot}`), true);
-            if(randomPost.video || randomPost.isReel) { set(ref(db, `posts/${randomPost.id}/views/${randomBot}`), true); }
-            
-            if(Math.random() < 0.20) {
-                let comments = [];
-                if(randomPost.video || randomPost.isReel) comments = ["فيديو عظمة 🔥", "تصوير رائع 👏", "استمر في الإبداع", "ريلز جامد جداً ✨"];
-                else if (randomPost.image) comments = ["صورة جميلة جداً 😍", "اللقطة دي روعة", "إبداع متواصل 🎨"];
-                else comments = ["كلام سليم 100%", "أتفق معك تماماً 👍", "موضوع مفيد جداً، شكراً للمشاركة!"];
-                
-                let cText = comments[Math.floor(Math.random()*comments.length)];
-                push(ref(db, `posts/${randomPost.id}/comments`), {author:randomBot, text:cText, timestamp:Date.now()});
-            }
-        }
-    }, 45000); 
-}
+function initAndRunBots() {}
