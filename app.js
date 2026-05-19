@@ -32,6 +32,10 @@ const dA = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 const videoPoster = "https://placehold.co/600x400/1e293b/ffffff?text=Video+Loading...";
 const reelPoster = "https://placehold.co/300x500/1e293b/ffffff?text=Reel+Video";
 
+// -- متغيرات منع التكرار --
+window.usersListenerActive = false;
+window.privateListenersStarted = false;
+
 window.activeMentionInput = null;
 window.previousUnreadChats = {};
 window.isChatBoxVisible = false;
@@ -296,12 +300,17 @@ window.switchProfileTab = (t) => { ['posts','reels','photos','friends','about'].
 window.handleGlobalSearch = (q) => { let r = $('searchResults'); if(!q.trim()){ r.style.display='none'; return; } let h=''; for(let u in window.allUsersData) { let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())) { h += `<a href="#/@${u}" class="search-result-item" onclick="$('searchResults').style.display='none'; $('globalSearch').value='';" style="text-decoration:none; color:inherit;"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"> <div style="display:flex;flex-direction:column;line-height:1.2;"><span>${d}</span><span style="font-size:11px;color:#64748b;">@${u}</span></div></a>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#666;">لا توجد نتائج</div>'; r.style.display='block'; };
 window.searchChatUsers = (q) => { let r=$('chatSearchBox'), f=$('friendsList'), rh=$('msgRequestsHeader'), rl=$('msgRequestsList'); if(!q.trim()){ r.style.display='none'; f.style.display='block'; if(rl&&rl.innerHTML!==''){ rh.style.display='block'; rl.style.display='block'; } return; } f.style.display='none'; rh.style.display='none'; rl.style.display='none'; let h=''; for(let u in window.allUsersData){ if(u===window.currentUser) continue; let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())){ h += `<div class="user-row" onclick="window.openChat('${u}')"><div class="user-info"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"><span>${d}</span></div><button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:4px;"><i class="fas fa-comment-dots"></i></button></div>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#64748b;font-size:14px;">لا توجد نتائج</div>'; r.style.display='block'; };
 
-// تسجيل الخروج النظيف لمنع التكرار والحبس
+// -- الحل الجذري لتسجيل الخروج لمنع تداخل الجلسات والتهنيج --
 window.logoutUser = () => { 
-    if(window.currentUser && confirm("خروج؟")) { 
-        set(ref(db, `users/${window.currentUser}/online`), false).then(() => { 
+    if(window.currentUser && confirm("تسجيل الخروج؟")) { 
+        let user = window.currentUser;
+        set(ref(db, `users/${user}/online`), false).then(() => { 
             localStorage.removeItem('savedUser'); 
-            window.location.replace('#/login'); 
+            window.location.replace(window.location.pathname + '#/login'); 
+            window.location.reload(); 
+        }).catch(() => {
+            localStorage.removeItem('savedUser'); 
+            window.location.replace(window.location.pathname + '#/login'); 
             window.location.reload(); 
         }); 
     } 
@@ -361,7 +370,21 @@ function fL(u, d) {
     let ab = $('adminBtn'); if(ab){ ab.style.display = (u.toLowerCase()==='admin21') ? 'flex' : 'none'; } 
     let oRef = ref(db, `users/${u}/online`); set(oRef, true); onDisconnect(oRef).set(false); 
     if(!d.interests || d.interests.length === 0) { setTimeout(window.renderInterestsModal, 1000); }
-    listenToUsers(); 
+    
+    // تشغيل مستمعي النظام بأمان تام
+    if(!window.usersListenerActive) {
+        window.usersListenerActive = true;
+        listenToUsers();
+    }
+    window.startPrivateListeners();
+
+    // إجبار إعادة تحديث الواجهة واليوميات في حال تسجيل دخول حساب ثاني
+    if(!window.isInitialLoad) {
+        window.renderedPostIds = new Set(window.allPosts.map(p=>p.id));
+        window.feedLim = 5;
+        renderFeed();
+        handleRouting();
+    }
 }
 
 if(window.currentUser){ 
@@ -396,10 +419,40 @@ function rU(){
         window.location.replace('#/login');
     }
 
-    listenToUsers(); 
+    if(!window.usersListenerActive) {
+        window.usersListenerActive = true;
+        listenToUsers();
+    }
 }
 
-function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window.allUsersData = s.val(); if(window.isInitialLoad){ listenToPosts(); if(window.currentUser){ listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); initAndRunBots(); setTimeout(window.checkFriendsBirthdays, 3000); } } else { if(window.currentUser){ renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); } } } }); }
+// -- فصل الاستماع لبيانات المستخدمين ليكون أكثر أماناً --
+function listenToUsers(){ 
+    onValue(ref(db,'users'), s => { 
+        if(s.exists()){ 
+            window.allUsersData = s.val(); 
+            if(window.isInitialLoad){ 
+                listenToPosts(); 
+            }
+            if(window.currentUser){ 
+                renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); 
+            } 
+        } 
+    }); 
+}
+
+// -- إطلاق المستمعات الخاصة للمستخدم فقط حين تسجيل الدخول --
+window.startPrivateListeners = () => {
+    if(window.privateListenersStarted) return;
+    window.privateListenersStarted = true;
+    listenToAllFriends();
+    listenToFriendRequests();
+    listenToNotifications();
+    listenToUnreadChats();
+    listenToRecentChats();
+    initAndRunBots();
+    setTimeout(window.checkFriendsBirthdays, 3000);
+};
+
 function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ window.feedLim=5; renderFeed(); } }); }
 function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unreadChats`), s => { window.unreadChatsData = s.exists() ? s.val() : {}; let t=0; if(window.currentChatTarget && window.isChatBoxVisible && window.unreadChatsData[window.currentChatTarget]){ remove(ref(db,`users/${window.currentUser}/unreadChats/${window.currentChatTarget}`)); delete window.unreadChatsData[window.currentChatTarget]; } for(let x in window.unreadChatsData){ let c = window.unreadChatsData[x], p = window.previousUnreadChats[x]||0; t+=c; if(c>p && x!==window.currentChatTarget) window.showToast("رسالة جديدة", `أرسل ${window.getDisplayName(x)} رسالة`, window.allUsersData[x]?.profilePic); } window.previousUnreadChats = {...window.unreadChatsData}; let b1=$('chatBadge'), b2=$('chatBadgeMobile'); if(t>0){ b1.style.display='inline-block'; b1.innerText=t; b2.style.display='inline-block'; b2.innerText=t; } else { b1.style.display='none'; b2.style.display='none'; } renderSidebarUsers(); }); }
 function listenToRecentChats(){ onValue(ref(db,`users/${window.currentUser}/recentChats`), s => { window.recentChatsData = s.exists() ? s.val() : {}; renderSidebarUsers(); }); }
@@ -510,7 +563,6 @@ window.sendMessage = () => {
     push(ref(db, `chats/${r}`), {sender:window.currentUser, text:t, timestamp:n, read:false}).then(() => { $('chatInput').value = ''; update(ref(db, `users/${window.currentUser}/recentChats`), {[tg]:n}); update(ref(db, `users/${tg}/recentChats`), {[window.currentUser]:n}); let ur = ref(db, `users/${tg}/unreadChats/${window.currentUser}`); get(ur).then(s => set(ur, (s.exists() ? s.val() : 0) + 1)); });
 };
 
-// دالة منع تحميل اليوميات للزوار
 function listenToPosts() { 
     onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(100)), s => { 
         let l = []; 
@@ -524,13 +576,15 @@ function listenToPosts() {
         window.renderReelsTopBar();
 
         if(window.isInitialLoad){ 
-            window.renderedPostIds = new Set(l.map(p=>p.id)); renderFeed(); window.isInitialLoad=false; 
+            window.renderedPostIds = new Set(l.map(p=>p.id)); 
+            if(window.currentUser) renderFeed(); 
+            window.isInitialLoad=false; 
             handleRouting();
         } else { 
             let hash = window.location.hash; 
             if(hash.startsWith('#/post/')){ let up = window.postCache[decodeURIComponent(hash.replace('#/post/', ''))]; if(up) window.openPostLogic(up.id); } 
             let nc = l.filter(p=>!window.renderedPostIds.has(p.id)).length, mp = l.some(p=>p.author===window.currentUser&&!window.renderedPostIds.has(p.id)); 
-            if(mp){ window.renderedPostIds = new Set(l.map(p=>p.id)); renderFeed(); $('newPostsBtn').style.display='none'; } 
+            if(mp){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); $('newPostsBtn').style.display='none'; } 
             else if(nc>=3){ $('newPostsBtn').style.display='block'; $('newPostsBtn').innerText=`عرض الجديدة (${nc}) ⬆️`; } 
             else { let ci=new Set(l.map(p=>p.id)); for(let id of window.renderedPostIds) if(!ci.has(id)) window.renderedPostIds.delete(id); } 
         } 
