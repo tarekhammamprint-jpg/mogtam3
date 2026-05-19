@@ -75,15 +75,6 @@ if(!window.botAccounts || window.botAccounts.length === 0) {
     }
 }
 
-// صمام أمان إجباري: إخفاء التحميل بعد 4.5 ثواني في أسوأ الظروف لمنع التعليق للأبد
-setTimeout(() => {
-    let il = document.getElementById('initialLoader');
-    if (il && il.style.display !== 'none') {
-        il.style.opacity = '0';
-        setTimeout(() => il.style.display = 'none', 400);
-    }
-}, 4500);
-
 window.addEventListener('load', () => {
     setTimeout(() => {
         let il = document.getElementById('initialLoader');
@@ -96,6 +87,7 @@ window.addEventListener('load', () => {
 
 window.addEventListener('hashchange', handleRouting);
 
+// النظام الذكي لروابط المنشورات وتسجيل الدخول
 function handleRouting() {
     let hash = window.location.hash;
     document.querySelectorAll('.modal').forEach(m => {
@@ -105,6 +97,7 @@ function handleRouting() {
     document.body.style.overflow = 'auto'; 
     
     let lw = $('loginModal');
+    // التحكم الذكي في شاشة الدخول وأزرار الإغلاق للزوار
     if (hash === '#/login' || (!window.currentUser && (hash === '' || hash === '#/'))) {
         if(lw) {
             let s = document.getElementById('hideLoginStyle'); if(s) s.remove();
@@ -112,7 +105,7 @@ function handleRouting() {
             setTimeout(() => { lw.style.opacity = '1'; lw.style.pointerEvents = 'auto'; }, 10);
         }
         let closeBtn = document.getElementById('loginModalCloseBtn');
-        if(closeBtn) closeBtn.style.display = 'none'; 
+        if(closeBtn) closeBtn.style.display = 'none'; // إخفاء الـ X في الصفحة الرئيسية
         let guestBtn = document.getElementById('guestBrowseBtn');
         if(guestBtn) guestBtn.style.display = 'none';
         
@@ -125,6 +118,7 @@ function handleRouting() {
         }
     }
 
+    // منع الزوار من دخول اليوميات تماماً وتوجيههم لصفحة الدخول
     if(hash === '' || hash === '#/') { 
         if(!window.currentUser) {
             window.location.replace('#/login');
@@ -145,6 +139,7 @@ window.openProfile = (u) => { window.location.hash = '#/@' + u; };
 window.openPostModal = (id) => { window.location.hash = '#/post/' + id; };
 window.openShareModal = (id) => { window.location.hash = '#/share/' + id; };
 
+// توجيهات الزوار الآمنة
 window.openRequestsModal = () => { if(!window.currentUser) return window.showRegisterModal(); window.location.hash = '#/requests'; };
 window.openAdminStats = () => { window.location.hash = '#/stats'; };
 window.openEditProfileModal = () => { window.location.hash = '#/edit-profile'; };
@@ -183,6 +178,7 @@ const $ = (id) => document.getElementById(id);
 window.toggleLoginMode = (m) => { $('loginFormContent').style.display = m==='register' ? 'none' : 'block'; $('registerFormContent').style.display = m==='register' ? 'block' : 'none'; };
 window.generateHandles = (n) => { let c = $('handleSuggestions'); if(!n.trim()) { c.innerHTML = ""; return; } let b = tr(n.trim().split(" ")[0]), h = '<div style="font-size:13px;margin-bottom:5px;">اختر المعرف:</div>', o = [b + Math.floor(Math.random()*99+10), b + "_" + Math.floor(Math.random()*999+100), b + new Date().getFullYear()]; o.forEach((x, i) => { h += `<label class="handle-radio-label"><input type="radio" name="selectedHandle" value="${x}" ${i===0?"checked":""}> @${x}</label>`; }); c.innerHTML = h; };
 
+// دالة إظهار نافذة التسجيل عند تفاعل الزوار مع المنشورات
 window.showRegisterModal = () => { 
     let s = document.getElementById('hideLoginStyle'); if(s) s.remove();
     let lw = document.getElementById('loginModal');
@@ -191,23 +187,20 @@ window.showRegisterModal = () => {
         setTimeout(() => { lw.style.opacity = '1'; lw.style.pointerEvents = 'auto'; }, 10);
     }
     let closeBtn = document.getElementById('loginModalCloseBtn');
-    if(closeBtn) closeBtn.style.display = 'flex'; 
+    if(closeBtn) closeBtn.style.display = 'flex'; // إظهار الـ X لأنه فوق منشور
     let guestBtn = document.getElementById('guestBrowseBtn');
     if(guestBtn) guestBtn.style.display = 'block';
     
     window.toggleLoginMode('register'); 
 };
 
+// الإغلاق الذكي لشاشة الدخول دون تصفير الرابط (يرجعك مكان ما كنت)
 window.closeRegisterModal = () => { 
     let lw = $('loginModal');
     if(lw) {
         lw.style.opacity = '0';
         lw.style.pointerEvents = 'none';
         setTimeout(() => { lw.style.display = 'none'; }, 400);
-    }
-    if(window.location.hash === '#/login') {
-        if(window.history.length > 2) window.history.back();
-        else window.location.hash = ''; 
     }
 };
 
@@ -303,6 +296,7 @@ window.switchProfileTab = (t) => { ['posts','reels','photos','friends','about'].
 window.handleGlobalSearch = (q) => { let r = $('searchResults'); if(!q.trim()){ r.style.display='none'; return; } let h=''; for(let u in window.allUsersData) { let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())) { h += `<a href="#/@${u}" class="search-result-item" onclick="$('searchResults').style.display='none'; $('globalSearch').value='';" style="text-decoration:none; color:inherit;"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"> <div style="display:flex;flex-direction:column;line-height:1.2;"><span>${d}</span><span style="font-size:11px;color:#64748b;">@${u}</span></div></a>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#666;">لا توجد نتائج</div>'; r.style.display='block'; };
 window.searchChatUsers = (q) => { let r=$('chatSearchBox'), f=$('friendsList'), rh=$('msgRequestsHeader'), rl=$('msgRequestsList'); if(!q.trim()){ r.style.display='none'; f.style.display='block'; if(rl&&rl.innerHTML!==''){ rh.style.display='block'; rl.style.display='block'; } return; } f.style.display='none'; rh.style.display='none'; rl.style.display='none'; let h=''; for(let u in window.allUsersData){ if(u===window.currentUser) continue; let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())){ h += `<div class="user-row" onclick="window.openChat('${u}')"><div class="user-info"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"><span>${d}</span></div><button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:4px;"><i class="fas fa-comment-dots"></i></button></div>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#64748b;font-size:14px;">لا توجد نتائج</div>'; r.style.display='block'; };
 
+// تسجيل الخروج النظيف لمنع التكرار والحبس
 window.logoutUser = () => { 
     if(window.currentUser && confirm("خروج؟")) { 
         set(ref(db, `users/${window.currentUser}/online`), false).then(() => { 
@@ -313,110 +307,12 @@ window.logoutUser = () => {
     } 
 };
 
-// ================== خوارزمية ترتيب الاقتراحات مع دروع حماية ضد أخطاء البيانات ==================
-window.getSuggestions = () => { 
-    try {
-        let myInterests = window.currentUser ? (window.allUsersData[window.currentUser]?.interests || []) : [];
-        if (typeof myInterests === 'string') myInterests = [myInterests];
-        else if (!Array.isArray(myInterests)) myInterests = Object.values(myInterests);
-
-        let ml = window.currentUser ? (window.allUsersData[window.currentUser]?.location || "غير محدد") : "غير محدد", sg = []; 
-        for(let u in window.allUsersData) { 
-            if(u === window.currentUser || window.myFriends.includes(u)) continue; 
-            let d = window.allUsersData[u]; 
-            if(!d) continue;
-            
-            let matchingInterestsCount = 0;
-            if (d.category && myInterests.includes(d.category)) matchingInterestsCount += 5; 
-            
-            let userInt = d.interests || [];
-            if (typeof userInt === 'string') userInt = [userInt];
-            else if (!Array.isArray(userInt)) userInt = Object.values(userInt);
-
-            userInt.forEach(i => { if(myInterests.includes(i)) matchingInterestsCount++; });
-            
-            if(d.type && d.type !== 'user') { 
-                sg.push({name:u, data:d, realMutualCount: 0, matchingInterestsCount: matchingInterestsCount, isSameLocation:false, isPage:true}); 
-                continue; 
-            } 
-            
-            let tf = Object.keys(window.allFriendsData[u] || {}), mc = tf.filter(f => window.myFriends.includes(f)).length;
-            let isl = (d.location && d.location === ml && ml !== "غير محدد"); 
-            
-            sg.push({
-                name:u, 
-                data:d, 
-                realMutualCount: mc, 
-                matchingInterestsCount: matchingInterestsCount, 
-                isSameLocation: isl, 
-                isPage: false, 
-                matchesInt: matchingInterestsCount > 0
-            }); 
-        } 
-        sg.sort((a,b) => { 
-            if(b.realMutualCount !== a.realMutualCount) return b.realMutualCount - a.realMutualCount; 
-            if(b.isSameLocation && !a.isSameLocation) return 1; 
-            if(!b.isSameLocation && a.isSameLocation) return -1; 
-            if(b.matchingInterestsCount !== a.matchingInterestsCount) return b.matchingInterestsCount - a.matchingInterestsCount;
-            if(a.isPage && !b.isPage) return 1; 
-            if(!a.isPage && b.isPage) return -1; 
-            return 0; 
-        }); 
-        return sg; 
-    } catch(err) {
-        console.error("Suggestion System Error: ", err);
-        return [];
-    }
-};
-
-function createSuggestedFriendsWidget() { 
-    let s = window.getSuggestions().slice(0,10); 
-    if(s.length === 0) return ''; 
-    let ch = ''; 
-    s.forEach(x => { 
-        let rr = window.currentRequests && window.currentRequests[x.name], b = ''; 
-        if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; 
-        else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; 
-        else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; 
-        
-        let reasonHtml = '';
-        if (x.realMutualCount > 0) reasonHtml = `<i class="fas fa-user-friends"></i> مشتركون: ${x.realMutualCount}`;
-        else if (x.isSameLocation) reasonHtml = `<i class="fas fa-map-marker-alt"></i> من منطقتك`;
-        else if (x.matchesInt) reasonHtml = `<i class="fas fa-magic"></i> نفس اهتماماتك`;
-        else if (x.isPage) reasonHtml = `<i class="fas fa-check-circle"></i> صفحة رسمية`;
-        else reasonHtml = `<i class="fas fa-user"></i> عضو جديد`;
-
-        ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;">${reasonHtml}</span></a>${b}</div>`; 
-    }); 
-    return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; 
-}
-
-window.renderSuggestedUsersModal = () => { 
-    let s = window.getSuggestions ? window.getSuggestions().slice(0,15) : [], h=''; 
-    if(s.length===0) h='<p style="text-align:center;color:#666;font-size:14px;">لا مقترحات.</p>'; 
-    else s.forEach(x => { 
-        let p=x.data.profilePic||dA, d=window.getDisplayName(x.name);
-        
-        let st = '';
-        if (x.realMutualCount > 0) st = `مشتركون: ${x.realMutualCount}`;
-        else if (x.isSameLocation) st = `من منطقتك`;
-        else if (x.matchesInt) st = `نفس اهتماماتك`;
-        else if (x.isPage) st = `صفحة رسمية`;
-        else st = `عضو جديد`;
-
-        let rr = window.currentRequests && window.currentRequests[x.name], b=''; 
-        if(window.sentRequests && window.sentRequests[x.name]) b=`<button class="btn-secondary" disabled style="padding:6px 12px;font-size:13px;"><i class="fas fa-clock"></i> أرسل</button>`; 
-        else if(rr) b=`<button class="btn-primary" style="background:#10b981;padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; 
-        else b=`<button class="btn-primary" data-action="add" data-target="${x.name}" style="padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; 
-        
-        h += `<div class="req-row"><a href="#/@${x.name}" style="display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;"><img src="${p}" class="avatar-small"><div style="display:flex;flex-direction:column;cursor:pointer;"><strong style="font-size:15px;color:var(--text-main);text-align:right;">${d}</strong><span style="font-size:12px;color:var(--text-muted);text-align:right;">${st}</span></div></a><div class="req-actions">${b}</div></div>`; 
-    }); 
-    let u = $('usersList'); if(u) u.innerHTML=h; 
-};
+window.renderSuggestedUsersModal = () => { let s = window.getSuggestions ? window.getSuggestions().slice(0,15) : [], h=''; if(s.length===0) h='<p style="text-align:center;color:#666;font-size:14px;">لا مقترحات.</p>'; else s.forEach(x => { let p=x.data.profilePic||dA, d=window.getDisplayName(x.name), st=x.isPage?'صفحة رسمية':(x.mutualCount>0?`مشتركون: ${x.mutualCount}`:(x.isSameLocation?'من منطقتك':'عضو جديد')), rr = window.currentRequests && window.currentRequests[x.name], b=''; if(window.sentRequests && window.sentRequests[x.name]) b=`<button class="btn-secondary" disabled style="padding:6px 12px;font-size:13px;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b=`<button class="btn-primary" style="background:#10b981;padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b=`<button class="btn-primary" data-action="add" data-target="${x.name}" style="padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; h += `<div class="req-row"><a href="#/@${x.name}" style="display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;"><img src="${p}" class="avatar-small"><div style="display:flex;flex-direction:column;cursor:pointer;"><strong style="font-size:15px;color:var(--text-main);text-align:right;">${d}</strong><span style="font-size:12px;color:var(--text-muted);text-align:right;">${st}</span></div></a><div class="req-actions">${b}</div></div>`; }); let u = $('usersList'); if(u) u.innerHTML=h; };
 
 window.login = () => { if("Notification" in window && Notification.permission === "default") Notification.requestPermission(); let u = $('usernameInput').value.trim(); if(u.startsWith('@')) u = u.substring(1); let p = $('passwordInput').value.trim(); if(!u || !p) return alert("أدخل البيانات!"); let b = $('loginBtn'), ot = b.innerText; b.innerText="جاري..."; b.disabled = true; let tc = setTimeout(() => { alert("انتهى الوقت!"); b.innerText=ot; b.disabled = false; }, 10000); get(ref(db, `users/${u}`)).then(s => { clearTimeout(tc); if(s.exists()){ if(s.val().password === p) fL(u, s.val()); else { alert("خطأ بالمرور!"); b.innerText=ot; b.disabled=false; } } else { alert("غير موجود."); b.innerText=ot; b.disabled=false; } }).catch(() => { clearTimeout(tc); alert("رُفض الاتصال."); b.innerText=ot; b.disabled=false; }); };
 window.checkFriendsBirthdays = () => { let t = new Date(), m = String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'), y = t.getFullYear(); window.myFriends.forEach(f => { let d = window.allUsersData[f]; if(d && d.birthdate) { let p = d.birthdate.split('-'); if(p.length===3 && p[1]+'-'+p[2]===m) { let nk = `bday_${f}_${y}`, rp = `users/${window.currentUser}/birthdayNotifs/${nk}`; get(ref(db, rp)).then(s => { if(!s.exists()){ set(ref(db, rp), true); push(ref(db, `users/${window.currentUser}/notifications`), {type:'system', text:`اليوم عيد ميلاد ${window.getDisplayName(f)} 🎂`, from:f, timestamp:Date.now(), read:false}); } }); } } }); };
 
+// ======================== نظام الاهتمامات ========================
 window.renderInterestsModal = () => {
     let c = $('interestsContainer'), h = '';
     if(c) {
@@ -445,6 +341,9 @@ window.saveUserInterests = () => {
         alert("تم تخصيص تجربتك بنجاح! ✨");
     }).catch(e => { alert("حدث خطأ"); btn.innerText = ot; btn.disabled = false; });
 };
+
+// تم إيقاف المكنسة
+function wipeAllBotVideosForever() {}
 
 function fL(u, d) { 
     window.isInitialNotifLoad = true; window.alertedNotifs = new Set(); window.currentUser = u; localStorage.setItem('savedUser', u); 
@@ -492,6 +391,7 @@ function rU(){
     let sidebarAreaContainer = $('sidebarAreaContainer'); if(sidebarAreaContainer) sidebarAreaContainer.style.display = 'none';
     let bottomNav = $('bottomNav'); if(bottomNav) bottomNav.style.display = 'none';
 
+    // توجيه إجباري للزوار لصفحة الدخول لمنع عرض اليوميات
     if(window.location.hash === '' || window.location.hash === '#/') {
         window.location.replace('#/login');
     }
@@ -499,24 +399,7 @@ function rU(){
     listenToUsers(); 
 }
 
-function listenToUsers(){ 
-    onValue(ref(db,'users'), s => { 
-        if(s.exists()){ 
-            window.allUsersData = s.val(); 
-            if(window.isInitialLoad){ 
-                listenToPosts(); 
-                if(window.currentUser){ 
-                    listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); initAndRunBots(); setTimeout(window.checkFriendsBirthdays, 3000); 
-                } else {
-                    initAndRunBots(); // لكي تعمل البوتات حتى لو لم يسجل أحد الدخول
-                }
-            } else { 
-                if(window.currentUser){ renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); } 
-            } 
-        } 
-    }); 
-}
-
+function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window.allUsersData = s.val(); if(window.isInitialLoad){ listenToPosts(); if(window.currentUser){ listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); initAndRunBots(); setTimeout(window.checkFriendsBirthdays, 3000); } } else { if(window.currentUser){ renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); } } } }); }
 function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ window.feedLim=5; renderFeed(); } }); }
 function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unreadChats`), s => { window.unreadChatsData = s.exists() ? s.val() : {}; let t=0; if(window.currentChatTarget && window.isChatBoxVisible && window.unreadChatsData[window.currentChatTarget]){ remove(ref(db,`users/${window.currentUser}/unreadChats/${window.currentChatTarget}`)); delete window.unreadChatsData[window.currentChatTarget]; } for(let x in window.unreadChatsData){ let c = window.unreadChatsData[x], p = window.previousUnreadChats[x]||0; t+=c; if(c>p && x!==window.currentChatTarget) window.showToast("رسالة جديدة", `أرسل ${window.getDisplayName(x)} رسالة`, window.allUsersData[x]?.profilePic); } window.previousUnreadChats = {...window.unreadChatsData}; let b1=$('chatBadge'), b2=$('chatBadgeMobile'); if(t>0){ b1.style.display='inline-block'; b1.innerText=t; b2.style.display='inline-block'; b2.innerText=t; } else { b1.style.display='none'; b2.style.display='none'; } renderSidebarUsers(); }); }
 function listenToRecentChats(){ onValue(ref(db,`users/${window.currentUser}/recentChats`), s => { window.recentChatsData = s.exists() ? s.val() : {}; renderSidebarUsers(); }); }
@@ -550,7 +433,9 @@ window.generateReelsWidgetHTML = () => {
 };
 
 window.openReelsLogic = (startIndex) => { 
-    if(!window.currentUser) { window.location.replace('#/login'); return; }
+    if(!window.currentUser) {
+        window.location.replace('#/login'); return;
+    }
     let modal = $('reelsViewerModal'), scrollArea = $('reelsScrollArea'), h = ''; 
     window.allReels.forEach(r => { 
         let ap = window.allUsersData[r.author]?.profilePic || dA, an = window.getDisplayName(r.author); 
@@ -561,10 +446,10 @@ window.openReelsLogic = (startIndex) => {
     scrollArea.innerHTML = h; modal.classList.add('show'); document.body.style.overflow = 'hidden'; scrollArea.querySelectorAll('.reel-screen').forEach(scr => reelsObserver.observe(scr)); setTimeout(() => { let target = scrollArea.children[startIndex]; if(target) target.scrollIntoView({behavior:'auto'}); }, 100); 
 };
 
-window.openChatFromProfile = () => { if(!window.currentUser) { window.location.replace('#/login'); return; } let t = $('profHandle').innerText.replace('@', ''); window.location.hash=''; setTimeout(() => window.openChat(t), 300); };
+window.openChatFromProfile = () => { if(!window.currentUser) return window.showRegisterModal(); let t = $('profHandle').innerText.replace('@', ''); window.location.hash=''; setTimeout(() => window.openChat(t), 300); };
 
 window.openChat = (t) => {
-    if(!window.currentUser) { window.location.replace('#/login'); return; }
+    if(!window.currentUser) return window.showRegisterModal();
     window.location.hash = ''; 
     document.querySelectorAll('.modal').forEach(m => { if(m.id!=='interestsModal') m.classList.remove('show'); }); 
     document.body.style.overflow = 'auto';
@@ -625,7 +510,7 @@ window.sendMessage = () => {
     push(ref(db, `chats/${r}`), {sender:window.currentUser, text:t, timestamp:n, read:false}).then(() => { $('chatInput').value = ''; update(ref(db, `users/${window.currentUser}/recentChats`), {[tg]:n}); update(ref(db, `users/${tg}/recentChats`), {[window.currentUser]:n}); let ur = ref(db, `users/${tg}/unreadChats/${window.currentUser}`); get(ur).then(s => set(ur, (s.exists() ? s.val() : 0) + 1)); });
 };
 
-// ======================== إضافة حماية قوية لأخطاء جلب المقترحين وتفريغ اليوميات للزوار ========================
+// دالة منع تحميل اليوميات للزوار
 function listenToPosts() { 
     onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(100)), s => { 
         let l = []; 
@@ -700,46 +585,40 @@ function createPostHTML(p, cp, it=false, im=false) {
 }
 
 function renderFeed() {
-    try {
-        let pf = document.getElementById('postsFeed');
-        if(!window.currentUser) {
-            if(pf) pf.innerHTML = ''; 
-            return;
-        }
-        
-        let h='', sg=window.getSuggestions?window.getSuggestions():[], iN=window.currentUser?window.myFriends.length===0:true, vp=[], reg=[], tr=[];
-        let myInterests = window.currentUser ? (window.allUsersData[window.currentUser]?.interests || []) : [];
-        if (typeof myInterests === 'string') myInterests = [myInterests];
-        else if (!Array.isArray(myInterests)) myInterests = Object.values(myInterests || {});
+    let pf = document.getElementById('postsFeed');
+    if(!window.currentUser) {
+        if(pf) pf.innerHTML = ''; // اليوميات معطلة تماماً للزوار
+        return;
+    }
+    
+    let h='', sg=window.getSuggestions?window.getSuggestions():[], iN=window.currentUser?window.myFriends.length===0:true, vp=[], reg=[], tr=[];
+    let myInterests = window.currentUser ? (window.allUsersData[window.currentUser]?.interests || []) : [];
 
-        window.allPosts.forEach(p => { 
-            if(!window.renderedPostIds.has(p.id)) return; 
-            let im = p.author === window.currentUser;
-            let ifR = window.currentUser ? window.myFriends.includes(p.author) : false;
-            let lc = p.likes ? Object.keys(p.likes).length : 0;
-            let it = lc >= 10; 
-            
-            if(iN){ 
-                if(im || it) vp.push({p:p, it:it}); 
-            } else { 
-                if(im || ifR) reg.push({p:p, it:it}); 
-                else if(it) tr.push({p:p, it:true}); 
-            } 
-        });
+    window.allPosts.forEach(p => { 
+        if(!window.renderedPostIds.has(p.id)) return; 
+        let im = p.author === window.currentUser;
+        let ifR = window.currentUser ? window.myFriends.includes(p.author) : false;
+        let lc = p.likes ? Object.keys(p.likes).length : 0;
+        let it = lc >= 10; 
         
-        if(!iN){ let t_i = 0; for(let i=0; i<reg.length; i++){ vp.push(reg[i]); if((i+1)%10===0 && t_i<tr.length){ vp.push(tr[t_i]); t_i++; } } }
-        vp.slice(0, window.feedLim || 5).forEach((v,i) => { 
-            h += createPostHTML(v.p, 'feed', v.it, false); 
-            if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget(); 
-            if(window.currentUser && i>0 && i%5===0) h += window.generateReelsWidgetHTML(); 
-        });
-        
-        if(pf) {
-            pf.innerHTML = h || '<p style="text-align:center;color:#666;padding:20px;">المنشورات تظهر هنا.</p>'; 
-            document.querySelectorAll('#postsFeed video').forEach(v => window.videoObserver.observe(v));
-        }
-    } catch(err) {
-        console.error("Feed Error:", err);
+        if(iN){ 
+            if(im || it) vp.push({p:p, it:it}); 
+        } else { 
+            if(im || ifR) reg.push({p:p, it:it}); 
+            else if(it) tr.push({p:p, it:true}); 
+        } 
+    });
+    
+    if(!iN){ let t_i = 0; for(let i=0; i<reg.length; i++){ vp.push(reg[i]); if((i+1)%10===0 && t_i<tr.length){ vp.push(tr[t_i]); t_i++; } } }
+    vp.slice(0, window.feedLim || 5).forEach((v,i) => { 
+        h += createPostHTML(v.p, 'feed', v.it, false); 
+        if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget(); 
+        if(window.currentUser && i>0 && i%5===0) h += window.generateReelsWidgetHTML(); 
+    });
+    
+    if(pf) {
+        pf.innerHTML = h || '<p style="text-align:center;color:#666;padding:20px;">المنشورات تظهر هنا.</p>'; 
+        document.querySelectorAll('#postsFeed video').forEach(v => window.videoObserver.observe(v));
     }
 }
 
@@ -783,6 +662,7 @@ window.renderPostModalLogic = (p) => {
     let pf = $('postModalFooter');
     if(pf) pf.style.display = window.currentUser ? 'flex' : 'none';
 
+    // الإخفاء الذكي لعلامة الـ X لو اللي فاتح زائر (عشان ميتجولش في الرئيسية)
     let closeBtn = $('postModalCloseBtn');
     if(closeBtn) closeBtn.style.display = window.currentUser ? 'flex' : 'none';
 
@@ -886,13 +766,9 @@ function renderProfileData(u, d) {
     $('profileAboutArea').innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;border:1px solid var(--border-color);text-align:right;"><h4 style="margin-top:0;color:var(--primary);border-bottom:1px solid #e2e8f0;padding-bottom:10px;">معلومات</h4><div><strong>المدينة:</strong> <br>${d.location||'غير محدد'}</div><div><strong>تاريخ الميلاد:</strong> <br>${d.birthdate||'غير محدد'}</div><div><strong>المهنة:</strong> <br>${d.job||'غير محدد'}</div><div><strong>الدراسة:</strong> <br>${d.education||'غير محدد'}</div><div><strong>الهوايات:</strong> <br>${d.hobbies||'غير محدد'}</div></div>`;
     
     let intArea = $('profInterestsArea');
-    let userInt = d.interests || [];
-    if (typeof userInt === 'string') userInt = [userInt];
-    else if (!Array.isArray(userInt)) userInt = Object.values(userInt || {});
-
-    if(userInt && userInt.length > 0) {
+    if(d.interests && d.interests.length > 0) {
         intArea.style.display = 'flex';
-        intArea.innerHTML = userInt.map(i => `<span style="background:#eef2ff; color:var(--primary); padding:4px 10px; border-radius:12px; font-size:12px; font-weight:700;">${i}</span>`).join('');
+        intArea.innerHTML = d.interests.map(i => `<span style="background:#eef2ff; color:var(--primary); padding:4px 10px; border-radius:12px; font-size:12px; font-weight:700;">${i}</span>`).join('');
     } else { intArea.style.display = 'none'; }
 
     let ce = $('profCoverImg'); if(d.coverPic) { ce.src = d.coverPic; ce.style.display = 'block'; } else ce.style.display = 'none';
@@ -965,7 +841,6 @@ window.unfriend = (t) => { if(!window.currentUser) return; if(confirm(`حذف ا
 window.openRequestsLogic = () => { window.renderSuggestedUsersModal(); $('requestsModal').classList.add('show'); document.body.style.overflow = 'hidden'; };
 window.openStatsLogic = () => { $('statsModal').classList.add('show'); document.body.style.overflow = 'hidden'; get(ref(db, 'users')).then(us => { let r=0, b=0, o=0; if(us.exists()) { let v = us.val(); for(let k in v) { if(v[k].isBot) b++; else r++; if(v[k].online) o++; } } $('statReal').innerText = r; $('statBots').innerText = b; $('statOnline').innerText = o; }); get(ref(db, 'posts')).then(ps => { $('statPosts').innerText = ps.exists() ? Object.keys(ps.val()).length : 0; }); };
 
-// ترتيب الطلبات
 function renderRequests() { 
     let c = 0, h = ''; 
     let reqArr = Object.entries(window.currentRequests||{}).map(([k,v]) => ({id:k, time: v===true ? 0 : v})).sort((a,b) => b.time - a.time);
@@ -979,218 +854,29 @@ function listenToFriendRequests() { onValue(ref(db, `friendRequests/${window.cur
 
 function renderSidebarUsers() { let fh = '', fa = [], rh = '', ra = []; window.myFriends.forEach(f => { if(window.allUsersData[f]) fa.push({name:f, time:window.recentChatsData[f] || 0, uc:window.unreadChatsData[f] || 0, d:window.allUsersData[f]}); }); let cu = new Set([...Object.keys(window.recentChatsData || {}), ...Object.keys(window.unreadChatsData || {})]); cu.forEach(c => { if(!window.myFriends.includes(c) && c !== window.currentUser && window.allUsersData[c]) ra.push({name:c, time:window.recentChatsData[c] || 0, uc:window.unreadChatsData[c] || 0, d:window.allUsersData[c]}); }); fa.sort((a,b) => b.time - a.time); fa.forEach(f => { fh += `<div class="user-row"><a href="#/@${f.name}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${f.d.profilePic||dA}" class="avatar-small"><span>${window.getDisplayName(f.name)}</span></a><div style="display:flex;align-items:center;gap:10px;">${f.uc>0?`<span class="unread-msg-badge">${f.uc}</span>`:''}<button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:4px;" onclick="event.stopPropagation();window.openChat('${f.name}')"><i class="fas fa-comment-dots"></i></button><span class="status-dot ${f.d.online?'online':'offline'}"></span></div></div>`; }); $('friendsList').innerHTML = fh || '<span style="color:#888;font-size:13px;">لا أصدقاء</span>'; ra.sort((a,b) => b.time - a.time); ra.forEach(r => { rh += `<div class="user-row" style="background:#fffbeb;border:1px solid #fde68a;"><a href="#/@${r.name}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${r.d.profilePic||dA}" class="avatar-small"><span>${window.getDisplayName(r.name)}</span></a><div style="display:flex;align-items:center;gap:10px;">${r.uc>0?`<span class="unread-msg-badge">${r.uc}</span>`:''}<button class="btn-primary" style="background:#f59e0b;padding:4px 10px;font-size:12px;border-radius:4px;" onclick="event.stopPropagation();window.openChat('${r.name}')"><i class="fas fa-comment-dots"></i></button></div></div>`; }); let h = $('msgRequestsHeader'); if(ra.length > 0) { h.style.display = 'block'; $('msgRequestsList').innerHTML = rh; } else { h.style.display = 'none'; $('msgRequestsList').innerHTML = ''; } }
 
-// ================== خوارزمية ترتيب الاقتراحات المحصنة ==================
 window.getSuggestions = () => { 
-    try {
-        let myInterests = window.currentUser ? (window.allUsersData[window.currentUser]?.interests || []) : [];
-        if (typeof myInterests === 'string') myInterests = [myInterests];
-        else if (!Array.isArray(myInterests)) myInterests = Object.values(myInterests || {});
-
-        let ml = window.currentUser ? (window.allUsersData[window.currentUser]?.location || "غير محدد") : "غير محدد", sg = []; 
-        for(let u in window.allUsersData) { 
-            if(u === window.currentUser || window.myFriends.includes(u)) continue; 
-            let d = window.allUsersData[u]; 
-            if(!d) continue;
-            
-            let matchingInterestsCount = 0;
-            if (d.category && myInterests.includes(d.category)) matchingInterestsCount += 5; 
-            
-            let userInt = d.interests || [];
-            if (typeof userInt === 'string') userInt = [userInt];
-            else if (!Array.isArray(userInt)) userInt = Object.values(userInt || {});
-
-            userInt.forEach(i => { if(myInterests.includes(i)) matchingInterestsCount++; });
-            
-            if(d.type && d.type !== 'user') { 
-                sg.push({name:u, data:d, realMutualCount: 0, matchingInterestsCount: matchingInterestsCount, isSameLocation:false, isPage:true}); 
-                continue; 
-            } 
-            
-            let tf = Object.keys(window.allFriendsData[u] || {}), mc = tf.filter(f => window.myFriends.includes(f)).length;
-            let isl = (d.location && d.location === ml && ml !== "غير محدد"); 
-            
-            sg.push({
-                name:u, 
-                data:d, 
-                realMutualCount: mc, 
-                matchingInterestsCount: matchingInterestsCount, 
-                isSameLocation: isl, 
-                isPage: false, 
-                matchesInt: matchingInterestsCount > 0
-            }); 
-        } 
-        sg.sort((a,b) => { 
-            if(b.realMutualCount !== a.realMutualCount) return b.realMutualCount - a.realMutualCount; 
-            if(b.isSameLocation && !a.isSameLocation) return 1; 
-            if(!b.isSameLocation && a.isSameLocation) return -1; 
-            if(b.matchingInterestsCount !== a.matchingInterestsCount) return b.matchingInterestsCount - a.matchingInterestsCount;
-            if(a.isPage && !b.isPage) return 1; 
-            if(!a.isPage && b.isPage) return -1; 
-            return 0; 
-        }); 
-        return sg; 
-    } catch(err) {
-        console.error("Suggestion System Error: ", err);
-        return [];
-    }
-};
-
-function createSuggestedFriendsWidget() { 
-    let s = window.getSuggestions().slice(0,10); 
-    if(s.length === 0) return ''; 
-    let ch = ''; 
-    s.forEach(x => { 
-        let rr = window.currentRequests && window.currentRequests[x.name], b = ''; 
-        if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; 
-        else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; 
-        else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; 
+    let myInterests = window.currentUser ? (window.allUsersData[window.currentUser]?.interests || []) : [];
+    let ml = window.currentUser ? (window.allUsersData[window.currentUser]?.location || "غير محدد") : "غير محدد", sg = []; 
+    for(let u in window.allUsersData) { 
+        if(u === window.currentUser || window.myFriends.includes(u)) continue; 
+        let d = window.allUsersData[u]; 
         
-        let reasonHtml = '';
-        if (x.realMutualCount > 0) reasonHtml = `<i class="fas fa-user-friends"></i> مشتركون: ${x.realMutualCount}`;
-        else if (x.isSameLocation) reasonHtml = `<i class="fas fa-map-marker-alt"></i> من منطقتك`;
-        else if (x.matchesInt) reasonHtml = `<i class="fas fa-magic"></i> نفس اهتماماتك`;
-        else if (x.isPage) reasonHtml = `<i class="fas fa-check-circle"></i> صفحة رسمية`;
-        else reasonHtml = `<i class="fas fa-user"></i> عضو جديد`;
-
-        ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;">${reasonHtml}</span></a>${b}</div>`; 
+        let matchingInterests = 0;
+        if (d.category && myInterests.includes(d.category)) matchingInterests += 5; 
+        if (d.interests) { d.interests.forEach(i => { if(myInterests.includes(i)) matchingInterests++; }); }
+        
+        if(d.type && d.type !== 'user') { sg.push({name:u, data:d, mutualCount:matchingInterests, isSameLocation:false, isPage:true}); continue; } 
+        let tf = Object.keys(window.allFriendsData[u] || {}), mc = tf.filter(f => window.myFriends.includes(f)).length, isl = (d.location && d.location === ml && ml !== "غير محدد"); 
+        
+        sg.push({name:u, data:d, mutualCount:(mc + matchingInterests), isSameLocation:isl, isPage:false, matchesInt: matchingInterests>0}); 
+    } 
+    sg.sort((a,b) => { 
+        if(b.mutualCount !== a.mutualCount) return b.mutualCount - a.mutualCount; 
+        if(b.isSameLocation && !a.isSameLocation) return 1; if(!b.isSameLocation && a.isSameLocation) return -1; 
+        if(a.isPage && !b.isPage) return 1; if(!a.isPage && b.isPage) return -1; return 0; 
     }); 
-    return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; 
-}
+    return sg; 
+};
+function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;"><i class="fas ${x.matchesInt ? 'fa-magic' : (x.isPage?'fa-check-circle':'fa-user-friends')}"></i> ${x.matchesInt ? 'نفس اهتماماتك' : (x.isPage?'صفحة رسمية':(x.mutualCount>0?`مشتركون: ${x.mutualCount}`:(x.isSameLocation?'من منطقتك':'عضو جديد')))}</span></a>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
 
-// ======================== الخوارزمية وتفاعل البوتات ========================
-function initAndRunBots() {
-    get(ref(db, 'botsInitialized_v145')).then(s => {
-        if(!s.exists()) {
-            get(ref(db, 'users')).then(us => {
-                let u = {};
-                window.botAccounts.forEach((b) => { 
-                    u[`users/${b.name}/displayName`] = b.displayName; 
-                    u[`users/${b.name}/profilePic`] = b.pic; 
-                    u[`users/${b.name}/coverPic`] = b.cover; 
-                    u[`users/${b.name}/bio`] = `خبير ومهتم بمجال: ${b.category} ✨`; 
-                    u[`users/${b.name}/password`] = "bot_password"; 
-                    u[`users/${b.name}/online`] = true; 
-                    u[`users/${b.name}/isBot`] = true; 
-                    u[`users/${b.name}/type`] = "user"; 
-                    u[`users/${b.name}/category`] = b.category; 
-                    u[`users/${b.name}/location`] = b.location; 
-                });
-                u['botsInitialized_v145'] = true; update(ref(db), u);
-            });
-        }
-    });
-    
-    // خوارزمية طلبات الصداقة الذكية
-    setInterval(() => {
-        if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
-        let myInterests = window.allUsersData[window.currentUser].interests || [];
-        if (typeof myInterests === 'string') myInterests = [myInterests];
-        else if (!Array.isArray(myInterests)) myInterests = Object.values(myInterests || {});
-
-        if(myInterests.length === 0) return;
-        let matchingBots = [];
-        for (let key in window.allUsersData) {
-            let u = window.allUsersData[key];
-            if (u.isBot && u.category && myInterests.includes(u.category)) matchingBots.push(key);
-        }
-        if (matchingBots.length === 0) return;
-        let randomBotId = matchingBots[Math.floor(Math.random() * matchingBots.length)];
-
-        if(!window.myFriends.includes(randomBotId) && (!window.currentRequests || !window.currentRequests[randomBotId]) && (!window.sentRequests || !window.sentRequests[randomBotId])) { 
-            set(ref(db, `friendRequests/${window.currentUser}/${randomBotId}`), Date.now()).then(() => { 
-                push(ref(db, `users/${window.currentUser}/notifications`), {type:'friend_req', from:randomBotId, timestamp:Date.now(), read:false}); 
-            }); 
-        }
-    }, 120000); 
-
-    // نشر الأخبار (RSS والمخصصة)
-    setInterval(() => {
-        if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
-        let lastRunRef = ref(db, 'botStats/lastTextPostRun');
-        get(lastRunRef).then(s => {
-            let lastTime = s.exists() ? s.val() : 0, now = Date.now();
-            if(now - lastTime > 120000) { 
-                set(lastRunRef, now); 
-                
-                let myInterests = window.allUsersData[window.currentUser].interests || PLATFORM_INTERESTS;
-                if (typeof myInterests === 'string') myInterests = [myInterests];
-                else if (!Array.isArray(myInterests)) myInterests = Object.values(myInterests || {});
-
-                let activeBots = [];
-                for (let key in window.allUsersData) {
-                    let u = window.allUsersData[key];
-                    if (u.isBot && u.category && myInterests.includes(u.category)) activeBots.push(key);
-                }
-                
-                if(activeBots.length > 0) {
-                    let randomBotId = activeBots[Math.floor(Math.random()*activeBots.length)];
-                    let botCat = window.allUsersData[randomBotId].category;
-                    
-                    let rssFeeds = {
-                        "أخبار وسياسة": "https://www.skynewsarabia.com/rss.xml",
-                        "رياضة وكرة قدم": "https://www.skynewsarabia.com/rss.xml?category=sport",
-                        "تكنولوجيا وتقنية": "https://www.skynewsarabia.com/rss.xml?category=technology",
-                        "صحة وطب": "https://www.skynewsarabia.com/rss.xml?category=health",
-                        "اقتصاد وأعمال": "https://www.skynewsarabia.com/rss.xml?category=business",
-                        "سفر وسياحة": "https://www.skynewsarabia.com/rss.xml?category=lifestyle",
-                        "فنون وتصميم": "https://www.skynewsarabia.com/rss.xml?category=arts"
-                    };
-                    
-                    let feedUrl = rssFeeds[botCat];
-                    
-                    if(feedUrl) {
-                        fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`)
-                        .then(r => r.json())
-                        .then(data => {
-                            if(data && data.items && data.items.length > 0) {
-                                let item = data.items[Math.floor(Math.random() * Math.min(10, data.items.length))];
-                                let cleanDesc = item.description.replace(/(<([^>]+)>)/gi, "").substring(0, 180) + "...";
-                                let text = `🔴 ${item.title}\n\n${cleanDesc}\n\nللمزيد من الأخبار، تابعوني!`;
-                                let imgUrl = item.enclosure?.link || item.thumbnail || `https://source.unsplash.com/600x400/?${encodeURIComponent(botCat.split(' ')[0])}`;
-                                push(ref(db, 'posts'), {author:randomBotId, text:text, image:imgUrl, timestamp:Date.now()});
-                            }
-                        }).catch(e => { console.log("RSS Fetch Error"); });
-                    } else {
-                        let contentLib = [
-                            `معلومة سريعة في ${botCat}: هل تعلم أن الاهتمام بهذا المجال زاد جداً مؤخراً؟ شاركونا رأيكم! 👇`,
-                            `أفضل النصائح في ${botCat} جمعتها لكم اليوم، أتمنى تستفيدوا منها ✨`,
-                            `نقاش مفتوح: ما هو رأيكم في التطورات الأخيرة الخاصة بـ ${botCat}؟ 🤔`
-                        ];
-                        let text = contentLib[Math.floor(Math.random() * contentLib.length)];
-                        let imgUrl = `https://source.unsplash.com/random/600x400/?nature`;
-                        push(ref(db, 'posts'), {author:randomBotId, text:text, image:imgUrl, timestamp:Date.now()});
-                    }
-                }
-            }
-        });
-    }, 120000);
-
-    setInterval(() => {
-        if(!window.currentUser) return;
-        let botAccountsList = [];
-        for (let key in window.allUsersData) {
-            if (window.allUsersData[key].isBot) botAccountsList.push(key);
-        }
-        if(botAccountsList.length === 0) return;
-        let randomBot = botAccountsList[Math.floor(Math.random()*botAccountsList.length)];
-        
-        if(window.allPosts && window.allPosts.length > 0) {
-            let mediaPosts = window.allPosts.filter(p => p.video || p.isReel);
-            let pool = mediaPosts.length > 0 && Math.random() > 0.3 ? mediaPosts : window.allPosts;
-            let randomPost = pool[Math.floor(Math.random() * pool.length)];
-            
-            set(ref(db, `posts/${randomPost.id}/likes/${randomBot}`), true);
-            if(randomPost.video || randomPost.isReel) { set(ref(db, `posts/${randomPost.id}/views/${randomBot}`), true); }
-            
-            if(Math.random() < 0.20) {
-                let comments = [];
-                if(randomPost.video || randomPost.isReel) comments = ["فيديو عظمة 🔥", "تصوير رائع 👏", "استمر في الإبداع", "ريلز جامد جداً ✨"];
-                else if (randomPost.image) comments = ["صورة جميلة جداً 😍", "اللقطة دي روعة", "إبداع متواصل 🎨"];
-                else comments = ["كلام سليم 100%", "أتفق معك تماماً 👍", "موضوع مفيد جداً، شكراً للمشاركة!"];
-                
-                let cText = comments[Math.floor(Math.random()*comments.length)];
-                push(ref(db, `posts/${randomPost.id}/comments`), {author:randomBot, text:cText, timestamp:Date.now()});
-            }
-        }
-    }, 45000); 
-}
+function initAndRunBots() {}
