@@ -52,7 +52,6 @@ const PLATFORM_INTERESTS = [
 ];
 window.selectedInterests = new Set();
 
-// توليد حسابات البوتات لتستخدمها الخوارزمية
 if(!window.botAccounts || window.botAccounts.length === 0) {
     window.botAccounts = [];
     for(let i=1; i<=60; i++) {
@@ -69,7 +68,6 @@ if(!window.botAccounts || window.botAccounts.length === 0) {
     }
 }
 
-// نظام الطوارئ
 window.addEventListener('load', () => {
     setTimeout(() => {
         let il = document.getElementById('initialLoader');
@@ -80,7 +78,6 @@ window.addEventListener('load', () => {
     }, 4000);
 });
 
-// ================= نظام التوجيه الذكي =================
 window.addEventListener('hashchange', handleRouting);
 
 function handleRouting() {
@@ -134,7 +131,6 @@ const $ = (id) => document.getElementById(id);
 window.toggleLoginMode = (m) => { $('loginFormContent').style.display = m==='register' ? 'none' : 'block'; $('registerFormContent').style.display = m==='register' ? 'block' : 'none'; };
 window.generateHandles = (n) => { let c = $('handleSuggestions'); if(!n.trim()) { c.innerHTML = ""; return; } let b = tr(n.trim().split(" ")[0]), h = '<div style="font-size:13px;margin-bottom:5px;">اختر المعرف:</div>', o = [b + Math.floor(Math.random()*99+10), b + "_" + Math.floor(Math.random()*999+100), b + new Date().getFullYear()]; o.forEach((x, i) => { h += `<label class="handle-radio-label"><input type="radio" name="selectedHandle" value="${x}" ${i===0?"checked":""}> @${x}</label>`; }); c.innerHTML = h; };
 
-// إصلاح الموقع الجغرافي ليكون ذكي وسريع (Fallback System)
 window.registerUser = () => {
     let d = $('regDisplayName').value.trim(), dbv = $('regDob').value, p = $('regPassword').value.trim(), r = document.getElementsByName('selectedHandle'), sh = null;
     for(let i=0; i<r.length; i++) { if(r[i].checked) { sh = r[i].value; break; } }
@@ -145,24 +141,13 @@ window.registerUser = () => {
         return new Promise(resolve => {
             let isResolved = false;
             let finish = (loc) => { if(!isResolved){ isResolved=true; resolve(loc || "غير محدد"); }};
-            setTimeout(() => finish("غير محدد"), 6000); // المهلة القصوى 6 ثواني
-            
+            setTimeout(() => finish("غير محدد"), 6000); 
             async function fallback() {
-                try {
-                    let res = await fetch('https://ipapi.co/json/');
-                    let data = await res.json();
-                    finish(data.country_name ? (data.country_name + (data.city ? " - "+data.city : "")) : "غير محدد");
-                } catch(e) { finish("غير محدد"); }
+                try { let res = await fetch('https://ipapi.co/json/'); let data = await res.json(); finish(data.country_name ? (data.country_name + (data.city ? " - "+data.city : "")) : "غير محدد"); } catch(e) { finish("غير محدد"); }
             }
-
             if(navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(async pos => {
-                    try {
-                        let res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&accept-language=ar`);
-                        let l = await res.json();
-                        let c = l.address.city || l.address.town || l.address.state || "";
-                        finish((l.address.country||"") + (c ? " - "+c : ""));
-                    } catch(e) { fallback(); }
+                    try { let res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&accept-language=ar`); let l = await res.json(); let c = l.address.city || l.address.town || l.address.state || ""; finish((l.address.country||"") + (c ? " - "+c : "")); } catch(e) { fallback(); }
                 }, fallback, {timeout:4000});
             } else fallback();
         });
@@ -171,11 +156,7 @@ window.registerUser = () => {
     getLoc().then(loc => { 
         get(ref(db,`users/${sh}`)).then(s => { 
             if(s.exists()) { alert("المعرف محجوز"); btn.innerText = ot; btn.disabled = false; } 
-            else { 
-                set(ref(db,`users/${sh}`), { displayName: d, birthdate: dbv, password: p, online: true, profilePic: dA, bio: "مستخدم جديد", isBot: false, location: loc, job: "", education: "", hobbies: "", interests: [] }).then(() => { 
-                    $('usernameInput').value = sh; $('passwordInput').value = p; window.login(); 
-                }); 
-            } 
+            else { set(ref(db,`users/${sh}`), { displayName: d, birthdate: dbv, password: p, online: true, profilePic: dA, bio: "مستخدم جديد", isBot: false, location: loc, job: "", education: "", hobbies: "", interests: [] }).then(() => { $('usernameInput').value = sh; $('passwordInput').value = p; window.login(); }); } 
         }).catch(() => { alert("خطأ"); btn.innerText = ot; btn.disabled = false; }); 
     });
 };
@@ -183,20 +164,7 @@ window.registerUser = () => {
 document.body.addEventListener('click', () => { if("Notification" in window && Notification.permission === "default") Notification.requestPermission(); }, {once:true});
 
 window.videoObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { if(entry.isIntersecting) { try { entry.target.muted = true; let playPromise = entry.target.play(); if(playPromise !== undefined) { playPromise.catch(error => {}); } } catch(e){} } else { try { if(!entry.target.paused) entry.target.pause(); } catch(e){} } }); }, {threshold: 0.5});
-
-reelsObserver = new IntersectionObserver((entries) => { 
-    entries.forEach(entry => { 
-        let video = entry.target.querySelector('video'); if(!video) return; 
-        if(entry.isIntersecting) { 
-            try { video.muted = false; video.currentTime = 0; let p = video.play(); if(p !== undefined) p.catch(e => {}); } catch(e) {} 
-            let rid = entry.target.getAttribute('data-id'); 
-            if(rid && window.currentUser) { 
-                let vRef = ref(db, `posts/${rid}/views/${window.currentUser}`); 
-                get(vRef).then(s => { if(!s.exists()) set(vRef, true); }); 
-            } 
-        } else { try { if(!video.paused) video.pause(); } catch(e) {} } 
-    }); 
-}, {threshold: 0.7});
+reelsObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { let video = entry.target.querySelector('video'); if(!video) return; if(entry.isIntersecting) { try { video.muted = false; video.currentTime = 0; let p = video.play(); if(p !== undefined) p.catch(e => {}); } catch(e) {} let rid = entry.target.getAttribute('data-id'); if(rid && window.currentUser) { let vRef = ref(db, `posts/${rid}/views/${window.currentUser}`); get(vRef).then(s => { if(!s.exists()) set(vRef, true); }); } } else { try { if(!video.paused) video.pause(); } catch(e) {} } }); }, {threshold: 0.7});
 
 window.playNotifSound = () => { try { let audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); audio.volume = 0.5; audio.play().catch(e => {}); } catch(err) {} };
 
@@ -213,7 +181,6 @@ function renderSidebarTop() {
     let h=''; 
     let reqArr = Object.entries(window.currentRequests||{}).map(([k,v]) => ({id:k, time: v===true ? 0 : v})).sort((a,b) => b.time - a.time);
     let rc = reqArr.length; 
-    
     if(rc > 0) { 
         h += `<div class="sidebar-title" style="color:var(--primary);"><em class="fas fa-user-friends"></em> طلبات الصداقة (${rc})</div>`; 
         let maxReq = Math.min(rc, 3); 
@@ -283,53 +250,22 @@ window.saveUserInterests = () => {
     }).catch(e => { alert("حدث خطأ"); btn.innerText = ot; btn.disabled = false; });
 };
 
-function wipeAllBotVideosForever() {
-    if(!localStorage.getItem('wiped_all_bot_videos_v6')) {
-        get(ref(db, 'posts')).then(s => {
-            if(s.exists()){
-                s.forEach(c => {
-                    let p = c.val();
-                    if((p.video || p.isReel) && window.allUsersData[p.author] && window.allUsersData[p.author].isBot) {
-                        remove(ref(db, `posts/${c.key}`));
-                    }
-                });
-            }
-        });
-        localStorage.setItem('wiped_all_bot_videos_v6', 'true');
-    }
-}
-
 function fL(u, d) { 
     window.isInitialNotifLoad = true; window.alertedNotifs = new Set(); window.currentUser = u; localStorage.setItem('savedUser', u); 
-    
-    let il = $('initialLoader'); 
-    if(il){ 
-        il.classList.add('hidden'); 
-        setTimeout(()=>il.style.display='none', 400); 
-    } 
-    
-    let lw = $('loginModal'); 
-    if(lw){ 
-        lw.style.opacity='0'; 
-        lw.style.pointerEvents='none'; 
-        setTimeout(()=>lw.style.display='none', 400); 
-    } 
-    
+    let il = $('initialLoader'); if(il){ il.classList.add('hidden'); setTimeout(()=>il.style.display='none', 400); } 
+    let lw = $('loginModal'); if(lw){ lw.style.opacity='0'; lw.style.pointerEvents='none'; setTimeout(()=>lw.style.display='none', 400); } 
     let n = d.displayName || u; $('currentUserDisplay').innerText = n; let p = d.profilePic || dA; 
     ['myNavAvatar','composerAvatar','myShareAvatar','mobileNavAvatar','modalMyPic'].forEach(x=>{ if($(x)) $(x).src=p; }); 
     let ab = $('adminBtn'); if(ab){ ab.style.display = (u.toLowerCase()==='admin21') ? 'flex' : 'none'; } 
     let oRef = ref(db, `users/${u}/online`); set(oRef, true); onDisconnect(oRef).set(false); 
-    
     if(!d.interests || d.interests.length === 0) { setTimeout(window.renderInterestsModal, 1000); }
-    
     listenToUsers(); 
 }
 
 if(window.currentUser){ 
     let b=$('loginBtn'); if(b){ b.innerText="جاري..."; b.disabled=true; } 
     get(ref(db, `users/${window.currentUser}`)).then(s => { 
-        if(s.exists()){ fL(window.currentUser, s.val()); } 
-        else rU(); 
+        if(s.exists()){ fL(window.currentUser, s.val()); } else rU(); 
     }).catch(rU); 
 }
 
@@ -340,7 +276,7 @@ function rU(){
     let ab=$('adminBtn'); if(ab) ab.style.display='none'; 
 }
 
-function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window.allUsersData = s.val(); if(window.isInitialLoad){ wipeAllBotVideosForever(); listenToAllFriends(); listenToFriendRequests(); listenToPosts(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); initAndRunBots(); setTimeout(window.checkFriendsBirthdays, 3000); } else { renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); } } }); }
+function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window.allUsersData = s.val(); if(window.isInitialLoad){ listenToAllFriends(); listenToFriendRequests(); listenToPosts(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); initAndRunBots(); setTimeout(window.checkFriendsBirthdays, 3000); } else { renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); } } }); }
 function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ window.feedLim=5; renderFeed(); } }); }
 function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unreadChats`), s => { window.unreadChatsData = s.exists() ? s.val() : {}; let t=0; if(window.currentChatTarget && window.isChatBoxVisible && window.unreadChatsData[window.currentChatTarget]){ remove(ref(db,`users/${window.currentUser}/unreadChats/${window.currentChatTarget}`)); delete window.unreadChatsData[window.currentChatTarget]; } for(let x in window.unreadChatsData){ let c = window.unreadChatsData[x], p = window.previousUnreadChats[x]||0; t+=c; if(c>p && x!==window.currentChatTarget) window.showToast("رسالة جديدة", `أرسل ${window.getDisplayName(x)} رسالة`, window.allUsersData[x]?.profilePic); } window.previousUnreadChats = {...window.unreadChatsData}; let b1=$('chatBadge'), b2=$('chatBadgeMobile'); if(t>0){ b1.style.display='inline-block'; b1.innerText=t; b2.style.display='inline-block'; b2.innerText=t; } else { b1.style.display='none'; b2.style.display='none'; } renderSidebarUsers(); }); }
 function listenToRecentChats(){ onValue(ref(db,`users/${window.currentUser}/recentChats`), s => { window.recentChatsData = s.exists() ? s.val() : {}; renderSidebarUsers(); }); }
@@ -445,7 +381,6 @@ window.sendMessage = () => {
     push(ref(db, `chats/${r}`), {sender:window.currentUser, text:t, timestamp:n, read:false}).then(() => { $('chatInput').value = ''; update(ref(db, `users/${window.currentUser}/recentChats`), {[tg]:n}); update(ref(db, `users/${tg}/recentChats`), {[window.currentUser]:n}); let ur = ref(db, `users/${tg}/unreadChats/${window.currentUser}`); get(ur).then(s => set(ur, (s.exists() ? s.val() : 0) + 1)); });
 };
 
-// ======================== تعديل فلترة الأخبار الرائجة للمشاهدة فقط باهتمامك ========================
 function listenToPosts() { 
     onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(100)), s => { 
         let l = []; 
@@ -599,7 +534,6 @@ window.executeShare = () => {
     let nr = push(ref(db, 'posts')); set(nr, {author:window.currentUser, text:c, isShare:true, sharedData:sd, timestamp:Date.now()}).then(() => { if(oa && oa !== window.currentUser) push(ref(db, `users/${oa}/notifications`), {type:'share', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); window.myFriends.forEach(f => { if(c.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); }); window.location.hash=''; window.goHome(); });
 };
 
-// دالة رفع الصور
 window.previewImage = (e) => {
     let f = e.target.files[0];
     if(!f) return;
@@ -770,9 +704,9 @@ window.getSuggestions = () => {
 };
 function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card" onclick="window.openProfile('${x.name}')"><img src="${x.data.profilePic||dA}"><span class="s-name">${window.getDisplayName(x.name)}</span><span class="s-mutual"><i class="fas ${x.matchesInt ? 'fa-magic' : (x.isPage?'fa-check-circle':'fa-user-friends')}"></i> ${x.matchesInt ? 'نفس اهتماماتك' : (x.isPage?'صفحة رسمية':(x.mutualCount>0?`مشتركون: ${x.mutualCount}`:(x.isSameLocation?'من منطقتك':'عضو جديد')))}</span>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
 
-// ======================== الخوارزمية وتفاعل البوتات وإصلاح الطلبات ========================
+// ======================== الخوارزمية وتفاعل البوتات ========================
 function initAndRunBots() {
-    get(ref(db, 'botsInitialized_v130')).then(s => {
+    get(ref(db, 'botsInitialized_v135')).then(s => {
         if(!s.exists()) {
             get(ref(db, 'users')).then(us => {
                 let u = {};
@@ -788,12 +722,12 @@ function initAndRunBots() {
                     u[`users/${b.name}/category`] = b.category; 
                     u[`users/${b.name}/location`] = b.location; 
                 });
-                u['botsInitialized_v130'] = true; update(ref(db), u);
+                u['botsInitialized_v135'] = true; update(ref(db), u);
             });
         }
     });
     
-    // خوارزمية طلبات الصداقة الذكية (كل دقيقتين = 120000 مللي ثانية)
+    // خوارزمية طلبات الصداقة الذكية (كل دقيقتين)
     setInterval(() => {
         if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
         let myInterests = window.allUsersData[window.currentUser].interests || [];
@@ -817,34 +751,56 @@ function initAndRunBots() {
         }
     }, 120000); 
 
-    // نشر المنشورات
+    // جلب أخبار حقيقية 100% من وكالة أخبار سكاي نيوز (كل دقيقتين)
     setInterval(() => {
         if(!window.currentUser || !window.allUsersData[window.currentUser]) return;
         let lastRunRef = ref(db, 'botStats/lastTextPostRun');
         get(lastRunRef).then(s => {
             let lastTime = s.exists() ? s.val() : 0, now = Date.now();
-            if(now - lastTime > 600000) { 
-                set(lastRunRef, now);
+            if(now - lastTime > 120000) {  // نشر كل دقيقتين
+                set(lastRunRef, now); 
+                
                 let myInterests = window.allUsersData[window.currentUser].interests || PLATFORM_INTERESTS;
                 let activeBots = [];
                 for (let key in window.allUsersData) {
                     let u = window.allUsersData[key];
                     if (u.isBot && u.category && myInterests.includes(u.category)) activeBots.push(key);
                 }
+                
                 if(activeBots.length > 0) {
                     let randomBotId = activeBots[Math.floor(Math.random()*activeBots.length)];
                     let botCat = window.allUsersData[randomBotId].category;
-                    let contentLib = [
-                        `أحدث التطورات اليوم في مجال ${botCat}، شاركونا رأيكم في التعليقات! 👇`,
-                        `مقال جديد ومهم جداً بخصوص ${botCat} قرأته اليوم، حبيت أشاركه معاكم ✨`
-                    ];
-                    let text = contentLib[Math.floor(Math.random() * contentLib.length)];
-                    let imgUrl = `https://source.unsplash.com/600x400/?${encodeURIComponent(botCat.split(' ')[0])}`;
-                    push(ref(db, 'posts'), {author:randomBotId, text:text, image:imgUrl, timestamp:Date.now() - 500});
+                    
+                    // روابط وكالات الأخبار الحقيقية الموزعة حسب المجال
+                    let rssFeeds = {
+                        "أخبار وسياسة": "https://www.skynewsarabia.com/rss.xml",
+                        "رياضة وكرة قدم": "https://www.skynewsarabia.com/rss.xml?category=sport",
+                        "تكنولوجيا وتقنية": "https://www.skynewsarabia.com/rss.xml?category=technology",
+                        "صحة وطب": "https://www.skynewsarabia.com/rss.xml?category=health",
+                        "اقتصاد وأعمال": "https://www.skynewsarabia.com/rss.xml?category=business",
+                        "سفر وسياحة": "https://www.skynewsarabia.com/rss.xml?category=lifestyle",
+                        "فنون وتصميم": "https://www.skynewsarabia.com/rss.xml?category=arts"
+                    };
+                    
+                    let feedUrl = rssFeeds[botCat] || "https://www.skynewsarabia.com/rss.xml";
+                    
+                    // جلب الأخبار بالصور الحقيقية
+                    fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`)
+                    .then(r => r.json())
+                    .then(data => {
+                        if(data && data.items && data.items.length > 0) {
+                            let item = data.items[Math.floor(Math.random() * Math.min(10, data.items.length))];
+                            let cleanDesc = item.description.replace(/(<([^>]+)>)/gi, "").substring(0, 180) + "...";
+                            let text = `🔴 أخبار عاجلة: ${item.title}\n\n${cleanDesc}\n\nللمزيد من الأخبار، تابعوني!`;
+                            let imgUrl = item.enclosure?.link || item.thumbnail || `https://source.unsplash.com/600x400/?${encodeURIComponent(botCat.split(' ')[0])}`;
+                            
+                            push(ref(db, 'posts'), {author:randomBotId, text:text, image:imgUrl, timestamp:Date.now()});
+                        }
+                    }).catch(e => { console.log("RSS Fetch Error"); });
                 }
             }
         });
-    }, 60000);
+    }, 120000);
 
     // تفاعل البوتات على المنشورات لضمان حيوية المنصة
     setInterval(() => {
