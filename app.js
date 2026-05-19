@@ -95,6 +95,7 @@ function handleRouting() {
     document.querySelectorAll('#reelsScrollArea video').forEach(v => { v.pause(); });
     document.body.style.overflow = 'auto'; 
     
+    // شاشة الدخول مربوطة بالرابط
     let lw = $('loginModal');
     if (hash === '#/login') {
         if(lw) {
@@ -102,6 +103,7 @@ function handleRouting() {
             lw.style.display = 'flex';
             setTimeout(() => { lw.style.opacity = '1'; lw.style.pointerEvents = 'auto'; }, 10);
         }
+        window.toggleLoginMode('register');
     } else {
         if(lw) {
             lw.style.opacity = '0';
@@ -110,14 +112,7 @@ function handleRouting() {
         }
     }
 
-    // الحماية القوية للزوار من دخول الرئيسية اليوميات
-    if(hash === '' || hash === '#/') { 
-        if(!window.currentUser) {
-            window.location.hash = '#/login';
-            return;
-        }
-        window.scrollTo({top:0, behavior:'smooth'}); 
-    } 
+    if(hash === '' || hash === '#/') { window.scrollTo({top:0, behavior:'smooth'}); } 
     else if(hash.startsWith('#/@')) { let u = decodeURIComponent(hash.replace('#/@', '')); openProfileLogic(u); }
     else if(hash.startsWith('#/post/')) { let id = decodeURIComponent(hash.replace('#/post/', '')); openPostLogic(id); }
     else if(hash.startsWith('#/share/')) { let id = decodeURIComponent(hash.replace('#/share/', '')); openShareLogic(id); }
@@ -130,10 +125,22 @@ function handleRouting() {
 window.openProfile = (u) => { window.location.hash = '#/@' + u; };
 window.openPostModal = (id) => { window.location.hash = '#/post/' + id; };
 window.openShareModal = (id) => { window.location.hash = '#/share/' + id; };
-window.openRequestsModal = () => { if(!window.currentUser) return window.showRegisterModal(); window.location.hash = '#/requests'; };
+window.openRequestsModal = () => { 
+    if(!window.currentUser) {
+        if(window.history.length > 2) window.history.back(); else window.location.hash = '';
+        return window.showRegisterModal(); 
+    }
+    window.location.hash = '#/requests'; 
+};
 window.openAdminStats = () => { window.location.hash = '#/stats'; };
 window.openEditProfileModal = () => { window.location.hash = '#/edit-profile'; };
-window.openReelsViewer = (idx) => { window.currentReelIdx = idx; window.location.hash = '#/reels'; };
+window.openReelsViewer = (idx) => { 
+    if(!window.currentUser) {
+        if(window.history.length > 2) window.history.back(); else window.location.hash = '';
+        return window.showRegisterModal(); 
+    }
+    window.currentReelIdx = idx; window.location.hash = '#/reels'; 
+};
 
 // زرار الرجوع الذكي بدلا من العودة للرئيسية إجبارياً
 window.closeModal = (id) => { 
@@ -167,12 +174,17 @@ window.generateHandles = (n) => { let c = $('handleSuggestions'); if(!n.trim()) 
 
 window.showRegisterModal = () => { window.location.hash = '#/login'; };
 
-// زرار الرجوع من شاشة الدخول للمنشور
+// الإغلاق الذكي لشاشة الدخول (يرجع للمنشور ولا يحوله للرئيسية)
 window.closeRegisterModal = () => { 
-    if(window.history.length > 2) {
-        window.history.back();
-    } else {
-        window.location.hash = ''; // لو مفهاش تاريخ متصفح، هترجع للرئيسية والروتينج هيجبرها تسجل دخول
+    let lw = $('loginModal');
+    if(lw) {
+        lw.style.opacity = '0';
+        lw.style.pointerEvents = 'none';
+        setTimeout(() => { lw.style.display = 'none'; }, 400);
+    }
+    if(window.location.hash === '#/login') {
+        if(window.history.length > 2) window.history.back();
+        else window.location.hash = ''; 
     }
 };
 
@@ -303,6 +315,9 @@ window.saveUserInterests = () => {
     }).catch(e => { alert("حدث خطأ"); btn.innerText = ot; btn.disabled = false; });
 };
 
+// تم إيقاف المكنسة
+function wipeAllBotVideosForever() {}
+
 function fL(u, d) { 
     window.isInitialNotifLoad = true; window.alertedNotifs = new Set(); window.currentUser = u; localStorage.setItem('savedUser', u); 
     let il = $('initialLoader'); if(il){ il.classList.add('hidden'); setTimeout(()=>il.style.display='none', 400); } 
@@ -384,7 +399,10 @@ window.generateReelsWidgetHTML = () => {
 };
 
 window.openReelsLogic = (startIndex) => { 
-    if(!window.currentUser) return window.showRegisterModal();
+    if(!window.currentUser) {
+        if(window.history.length > 2) window.history.back(); else window.location.hash = '';
+        return window.showRegisterModal();
+    }
     let modal = $('reelsViewerModal'), scrollArea = $('reelsScrollArea'), h = ''; 
     window.allReels.forEach(r => { 
         let ap = window.allUsersData[r.author]?.profilePic || dA, an = window.getDisplayName(r.author); 
@@ -398,7 +416,10 @@ window.openReelsLogic = (startIndex) => {
 window.openChatFromProfile = () => { if(!window.currentUser) return window.showRegisterModal(); let t = $('profHandle').innerText.replace('@', ''); window.location.hash=''; setTimeout(() => window.openChat(t), 300); };
 
 window.openChat = (t) => {
-    if(!window.currentUser) return window.showRegisterModal();
+    if(!window.currentUser) {
+        if(window.history.length > 2) window.history.back(); else window.location.hash = '';
+        return window.showRegisterModal();
+    }
     window.location.hash = ''; 
     document.querySelectorAll('.modal').forEach(m => { if(m.id!=='interestsModal') m.classList.remove('show'); }); 
     document.body.style.overflow = 'auto';
@@ -604,7 +625,7 @@ window.renderPostModalLogic = (p) => {
     let pf = $('postModalFooter');
     if(pf) pf.style.display = window.currentUser ? 'flex' : 'none';
 
-    // إخفاء الـ X للزوار
+    // الإخفاء الذكي لعلامة الـ X لو اللي فاتح زائر (عشان ميتجولش في الرئيسية)
     let closeBtn = $('postModalCloseBtn');
     if(closeBtn) closeBtn.style.display = window.currentUser ? 'flex' : 'none';
 
@@ -684,7 +705,7 @@ window.openEditProfileLogic = () => {
 
 window.openProfileLogic = (u) => {
     if(!window.currentUser) {
-        window.location.hash = '#/login';
+        if(window.history.length > 2) window.history.back(); else window.location.hash = '';
         return window.showRegisterModal();
     }
     window.switchProfileTab('posts'); 
