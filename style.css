@@ -135,7 +135,7 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 }
 .close-btn:hover { background: var(--bg-color); color: var(--primary); }
 .close-btn em.fa-times::before { content: "\f061"; }
-#profileModal .modal-content, #postModal .modal-content, #editProfileModal .modal-content, #shareModal .modal-content, #requestsModal .modal-content, #allCommunitiesModal .modal-content, #createCommunityModal .modal-content, #communityProfileModal .modal-content {
+#profileModal .modal-content, #postModal .modal-content, #editProfileModal .modal-content, #shareModal .modal-content, #requestsModal .modal-content {
     background: var(--card-bg); box-shadow: var(--shadow-sm);
 }
 
@@ -206,6 +206,7 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 #initialLoader{position:fixed;top:0;left:0;width:100vw;height:100vh;background:linear-gradient(135deg,#f0f9ff 0%,#e0f2fe 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;transition:opacity .4s ease}
 #initialLoader.hidden{opacity:0;pointer-events:none}
 
+/* الريلز - تم تعديل الخلفية لمنع المربع الأسود */
 .reels-container{display:flex;gap:10px;overflow-x:auto;padding:15px;background:var(--card-bg);border-radius:var(--radius-md);box-shadow:var(--shadow-md);border:1px solid var(--border-color);direction:rtl;scroll-snap-type:x mandatory;margin-bottom:25px}
 .reels-container::-webkit-scrollbar{height:6px}
 .reels-container::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px}
@@ -238,14 +239,6 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 .reel-info h4{margin:0;font-size:16px;text-shadow:0 1px 3px rgba(0,0,0,0.8)}
 .reel-info p{margin:0;font-size:14px;opacity:.95;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-shadow:0 1px 3px rgba(0,0,0,0.8)}
 
-/* =============== تنسيقات المجتمعات =============== */
-.community-card { display:flex; align-items:center; justify-content:space-between; background:#fff; padding:15px; border-radius:var(--radius-sm); border:1px solid var(--border-color); transition:0.2s; cursor:pointer; }
-.community-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); border-color:var(--secondary); }
-.comm-info { display:flex; align-items:center; gap:12px; }
-.comm-info img { width:50px; height:50px; border-radius:12px; object-fit:cover; }
-.comm-name { font-weight:800; color:var(--text-main); font-size:16px; display:block; text-align:right; }
-.comm-meta { font-size:12px; color:var(--text-muted); font-weight:600; text-align:right; display:block; }
-
 @media (max-width:768px){
     .main-container{flex-direction:column;margin-top:80px;padding-bottom:110px;gap:15px}
     .sidebar-placeholder{flex:none;width:0;height:0;margin:0;padding:0;border:0;overflow:visible}
@@ -268,3 +261,4 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
     #reelsViewerModal .modal-content{height:100vh;border-radius:0;max-width:100%}
     .close-btn { top: 85px; right: 15px; width: 40px; height: 40px; }
 }
+

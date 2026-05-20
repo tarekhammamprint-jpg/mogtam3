@@ -221,56 +221,6 @@
         </div>
     </div>
 
-    <div class="modal" id="allCommunitiesModal">
-        <div class="modal-content" style="padding:25px;">
-            <span onclick="window.closeModal('allCommunitiesModal')" class="close-btn"><em class="fas fa-times"></em></span>
-            <h3 style="margin-top:0; color:var(--primary); text-align:center;"><em class="fas fa-globe"></em> المجتمعات العامة</h3>
-            <button onclick="window.openCreateCommunityModal()" class="btn-primary" style="width:100%; margin-bottom:20px; padding:12px;"><em class="fas fa-plus-circle"></em> إنشاء مجتمع جديد</button>
-            <div id="allCommunitiesList" style="display:grid; grid-template-columns:1fr; gap:10px;"></div>
-        </div>
-    </div>
-
-    <div class="modal" id="createCommunityModal">
-        <div class="modal-content" style="padding:25px; max-width:500px;">
-            <span onclick="window.closeModal('createCommunityModal')" class="close-btn"><em class="fas fa-times"></em></span>
-            <h3 style="margin-top:0; text-align:center;">إنشاء مجتمع جديد</h3>
-            <div style="text-align:right; margin-bottom:5px; font-weight:bold;">اسم المجتمع:</div>
-            <input type="text" id="newCommName" class="modal-input" placeholder="مثال: محبي التقنية..." />
-            <div style="text-align:right; margin-bottom:5px; font-weight:bold;">الوصف:</div>
-            <textarea id="newCommDesc" class="modal-input" rows="3" placeholder="وصف يعبر عن محتوى المجتمع..."></textarea>
-            <button onclick="window.createNewCommunity()" class="btn-primary" id="btnCreateComm" style="width:100%; padding:12px;"><em class="fas fa-check"></em> إنشاء الآن</button>
-        </div>
-    </div>
-
-    <div class="modal" id="communityProfileModal">
-        <div class="modal-content">
-            <div onclick="window.closeModal('communityProfileModal')" class="close-btn"><em class="fas fa-times"></em></div>
-            <div class="profile-cover" style="background:linear-gradient(135deg,var(--secondary) 0%,#34d399 100%);"></div>
-            <div class="profile-header-info">
-                <img src="https://ui-avatars.com/api/?name=مجتمع&background=random&color=fff" class="profile-pic-large" id="commPic" />
-                <h2 class="profile-name" id="commName">اسم المجتمع</h2>
-                <p class="profile-bio" id="commDesc">وصف المجتمع...</p>
-                <div class="profile-stats">
-                    <div class="stat-box"><span class="stat-num" id="commFollowersCount">0</span><span class="stat-label">متابع</span></div>
-                </div>
-                <div class="profile-actions-bar" id="commActions"></div>
-            </div>
-            
-            <div class="tab-content" style="padding-top:10px;">
-                <div id="commComposerBox" class="composer-box" style="display:none; margin-bottom:20px;">
-                    <textarea placeholder="اكتب مقالاً في هذا المجتمع..." rows="2" class="composer-input" id="commPostContent"></textarea>
-                    <div style="text-align:left;">
-                        <button onclick="window.publishCommunityPost()" id="btnPubCommPost" class="btn-primary" style="padding:6px 20px;">نشر</button>
-                    </div>
-                </div>
-                
-                <h3 style="border-bottom:1px solid var(--border-color); padding-bottom:10px; text-align:right;">منشورات المجتمع</h3>
-                <div id="communityPostsFeed" style="display:flex; flex-direction:column; gap:15px;"></div>
-            </div>
-            <input type="hidden" id="currentViewedCommunityId" />
-        </div>
-    </div>
-
     <div class="navbar">
         <div onclick="window.goHome()" class="nav-brand">مجتمعنا</div>
         <div class="search-container">
@@ -318,7 +268,6 @@
             <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="avatar-small" id="mobileNavAvatar" style="width:26px;height:26px;" />
             <div class="dropdown-menu bottom-up-menu" id="mobileUserMenuDropdown">
                 <div onclick="window.openProfile(window.currentUser)" class="dropdown-item"><em class="fas fa-cog" style="color:var(--primary);"></em> تعديل</div>
-                <div onclick="window.location.hash='#/communities'" class="dropdown-item"><em class="fas fa-users" style="color:var(--secondary);"></em> عرض جميع المجتمعات</div>
                 <div style="color:#e41e3f;" onclick="window.logoutUser()" class="dropdown-item"><em class="fas fa-sign-out-alt"></em> خروج</div>
             </div>
         </div>
@@ -354,11 +303,6 @@
         
         <div class="sidebar-placeholder" id="sidebarAreaContainer" style="display:none;">
             <div id="sidebarArea" class="sidebar">
-                <div id="sidebarCommunitiesSection" style="display:none; margin-bottom:20px; border-bottom:1px solid var(--border-color); padding-bottom:15px;">
-                    <div class="sidebar-title"><em class="fas fa-users" style="color:var(--secondary);"></em> مجتمعاتي</div>
-                    <div id="sidebarCommunitiesList"></div>
-                    <button onclick="window.location.hash='#/communities'" class="btn-secondary" style="width:100%; margin-top:10px; font-size:13px;"><em class="fas fa-plus"></em> استكشاف وإنشاء</button>
-                </div>
                 <div id="sidebarTopSection" style="margin-bottom:20px;border-bottom:1px solid var(--border-color);padding-bottom:15px;"></div>
                 <div class="sidebar-title"><em class="fas fa-comments"></em> المحادثات والأصدقاء</div>
                 <input type="text" id="chatSearchInput" placeholder="ابحث للمراسلة..." class="comment-input" style="width:100%;margin-bottom:15px;padding:12px 15px;border-radius:12px;box-sizing:border-box;" onkeyup="window.searchChatUsers(this.value)" />
