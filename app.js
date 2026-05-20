@@ -22,6 +22,8 @@ window.allUsersData = {};
 window.allFriendsData = {};
 window.myFriends = [];
 window.allPosts = [];
+window.allCommunitiesData = {};
+window.myFollowedCommunities = [];
 window.postCache = {};
 window.renderedPostIds = new Set();
 window.isInitialLoad = true;
@@ -31,10 +33,6 @@ window.feedLim = 5;
 const dA = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 const videoPoster = "https://placehold.co/600x400/1e293b/ffffff?text=Video+Loading...";
 const reelPoster = "https://placehold.co/300x500/1e293b/ffffff?text=Reel+Video";
-
-// -- متغيرات منع التكرار --
-window.usersListenerActive = false;
-window.privateListenersStarted = false;
 
 window.activeMentionInput = null;
 window.previousUnreadChats = {};
@@ -137,6 +135,8 @@ function handleRouting() {
     else if(hash === '#/stats') { openStatsLogic(); }
     else if(hash === '#/edit-profile') { openEditProfileLogic(); }
     else if(hash === '#/reels') { openReelsLogic(window.currentReelIdx || 0); }
+    else if(hash === '#/communities') { openAllCommunitiesLogic(); }
+    else if(hash.startsWith('#/community/')) { let id = decodeURIComponent(hash.replace('#/community/', '')); openCommunityProfileLogic(id); }
 }
 
 window.openProfile = (u) => { window.location.hash = '#/@' + u; };
@@ -300,17 +300,12 @@ window.switchProfileTab = (t) => { ['posts','reels','photos','friends','about'].
 window.handleGlobalSearch = (q) => { let r = $('searchResults'); if(!q.trim()){ r.style.display='none'; return; } let h=''; for(let u in window.allUsersData) { let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())) { h += `<a href="#/@${u}" class="search-result-item" onclick="$('searchResults').style.display='none'; $('globalSearch').value='';" style="text-decoration:none; color:inherit;"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"> <div style="display:flex;flex-direction:column;line-height:1.2;"><span>${d}</span><span style="font-size:11px;color:#64748b;">@${u}</span></div></a>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#666;">لا توجد نتائج</div>'; r.style.display='block'; };
 window.searchChatUsers = (q) => { let r=$('chatSearchBox'), f=$('friendsList'), rh=$('msgRequestsHeader'), rl=$('msgRequestsList'); if(!q.trim()){ r.style.display='none'; f.style.display='block'; if(rl&&rl.innerHTML!==''){ rh.style.display='block'; rl.style.display='block'; } return; } f.style.display='none'; rh.style.display='none'; rl.style.display='none'; let h=''; for(let u in window.allUsersData){ if(u===window.currentUser) continue; let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())){ h += `<div class="user-row" onclick="window.openChat('${u}')"><div class="user-info"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"><span>${d}</span></div><button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:4px;"><i class="fas fa-comment-dots"></i></button></div>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#64748b;font-size:14px;">لا توجد نتائج</div>'; r.style.display='block'; };
 
-// -- الحل الجذري لتسجيل الخروج لمنع تداخل الجلسات والتهنيج --
+// تسجيل الخروج النظيف لمنع التكرار والحبس
 window.logoutUser = () => { 
-    if(window.currentUser && confirm("تسجيل الخروج؟")) { 
-        let user = window.currentUser;
-        set(ref(db, `users/${user}/online`), false).then(() => { 
+    if(window.currentUser && confirm("خروج؟")) { 
+        set(ref(db, `users/${window.currentUser}/online`), false).then(() => { 
             localStorage.removeItem('savedUser'); 
-            window.location.replace(window.location.pathname + '#/login'); 
-            window.location.reload(); 
-        }).catch(() => {
-            localStorage.removeItem('savedUser'); 
-            window.location.replace(window.location.pathname + '#/login'); 
+            window.location.replace('#/login'); 
             window.location.reload(); 
         }); 
     } 
@@ -351,9 +346,6 @@ window.saveUserInterests = () => {
     }).catch(e => { alert("حدث خطأ"); btn.innerText = ot; btn.disabled = false; });
 };
 
-// تم إيقاف المكنسة
-function wipeAllBotVideosForever() {}
-
 function fL(u, d) { 
     window.isInitialNotifLoad = true; window.alertedNotifs = new Set(); window.currentUser = u; localStorage.setItem('savedUser', u); 
     let il = $('initialLoader'); if(il){ il.classList.add('hidden'); setTimeout(()=>il.style.display='none', 400); } 
@@ -370,21 +362,7 @@ function fL(u, d) {
     let ab = $('adminBtn'); if(ab){ ab.style.display = (u.toLowerCase()==='admin21') ? 'flex' : 'none'; } 
     let oRef = ref(db, `users/${u}/online`); set(oRef, true); onDisconnect(oRef).set(false); 
     if(!d.interests || d.interests.length === 0) { setTimeout(window.renderInterestsModal, 1000); }
-    
-    // تشغيل مستمعي النظام بأمان تام
-    if(!window.usersListenerActive) {
-        window.usersListenerActive = true;
-        listenToUsers();
-    }
-    window.startPrivateListeners();
-
-    // إجبار إعادة تحديث الواجهة واليوميات في حال تسجيل دخول حساب ثاني
-    if(!window.isInitialLoad) {
-        window.renderedPostIds = new Set(window.allPosts.map(p=>p.id));
-        window.feedLim = 5;
-        renderFeed();
-        handleRouting();
-    }
+    listenToUsers(); 
 }
 
 if(window.currentUser){ 
@@ -419,39 +397,32 @@ function rU(){
         window.location.replace('#/login');
     }
 
-    if(!window.usersListenerActive) {
-        window.usersListenerActive = true;
-        listenToUsers();
-    }
+    listenToUsers(); 
 }
 
-// -- فصل الاستماع لبيانات المستخدمين ليكون أكثر أماناً --
+// دالة جلب المستخدمين (محدثة لتشمل المجتمعات)
 function listenToUsers(){ 
     onValue(ref(db,'users'), s => { 
         if(s.exists()){ 
             window.allUsersData = s.val(); 
             if(window.isInitialLoad){ 
                 listenToPosts(); 
-            }
-            if(window.currentUser){ 
-                renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); 
+                if(window.currentUser){ 
+                    listenToAllFriends(); 
+                    listenToFriendRequests(); 
+                    listenToNotifications(); 
+                    listenToUnreadChats(); 
+                    listenToRecentChats(); 
+                    listenToCommunities(); 
+                    listenToUserCommunities(); 
+                    setTimeout(window.checkFriendsBirthdays, 3000); 
+                } 
+            } else { 
+                if(window.currentUser){ renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); } 
             } 
         } 
     }); 
 }
-
-// -- إطلاق المستمعات الخاصة للمستخدم فقط حين تسجيل الدخول --
-window.startPrivateListeners = () => {
-    if(window.privateListenersStarted) return;
-    window.privateListenersStarted = true;
-    listenToAllFriends();
-    listenToFriendRequests();
-    listenToNotifications();
-    listenToUnreadChats();
-    listenToRecentChats();
-    initAndRunBots();
-    setTimeout(window.checkFriendsBirthdays, 3000);
-};
 
 function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ window.feedLim=5; renderFeed(); } }); }
 function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unreadChats`), s => { window.unreadChatsData = s.exists() ? s.val() : {}; let t=0; if(window.currentChatTarget && window.isChatBoxVisible && window.unreadChatsData[window.currentChatTarget]){ remove(ref(db,`users/${window.currentUser}/unreadChats/${window.currentChatTarget}`)); delete window.unreadChatsData[window.currentChatTarget]; } for(let x in window.unreadChatsData){ let c = window.unreadChatsData[x], p = window.previousUnreadChats[x]||0; t+=c; if(c>p && x!==window.currentChatTarget) window.showToast("رسالة جديدة", `أرسل ${window.getDisplayName(x)} رسالة`, window.allUsersData[x]?.profilePic); } window.previousUnreadChats = {...window.unreadChatsData}; let b1=$('chatBadge'), b2=$('chatBadgeMobile'); if(t>0){ b1.style.display='inline-block'; b1.innerText=t; b2.style.display='inline-block'; b2.innerText=t; } else { b1.style.display='none'; b2.style.display='none'; } renderSidebarUsers(); }); }
@@ -576,19 +547,18 @@ function listenToPosts() {
         window.renderReelsTopBar();
 
         if(window.isInitialLoad){ 
-            window.renderedPostIds = new Set(l.map(p=>p.id)); 
-            if(window.currentUser) renderFeed(); 
-            window.isInitialLoad=false; 
+            window.renderedPostIds = new Set(l.map(p=>p.id)); renderFeed(); window.isInitialLoad=false; 
             handleRouting();
         } else { 
             let hash = window.location.hash; 
             if(hash.startsWith('#/post/')){ let up = window.postCache[decodeURIComponent(hash.replace('#/post/', ''))]; if(up) window.openPostLogic(up.id); } 
             let nc = l.filter(p=>!window.renderedPostIds.has(p.id)).length, mp = l.some(p=>p.author===window.currentUser&&!window.renderedPostIds.has(p.id)); 
-            if(mp){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); $('newPostsBtn').style.display='none'; } 
+            if(mp){ window.renderedPostIds = new Set(l.map(p=>p.id)); renderFeed(); $('newPostsBtn').style.display='none'; } 
             else if(nc>=3){ $('newPostsBtn').style.display='block'; $('newPostsBtn').innerText=`عرض الجديدة (${nc}) ⬆️`; } 
             else { let ci=new Set(l.map(p=>p.id)); for(let id of window.renderedPostIds) if(!ci.has(id)) window.renderedPostIds.delete(id); } 
         } 
         if(window.location.hash.startsWith('#/@')) try { renderProfilePosts(decodeURIComponent(window.location.hash.replace('#/@', ''))) } catch(e){} 
+        if($('communityProfileModal').classList.contains('show')) { let cid = $('currentViewedCommunityId').value; if(cid) renderCommunityPosts(cid); }
     }); 
 }
 
@@ -606,6 +576,10 @@ window.addEventListener('scroll', () => {
 function createPostHTML(p, cp, it=false, im=false) {
     let dt = new Date(p.timestamp).toLocaleString('ar-EG'), ap = window.allUsersData[p.author]?.profilePic || dA, ism = p.author === window.currentUser, ad = window.getDisplayName(p.author), ah = `<span style="font-size:12px;color:var(--text-muted);font-weight:normal;">@${p.author}</span>`, af = '';
     let abg = p.author.toLowerCase() === 'admin21' ? '<span style="background:#7c3aed;color:#fff;padding:2px 6px;border-radius:6px;font-size:10px;margin-right:5px;font-weight:bold;">إدارة</span>' : '';
+    
+    // إشارة لاسم المجتمع إذا كان المنشور من مجتمع
+    let commTag = p.communityId ? `<a href="#/community/${p.communityId}" style="background:var(--secondary);color:#fff;padding:2px 6px;border-radius:6px;font-size:10px;margin-right:5px;font-weight:bold;text-decoration:none;">${p.communityName||'مجتمع'}</a>` : '';
+
     if(window.currentUser && !ism && !window.myFriends.includes(p.author)) { let rr = window.currentRequests && window.currentRequests[p.author]; if(window.sentRequests && window.sentRequests[p.author]) af = `<button class="btn-primary" style="padding:2px 10px;font-size:11px;border-radius:6px;margin-right:10px;background:#e2e8f0;color:#0f172a;" disabled><i class="fas fa-clock"></i> تم</button>`; else if(rr) af = `<button class="btn-primary" style="padding:2px 10px;font-size:11px;border-radius:6px;margin-right:10px;background:#10b981;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${p.author}')"><i class="fas fa-check"></i> قبول</button>`; else af = `<button class="btn-primary" data-action="add" data-target="${p.author}" style="padding:2px 10px;font-size:11px;border-radius:6px;margin-right:10px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${p.author}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; }
     let tbg = it ? `<span style="background:#ff9800;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;margin-right:10px;font-weight:bold;"><i class="fas fa-fire"></i> رائج</span>` : '', ch = ism ? `<div class="post-controls"><button onclick="event.stopPropagation();window.editPost('${p.id}')"><i class="fas fa-edit"></i></button><button onclick="event.stopPropagation();window.deletePost('${p.id}')"><i class="fas fa-trash"></i></button></div>` : '';
     let hl = window.currentUser ? (p.likes && p.likes[window.currentUser]) : false, hi = hl ? '<i class="fas fa-heart" style="color:#ef4444;"></i>' : '<i class="far fa-heart" style="color:#64748b;"></i>', lc = p.likes ? Object.keys(p.likes).length : 0, lt = lc > 0 ? `<span style="font-size:14px;margin-right:5px;color:#64748b;">${lc}</span>` : `<span style="font-size:14px;margin-right:5px;color:#64748b;">إعجاب</span>`;
@@ -619,7 +593,7 @@ function createPostHTML(p, cp, it=false, im=false) {
         <div style="display:flex; flex-direction:column; line-height:1.2;">
             <div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px;">
                 <a href="#/@${p.author}" class="post-author" style="color:inherit; text-decoration:none;">${ad}</a>
-                ${ah} ${abg} ${af} ${tbg}
+                ${ah} ${commTag} ${abg} ${af} ${tbg}
             </div>
             <a href="#/post/${p.id}" class="post-time" style="color:inherit; text-decoration:none; margin-top:3px;">${dt}</a>
         </div>
@@ -650,6 +624,7 @@ function renderFeed() {
 
     window.allPosts.forEach(p => { 
         if(!window.renderedPostIds.has(p.id)) return; 
+        if(p.communityId) return; // منع ظهور منشورات المجتمعات في الرئيسية
         let im = p.author === window.currentUser;
         let ifR = window.currentUser ? window.myFriends.includes(p.author) : false;
         let lc = p.likes ? Object.keys(p.likes).length : 0;
@@ -716,7 +691,6 @@ window.renderPostModalLogic = (p) => {
     let pf = $('postModalFooter');
     if(pf) pf.style.display = window.currentUser ? 'flex' : 'none';
 
-    // الإخفاء الذكي لعلامة الـ X لو اللي فاتح زائر (عشان ميتجولش في الرئيسية)
     let closeBtn = $('postModalCloseBtn');
     if(closeBtn) closeBtn.style.display = window.currentUser ? 'flex' : 'none';
 
@@ -859,7 +833,7 @@ function renderProfilePosts(u) {
             let userPosts = []; s.forEach(c => { let p = c.val(); p.id = c.key; userPosts.push(p); window.postCache[p.id] = p; }); 
             userPosts.sort((a,b) => b.timestamp - a.timestamp); 
             userPosts.forEach(p => { 
-                if(!p.isReel) {
+                if(!p.isReel && !p.communityId) {
                     let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10; 
                     h += createPostHTML(p, 'profile', it, false); 
                     if(p.image) ph += `<a href="#/post/${p.id}"><img src="${p.image}" style="cursor:pointer;"></a>`; 
@@ -934,3 +908,183 @@ window.getSuggestions = () => {
 function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;"><i class="fas ${x.matchesInt ? 'fa-magic' : (x.isPage?'fa-check-circle':'fa-user-friends')}"></i> ${x.matchesInt ? 'نفس اهتماماتك' : (x.isPage?'صفحة رسمية':(x.mutualCount>0?`مشتركون: ${x.mutualCount}`:(x.isSameLocation?'من منطقتك':'عضو جديد')))}</span></a>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
 
 function initAndRunBots() {}
+
+// ==================== نظام المجتمعات ====================
+
+function listenToCommunities() {
+    onValue(ref(db, 'communities'), s => {
+        window.allCommunitiesData = s.exists() ? s.val() : {};
+        renderSidebarCommunities();
+        if(window.location.hash === '#/communities') openAllCommunitiesLogic();
+    });
+}
+
+function listenToUserCommunities() {
+    if(!window.currentUser) return;
+    onValue(ref(db, `userCommunities/${window.currentUser}`), s => {
+        window.myFollowedCommunities = s.exists() ? Object.keys(s.val()) : [];
+        renderSidebarCommunities();
+        if(window.location.hash === '#/communities') openAllCommunitiesLogic();
+        let cid = $('currentViewedCommunityId')?.value;
+        if(cid && $('communityProfileModal')?.classList.contains('show')) renderCommunityActions(cid);
+    });
+}
+
+window.renderSidebarCommunities = () => {
+    let container = $('sidebarCommunitiesSection'), list = $('sidebarCommunitiesList');
+    if(!window.currentUser || !container) return;
+    if(window.myFollowedCommunities.length === 0) { container.style.display = 'none'; return; }
+    container.style.display = 'block';
+    
+    let h = '';
+    window.myFollowedCommunities.slice(0, 4).forEach(cid => {
+        let comm = window.allCommunitiesData[cid];
+        if(!comm) return;
+        h += `<div class="user-row" onclick="window.location.hash='#/community/${cid}'"><div class="user-info"><img src="${comm.pic || dA}" style="border-radius:8px;" class="avatar-small"><span>${comm.name}</span></div></div>`;
+    });
+    list.innerHTML = h;
+};
+
+window.openAllCommunitiesLogic = () => {
+    if(!window.currentUser) return window.showRegisterModal();
+    let list = $('allCommunitiesList'), h = '';
+    
+    let allIds = Object.keys(window.allCommunitiesData);
+    allIds.sort((a, b) => {
+        let aFollow = window.myFollowedCommunities.includes(a), bFollow = window.myFollowedCommunities.includes(b);
+        if(aFollow && !bFollow) return -1; if(!aFollow && bFollow) return 1; return 0;
+    });
+
+    if(allIds.length === 0) { h = '<p style="text-align:center; color:#64748b;">لا توجد مجتمعات حتى الآن.</p>'; }
+    else {
+        allIds.forEach(cid => {
+            let comm = window.allCommunitiesData[cid];
+            let isFollowing = window.myFollowedCommunities.includes(cid);
+            let btn = isFollowing 
+                ? `<button class="btn-secondary" style="padding:6px 12px; font-size:12px;" onclick="event.stopPropagation(); window.toggleCommunityFollow('${cid}')"><em class="fas fa-check"></em> متابع</button>`
+                : `<button class="btn-primary" style="background:var(--secondary); padding:6px 12px; font-size:12px;" onclick="event.stopPropagation(); window.toggleCommunityFollow('${cid}')"><em class="fas fa-plus"></em> متابعة</button>`;
+            
+            h += `<div class="community-card" onclick="window.location.hash='#/community/${cid}'"><div class="comm-info"><img src="${comm.pic || dA}"><div><span class="comm-name">${comm.name}</span><span class="comm-meta">${comm.followers || 0} متابع • بإدارة ${window.getDisplayName(comm.owner)}</span></div></div>${btn}</div>`;
+        });
+    }
+    list.innerHTML = h;
+    $('allCommunitiesModal').classList.add('show'); document.body.style.overflow = 'hidden';
+};
+
+window.openCreateCommunityModal = () => {
+    if(!window.currentUser) return;
+    $('newCommName').value = ''; $('newCommDesc').value = '';
+    $('createCommunityModal').classList.add('show');
+};
+
+window.createNewCommunity = () => {
+    let name = $('newCommName').value.trim(), desc = $('newCommDesc').value.trim();
+    if(!name || !desc) return alert("يرجى إدخال اسم ووصف المجتمع.");
+    let btn = $('btnCreateComm'); btn.disabled = true; btn.innerText = "جاري الإنشاء...";
+    
+    let newRef = push(ref(db, 'communities'));
+    let commData = {
+        name: name, desc: desc, owner: window.currentUser,
+        pic: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random&color=fff&size=150`,
+        followers: 1, timestamp: Date.now()
+    };
+    
+    set(newRef, commData).then(() => {
+        update(ref(db), {
+            [`userCommunities/${window.currentUser}/${newRef.key}`]: true
+        }).then(() => {
+            btn.disabled = false; btn.innerHTML = `<em class="fas fa-check"></em> إنشاء الآن`;
+            window.closeModal('createCommunityModal');
+            window.location.hash = '#/community/' + newRef.key;
+        });
+    });
+};
+
+window.openCommunityProfileLogic = (cid) => {
+    if(!window.currentUser) return window.showRegisterModal();
+    let comm = window.allCommunitiesData[cid];
+    if(!comm) return alert("المجتمع غير موجود.");
+    
+    $('currentViewedCommunityId').value = cid;
+    $('commName').innerText = comm.name;
+    $('commDesc').innerText = comm.desc;
+    $('commPic').src = comm.pic || dA;
+    $('commFollowersCount').innerText = comm.followers || 0;
+    
+    renderCommunityActions(cid);
+    renderCommunityPosts(cid);
+    
+    $('commComposerBox').style.display = (comm.owner === window.currentUser) ? 'block' : 'none';
+    
+    $('communityProfileModal').classList.add('show'); document.body.style.overflow = 'hidden';
+};
+
+window.renderCommunityActions = (cid) => {
+    let comm = window.allCommunitiesData[cid];
+    if(!comm) return;
+    let ac = $('commActions');
+    
+    if(comm.owner === window.currentUser) {
+        ac.innerHTML = `<button class="btn-secondary" style="cursor:default;"><em class="fas fa-crown"></em> أنت المدير</button>`;
+    } else {
+        let isFollowing = window.myFollowedCommunities.includes(cid);
+        if(isFollowing) {
+            ac.innerHTML = `<button class="btn-secondary" onclick="window.toggleCommunityFollow('${cid}')"><em class="fas fa-check"></em> متابع</button>`;
+        } else {
+            ac.innerHTML = `<button class="btn-primary" style="background:var(--secondary);" onclick="window.toggleCommunityFollow('${cid}')"><em class="fas fa-plus"></em> متابعة</button>`;
+        }
+    }
+};
+
+window.toggleCommunityFollow = (cid) => {
+    if(!window.currentUser) return;
+    let isFollowing = window.myFollowedCommunities.includes(cid);
+    let up = {};
+    let currentFollowers = window.allCommunitiesData[cid]?.followers || 0;
+    
+    if(isFollowing) {
+        up[`userCommunities/${window.currentUser}/${cid}`] = null;
+        up[`communities/${cid}/followers`] = Math.max(0, currentFollowers - 1);
+    } else {
+        up[`userCommunities/${window.currentUser}/${cid}`] = true;
+        up[`communities/${cid}/followers`] = currentFollowers + 1;
+    }
+    update(ref(db), up);
+};
+
+window.publishCommunityPost = () => {
+    let cid = $('currentViewedCommunityId').value, content = $('commPostContent').value.trim();
+    if(!content || !cid) return;
+    
+    let comm = window.allCommunitiesData[cid];
+    let btn = $('btnPubCommPost'); btn.disabled = true; btn.innerText = "...";
+    
+    let postData = {
+        author: window.currentUser,
+        text: content,
+        timestamp: Date.now(),
+        communityId: cid,
+        communityName: comm.name
+    };
+    
+    push(ref(db, 'posts'), postData).then(() => {
+        $('commPostContent').value = '';
+        btn.disabled = false; btn.innerText = "نشر";
+        renderCommunityPosts(cid);
+    });
+};
+
+window.renderCommunityPosts = (cid) => {
+    let feed = $('communityPostsFeed');
+    feed.innerHTML = '<div style="text-align:center; padding:20px;"><em class="fas fa-spinner fa-spin"></em> جاري التحميل...</div>';
+    
+    let commPosts = window.allPosts.filter(p => p.communityId === cid);
+    commPosts.sort((a,b) => b.timestamp - a.timestamp);
+    
+    let h = '';
+    commPosts.forEach(p => {
+        h += createPostHTML(p, 'comm', false, false);
+    });
+    
+    feed.innerHTML = h || '<p style="text-align:center; color:#64748b;">لا توجد مقالات في هذا المجتمع بعد.</p>';
+};
