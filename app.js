@@ -101,6 +101,8 @@ function handleRouting() {
     document.body.style.overflow = 'auto'; 
     
     let lw = $('loginModal');
+    let isPublicPage = hash.startsWith('#/post/') || hash.startsWith('#/@');
+    
     // التحكم الذكي في شاشة الدخول وأزرار الإغلاق للزوار
     if (hash === '#/login' || (!window.currentUser && (hash === '' || hash === '#/'))) {
         if(lw) {
@@ -118,6 +120,7 @@ function handleRouting() {
         if(lw) {
             lw.style.opacity = '0';
             lw.style.pointerEvents = 'none';
+            if (isPublicPage) lw.style.display = 'none'; // إخفاء فوري للبروفايل لمنع وميض شاشة الدخول
             setTimeout(() => { if(window.location.hash !== '#/login' && window.location.hash !== '') lw.style.display = 'none'; }, 400);
         }
     }
@@ -399,13 +402,24 @@ if(window.currentUser){
 function rU(){ 
     window.isInitialNotifLoad=true; window.alertedNotifs=new Set(); localStorage.removeItem('savedUser'); window.currentUser=null; 
     let b=$('loginBtn'); if(b){ b.innerText="دخول"; b.disabled=false; } 
-    let s=$('hideLoginStyle'); if(s) s.remove(); 
+    
+    let hash = window.location.hash;
+    let isPublicPage = hash.startsWith('#/post/') || hash.startsWith('#/@');
+
+    // لا تقم بإزالة الستايل المخفي إذا كنا في صفحة عامة (بروفايل أو منشور) لمنع وميض شاشة الدخول
+    if(!isPublicPage) {
+        let s=$('hideLoginStyle'); if(s) s.remove();
+    }
+    
     let l=$('initialLoader'); if(l) l.style.display='none'; 
     let ab=$('adminBtn'); if(ab) ab.style.display='none'; 
     
     let lw = $('loginModal');
-    if(lw && window.location.hash !== '#/login' && !window.location.hash.startsWith('#/post/')) { 
-        lw.style.opacity = '0'; lw.style.pointerEvents = 'none'; setTimeout(() => lw.style.display = 'none', 400); 
+    // إخفاء تام وسريع لشاشة الدخول إذا كان الرابط بروفايل أو منشور
+    if(lw && isPublicPage) { 
+        lw.style.opacity = '0'; 
+        lw.style.pointerEvents = 'none'; 
+        lw.style.display = 'none'; 
     }
 
     let guestNav = $('guestNav'); if(guestNav) guestNav.style.display = 'flex';
@@ -414,8 +428,8 @@ function rU(){
     let sidebarAreaContainer = $('sidebarAreaContainer'); if(sidebarAreaContainer) sidebarAreaContainer.style.display = 'none';
     let bottomNav = $('bottomNav'); if(bottomNav) bottomNav.style.display = 'none';
 
-    // توجيه إجباري للزوار لصفحة الدخول لمنع عرض اليوميات
-    if(window.location.hash === '' || window.location.hash === '#/') {
+    // توجيه إجباري للزوار لصفحة الدخول فقط في الصفحة الرئيسية
+    if(hash === '' || hash === '#/') {
         window.location.replace('#/login');
     }
 
@@ -884,7 +898,7 @@ function renderProfilePosts(u) {
     get(ref(db, `friends/${u}`)).then(s => { let fh = ''; if(s.exists()) { Object.keys(s.val()).forEach(f => { let pic = window.allUsersData[f]?.profilePic || dA, dn = window.getDisplayName(f), mc = 0; if(f !== window.currentUser) { let tf = window.allFriendsData[f] ? Object.keys(window.allFriendsData[f]) : []; mc = tf.filter(x => window.myFriends.includes(x)).length; } let mt = f === window.currentUser ? '' : (mc > 0 ? `<span class="f-mutual"><i class="fas fa-user-friends"></i> ${mc} مشتركون</span>` : `<span class="f-mutual">لا مشتركون</span>`); fh += `<a href="#/@${f}" class="friend-card" style="color:inherit; text-decoration:none;"><img src="${pic}"><div style="display:flex;flex-direction:column;justify-content:center;"><span class="f-name">${dn}</span>${mt}</div></a>`; }); } $('profileFriendsList').innerHTML = fh || '<p style="text-align:center;color:#666;font-size:13px;grid-column:span 2;">لا أصدقاء.</p>'; }); 
 }
 
-window.sendFriendRequestToFromFeed = (t, b) => { if(!window.currentUser) return window.location.hash = '#/login'; if(t === window.currentUser) return; window.sentRequests[t] = true; document.querySelectorAll(`button[data-action="add"][data-target="${t}"]`).forEach(x => { x.innerHTML = `<i class="fas fa-clock"></i> أرسل`; x.style.background = "#e2e8f0"; x.style.color = "#0f172a"; x.disabled = true; }); if(b && !b.hasAttribute('data-target')) { b.innerHTML = `<i class="fas fa-clock"></i> أرسل`; b.style.background = "#e2e8f0"; b.style.color = "#0f172a"; b.disabled = true; } set(ref(db, `friendRequests/${t}/${window.currentUser}`), Date.now()).then(() => push(ref(db, `users/${t}/notifications`), {type:'friend_req', from:window.currentUser, timestamp:Date.now(), read:false})); };
+window.sendFriendRequestToFromFeed = (t, b) => { if(!window.currentUser) { window.showRegisterModal(); return; } if(t === window.currentUser) return; window.sentRequests[t] = true; document.querySelectorAll(`button[data-action="add"][data-target="${t}"]`).forEach(x => { x.innerHTML = `<i class="fas fa-clock"></i> أرسل`; x.style.background = "#e2e8f0"; x.style.color = "#0f172a"; x.disabled = true; }); if(b && !b.hasAttribute('data-target')) { b.innerHTML = `<i class="fas fa-clock"></i> أرسل`; b.style.background = "#e2e8f0"; b.style.color = "#0f172a"; b.disabled = true; } set(ref(db, `friendRequests/${t}/${window.currentUser}`), Date.now()).then(() => push(ref(db, `users/${t}/notifications`), {type:'friend_req', from:window.currentUser, timestamp:Date.now(), read:false})); };
 window.cancelFriendRequest = (t) => { if(!window.currentUser) return; delete window.sentRequests[t]; remove(ref(db, `friendRequests/${t}/${window.currentUser}`)).then(() => window.openProfile(t)); };
 window.acceptRequestFromProfile = (t, b) => { if(!window.currentUser) return; if(b) { b.innerHTML = `<i class="fas fa-user-friends"></i> تم القبول`; b.style.background = "#e2e8f0"; b.style.color = "#0f172a"; b.disabled = true; } let up = {}; up[`friends/${window.currentUser}/${t}`] = true; up[`friends/${t}/${window.currentUser}`] = true; update(ref(db), up).then(() => { remove(ref(db, `friendRequests/${window.currentUser}/${t}`)); push(ref(db, `users/${t}/notifications`), {type:'accept_req', from:window.currentUser, timestamp:Date.now(), read:false}); }); };
 window.acceptRequestFromFeed = (t) => { if(!window.currentUser) return; let up = {}; up[`friends/${window.currentUser}/${t}`] = true; up[`friends/${t}/${window.currentUser}`] = true; update(ref(db), up).then(() => { remove(ref(db, `friendRequests/${window.currentUser}/${t}`)); push(ref(db, `users/${t}/notifications`), {type:'accept_req', from:window.currentUser, timestamp:Date.now(), read:false}); }); };
