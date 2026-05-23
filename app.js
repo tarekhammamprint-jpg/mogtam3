@@ -718,7 +718,7 @@ window.renderPostModalLogic = (p) => {
 
     // الإخفاء الذكي لعلامة الـ X لو اللي فاتح زائر (عشان ميتجولش في الرئيسية)
     let closeBtn = $('postModalCloseBtn');
-    if(closeBtn) closeBtn.style.display = window.currentUser ? 'flex' : 'none';
+    if(closeBtn) closeBtn.style.display = 'flex'; // السماح للزوار بإغلاق المنشور للعودة للبروفايل
 
     $('postModal').classList.add('show'); document.body.style.overflow = 'hidden';
     document.querySelectorAll('#postModalBody video').forEach(v => window.videoObserver.observe(v));
@@ -795,10 +795,6 @@ window.openEditProfileLogic = () => {
 };
 
 window.openProfileLogic = (u) => {
-    if(!window.currentUser) {
-        window.location.replace('#/login'); 
-        return;
-    }
     window.switchProfileTab('posts'); 
     let d = window.allUsersData[u];
     if(!d) {
@@ -831,7 +827,11 @@ function renderProfileData(u, d) {
     let ac = $('profActions');
     let ism = (u === window.currentUser), isf = window.currentUser ? window.myFriends.includes(u) : false, rr = window.currentRequests && window.currentRequests[u];
     
-    if(ism) { 
+    if(!window.currentUser) { 
+        $('coverEditBtn').style.display = 'none'; 
+        ac.innerHTML = `<button class="btn-primary" onclick="window.showRegisterModal()"><i class="fas fa-user-plus"></i> تسجيل الدخول للتفاعل</button>`; 
+    } 
+    else if(ism) { 
         $('coverEditBtn').style.display = 'flex'; 
         ac.innerHTML = `<button class="btn-primary" onclick="window.openEditProfileModal()"><i class="fas fa-edit"></i> تعديل</button><button class="btn-secondary" onclick="window.location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); let c = $('postContent'); c.value = 'حساب رائع: @${u} ✨'; c.focus();"><i class="fas fa-share"></i> مشاركة</button>`; 
     } else {
