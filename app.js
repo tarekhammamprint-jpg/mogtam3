@@ -323,7 +323,7 @@ window.renderSuggestedUsersModal = () => {
     let s = window.getSuggestions ? window.getSuggestions().slice(0,15) : [], h=''; 
     if(s.length===0) h='<p style="text-align:center;color:#666;font-size:14px;padding:20px;">لا يوجد مقترحات حالياً (تظهر فقط للأصدقاء المشتركين أو المقربين).</p>'; 
     else s.forEach(x => { 
-        let p=x.data.profilePic||dA, d=window.getDisplayName(x.name), st = x.mutualCount > 0 ? `مشتركون: ${x.mutualCount}` : 'من منطقتك', rr = window.currentRequests && window.currentRequests[x.name], b=''; 
+        let p=x.data.profilePic||dA, d=window.getDisplayName(x.name), st=x.mutualCount>0?`مشتركون: ${x.mutualCount}`:'من منطقتك', rr = window.currentRequests && window.currentRequests[x.name], b=''; 
         if(window.sentRequests && window.sentRequests[x.name]) b=`<button class="btn-secondary" disabled style="padding:6px 12px;font-size:13px;"><i class="fas fa-clock"></i> أرسل</button>`; 
         else if(rr) b=`<button class="btn-primary" style="background:#10b981;padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; 
         else b=`<button class="btn-primary" data-action="add" data-target="${x.name}" style="padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; 
