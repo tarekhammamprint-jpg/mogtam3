@@ -278,7 +278,7 @@ function renderSidebarTop() {
             h += `<div class="user-row"><a href="#/@${s}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${p}" class="avatar-small"><span>${d}</span></a><div style="display:flex;gap:5px;"><button class="btn-primary" style="background:#10b981;padding:4px 10px;border-radius:6px;" onclick="window.acceptRequest('${s}')"><i class="fas fa-check"></i></button><button class="btn-secondary" style="padding:4px 10px;border-radius:6px;" onclick="window.rejectRequest('${s}')"><i class="fas fa-times"></i></button></div></div>`; 
         } 
     } else { 
-        let sg = window.getSuggestions ? window.getSuggestions().filter(x => !x.isPage && !window.sentRequests[x.name]) : [], t3 = sg.slice(0,3); 
+        let sg = window.getSuggestions ? window.getSuggestions().filter(x => !window.sentRequests[x.name]) : [], t3 = sg.slice(0,3); 
         if(t3.length > 0) { 
             h += `<div class="sidebar-title" style="color:var(--secondary);"><em class="fas fa-user-plus"></em> مقترحون</div>`; 
             t3.forEach(s => { 
@@ -319,7 +319,18 @@ window.logoutUser = () => {
     } 
 };
 
-window.renderSuggestedUsersModal = () => { let s = window.getSuggestions ? window.getSuggestions().slice(0,15) : [], h=''; if(s.length===0) h='<p style="text-align:center;color:#666;font-size:14px;">لا مقترحات.</p>'; else s.forEach(x => { let p=x.data.profilePic||dA, d=window.getDisplayName(x.name), st=x.isPage?'صفحة رسمية':(x.mutualCount>0?`مشتركون: ${x.mutualCount}`:(x.isSameLocation?'من منطقتك':'عضو جديد')), rr = window.currentRequests && window.currentRequests[x.name], b=''; if(window.sentRequests && window.sentRequests[x.name]) b=`<button class="btn-secondary" disabled style="padding:6px 12px;font-size:13px;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b=`<button class="btn-primary" style="background:#10b981;padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b=`<button class="btn-primary" data-action="add" data-target="${x.name}" style="padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; h += `<div class="req-row"><a href="#/@${x.name}" style="display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;"><img src="${p}" class="avatar-small"><div style="display:flex;flex-direction:column;cursor:pointer;"><strong style="font-size:15px;color:var(--text-main);text-align:right;">${d}</strong><span style="font-size:12px;color:var(--text-muted);text-align:right;">${st}</span></div></a><div class="req-actions">${b}</div></div>`; }); let u = $('usersList'); if(u) u.innerHTML=h; };
+window.renderSuggestedUsersModal = () => { 
+    let s = window.getSuggestions ? window.getSuggestions().slice(0,15) : [], h=''; 
+    if(s.length===0) h='<p style="text-align:center;color:#666;font-size:14px;padding:20px;">لا يوجد مقترحات حالياً (تظهر فقط للأصدقاء المشتركين أو المقربين).</p>'; 
+    else s.forEach(x => { 
+        let p=x.data.profilePic||dA, d=window.getDisplayName(x.name), st = x.mutualCount > 0 ? `مشتركون: ${x.mutualCount}` : 'من منطقتك', rr = window.currentRequests && window.currentRequests[x.name], b=''; 
+        if(window.sentRequests && window.sentRequests[x.name]) b=`<button class="btn-secondary" disabled style="padding:6px 12px;font-size:13px;"><i class="fas fa-clock"></i> أرسل</button>`; 
+        else if(rr) b=`<button class="btn-primary" style="background:#10b981;padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; 
+        else b=`<button class="btn-primary" data-action="add" data-target="${x.name}" style="padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; 
+        h += `<div class="req-row"><a href="#/@${x.name}" style="display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;"><img src="${p}" class="avatar-small"><div style="display:flex;flex-direction:column;cursor:pointer;"><strong style="font-size:15px;color:var(--text-main);text-align:right;">${d}</strong><span style="font-size:12px;color:var(--text-muted);text-align:right;">${st}</span></div></a><div class="req-actions">${b}</div></div>`; 
+    }); 
+    let u = $('usersList'); if(u) u.innerHTML=h; 
+};
 
 window.login = () => { if("Notification" in window && Notification.permission === "default") Notification.requestPermission(); let u = $('usernameInput').value.trim(); if(u.startsWith('@')) u = u.substring(1); let p = $('passwordInput').value.trim(); if(!u || !p) return alert("أدخل البيانات!"); let b = $('loginBtn'), ot = b.innerText; b.innerText="جاري..."; b.disabled = true; let tc = setTimeout(() => { alert("انتهى الوقت!"); b.innerText=ot; b.disabled = false; }, 10000); get(ref(db, `users/${u}`)).then(s => { clearTimeout(tc); if(s.exists()){ if(s.val().password === p) fL(u, s.val()); else { alert("خطأ بالمرور!"); b.innerText=ot; b.disabled=false; } } else { alert("غير موجود."); b.innerText=ot; b.disabled=false; } }).catch(() => { clearTimeout(tc); alert("رُفض الاتصال."); b.innerText=ot; b.disabled=false; }); };
 window.checkFriendsBirthdays = () => { let t = new Date(), m = String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0'), y = t.getFullYear(); window.myFriends.forEach(f => { let d = window.allUsersData[f]; if(d && d.birthdate) { let p = d.birthdate.split('-'); if(p.length===3 && p[1]+'-'+p[2]===m) { let nk = `bday_${f}_${y}`, rp = `users/${window.currentUser}/birthdayNotifs/${nk}`; get(ref(db, rp)).then(s => { if(!s.exists()){ set(ref(db, rp), true); push(ref(db, `users/${window.currentUser}/notifications`), {type:'system', text:`اليوم عيد ميلاد ${window.getDisplayName(f)} 🎂`, from:f, timestamp:Date.now(), read:false}); } }); } } }); };
@@ -923,28 +934,45 @@ function listenToFriendRequests() { onValue(ref(db, `friendRequests/${window.cur
 function renderSidebarUsers() { let fh = '', fa = [], rh = '', ra = []; window.myFriends.forEach(f => { if(window.allUsersData[f]) fa.push({name:f, time:window.recentChatsData[f] || 0, uc:window.unreadChatsData[f] || 0, d:window.allUsersData[f]}); }); let cu = new Set([...Object.keys(window.recentChatsData || {}), ...Object.keys(window.unreadChatsData || {})]); cu.forEach(c => { if(!window.myFriends.includes(c) && c !== window.currentUser && window.allUsersData[c]) ra.push({name:c, time:window.recentChatsData[c] || 0, uc:window.unreadChatsData[c] || 0, d:window.allUsersData[c]}); }); fa.sort((a,b) => b.time - a.time); fa.forEach(f => { fh += `<div class="user-row"><a href="#/@${f.name}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${f.d.profilePic||dA}" class="avatar-small"><span>${window.getDisplayName(f.name)}</span></a><div style="display:flex;align-items:center;gap:10px;">${f.uc>0?`<span class="unread-msg-badge">${f.uc}</span>`:''}<button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:4px;" onclick="event.stopPropagation();window.openChat('${f.name}')"><i class="fas fa-comment-dots"></i></button><span class="status-dot ${f.d.online?'online':'offline'}"></span></div></div>`; }); $('friendsList').innerHTML = fh || '<span style="color:#888;font-size:13px;">لا أصدقاء</span>'; ra.sort((a,b) => b.time - a.time); ra.forEach(r => { rh += `<div class="user-row" style="background:#fffbeb;border:1px solid #fde68a;"><a href="#/@${r.name}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${r.d.profilePic||dA}" class="avatar-small"><span>${window.getDisplayName(r.name)}</span></a><div style="display:flex;align-items:center;gap:10px;">${r.uc>0?`<span class="unread-msg-badge">${r.uc}</span>`:''}<button class="btn-primary" style="background:#f59e0b;padding:4px 10px;font-size:12px;border-radius:4px;" onclick="event.stopPropagation();window.openChat('${r.name}')"><i class="fas fa-comment-dots"></i></button></div></div>`; }); let h = $('msgRequestsHeader'); if(ra.length > 0) { h.style.display = 'block'; $('msgRequestsList').innerHTML = rh; } else { h.style.display = 'none'; $('msgRequestsList').innerHTML = ''; } }
 
 window.getSuggestions = () => { 
-    let myInterests = window.currentUser ? (window.allUsersData[window.currentUser]?.interests || []) : [];
     let ml = window.currentUser ? (window.allUsersData[window.currentUser]?.location || "غير محدد") : "غير محدد", sg = []; 
     for(let u in window.allUsersData) { 
         if(u === window.currentUser || window.myFriends.includes(u)) continue; 
         let d = window.allUsersData[u]; 
         
-        let matchingInterests = 0;
-        if (d.category && myInterests.includes(d.category)) matchingInterests += 5; 
-        if (d.interests) { d.interests.forEach(i => { if(myInterests.includes(i)) matchingInterests++; }); }
+        // استبعاد البوتات والصفحات (عرض أشخاص حقيقيين فقط)
+        if(d.isBot || (d.type && d.type !== 'user')) continue;
         
-        if(d.type && d.type !== 'user') { sg.push({name:u, data:d, mutualCount:matchingInterests, isSameLocation:false, isPage:true}); continue; } 
-        let tf = Object.keys(window.allFriendsData[u] || {}), mc = tf.filter(f => window.myFriends.includes(f)).length, isl = (d.location && d.location === ml && ml !== "غير محدد"); 
+        let tf = Object.keys(window.allFriendsData[u] || {}), 
+            mc = tf.filter(f => window.myFriends.includes(f)).length, 
+            isl = (d.location && d.location === ml && ml !== "غير محدد"); 
         
-        sg.push({name:u, data:d, mutualCount:(mc + matchingInterests), isSameLocation:isl, isPage:false, matchesInt: matchingInterests>0}); 
+        // الشرط الصارم: يجب أن يكون هناك أصدقاء مشتركون أو من نفس الموقع الجغرافي
+        if(mc > 0 || isl) {
+            sg.push({name:u, data:d, mutualCount:mc, isSameLocation:isl}); 
+        }
     } 
+    // ترتيب: الأولوية للمشتركين ثم المقربين
     sg.sort((a,b) => { 
         if(b.mutualCount !== a.mutualCount) return b.mutualCount - a.mutualCount; 
-        if(b.isSameLocation && !a.isSameLocation) return 1; if(!b.isSameLocation && a.isSameLocation) return -1; 
-        if(a.isPage && !b.isPage) return 1; if(!a.isPage && b.isPage) return -1; return 0; 
+        if(b.isSameLocation && !a.isSameLocation) return 1; 
+        if(!b.isSameLocation && a.isSameLocation) return -1; 
+        return 0; 
     }); 
     return sg; 
 };
-function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;"><i class="fas ${x.matchesInt ? 'fa-magic' : (x.isPage?'fa-check-circle':'fa-user-friends')}"></i> ${x.matchesInt ? 'نفس اهتماماتك' : (x.isPage?'صفحة رسمية':(x.mutualCount>0?`مشتركون: ${x.mutualCount}`:(x.isSameLocation?'من منطقتك':'عضو جديد')))}</span></a>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
+
+function createSuggestedFriendsWidget() { 
+    let s = window.getSuggestions().slice(0,10); 
+    if(s.length === 0) return ''; 
+    let ch = ''; 
+    s.forEach(x => { 
+        let rr = window.currentRequests && window.currentRequests[x.name], b = ''; 
+        if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; 
+        else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; 
+        else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; 
+        ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;"><i class="fas ${x.mutualCount > 0 ? 'fa-user-friends' : 'fa-map-marker-alt'}"></i> ${x.mutualCount > 0 ? `مشتركون: ${x.mutualCount}` : 'من منطقتك'}</span></a>${b}</div>`; 
+    }); 
+    return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; 
+}
 
 function initAndRunBots() {}
