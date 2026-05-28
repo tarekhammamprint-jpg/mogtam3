@@ -16,6 +16,103 @@ const app = initializeApp({
 });
 const db = getDatabase(app);
 
+// --- ميزة الاجتماعات المرئية (لا تستهلك مساحة Firebase) ---
+window.startMeeting = () => {
+    const roomName = "Meeting_" + Date.now();
+    update(ref(db, 'live_meetings/current'), { room: roomName, isActive: true, admin: window.currentUser });
+    renderJitsi(roomName);
+};
+
+function renderJitsi(roomName) {
+    const container = document.getElementById('meeting-container');
+    if (!container) return;
+    container.style.display = 'block';
+    const api = new JitsiMeetExternalAPI('meet.jit.si', {
+        roomName: roomName,
+        parentNode: document.querySelector('#jitsi-meet-room'),
+        width: '100%',
+        height: '100%'
+    });
+}
+
+onValue(ref(db, 'live_meetings/current'), (snapshot) => {
+    const data = snapshot.val();
+    if (data && data.isActive && data.admin !== window.currentUser) {
+        if(confirm("بدأ المدير اجتماعاً مباشراً. هل تود الانضمام؟")) { renderJitsi(data.room); }
+    }
+});
+
+// إظهار زر الاجتماع للمدير (استبدل 'admin21' باسم المستخدم الخاص بك)
+setTimeout(() => {
+    if (window.currentUser === 'admin21') {
+        const btn = document.getElementById('admin-meeting-btn');
+        if(btn) btn.style.display = 'block';
+    }
+}, 1000);
+
+// --- الكود الأصلي الخاص بك ---
+window.currentUser = localStorage.getItem('savedUser') || null;
+window.currentChatTarget = null;
+window.allUsersData = {};
+window.allFriendsData = {};
+window.myFriends = [];
+window.allPosts = [];
+window.postCache = {};
+window.renderedPostIds = new Set();
+window.isInitialLoad = true;
+window.currentRequests = {};
+window.sentRequests = {};
+window.feedLim = 5; 
+const dA = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+const videoPoster = "https://placehold.co/600x400/1e293b/ffffff?text=Video+Loading...";
+const reelPoster = "https://placehold.co/300x500/1e293b/ffffff?text=Reel+Video";
+
+window.usersListenerActive = false;
+window.privateListenersStarted = false;
+window.activeMentionInput = null;
+window.previousUnreadChats = {};
+window.isChatBoxVisible = false;
+window.selectedMediaFile = null;
+window.selectedMediaType = null;
+window.getDisplayName = (id) => window.allUsersData[id]?.displayName || id;
+window.getDisplayHandle = (id) => '@' + id;
+window.allReels = [];
+let reelsObserver = null;
+
+const PLATFORM_INTERESTS = ["أخبار وسياسة", "رياضة وكرة قدم", "طبخ ووصفات", "دين وإسلاميات", "تكنولوجيا وتقنية", "سيارات ومحركات", "كوميديا ومقالب", "صحة وطب", "فنون وتصميم", "تعليم وثقافة", "موضة وتجميل", "سفر وسياحة", "ألعاب فيديو", "تاريخ وحضارات", "علوم وطبيعة", "اقتصاد وأعمال", "عقارات واستثمار", "أدب وشعر", "تنمية بشرية", "حيوانات أليفة"];
+window.selectedInterests = new Set();
+
+const arabNames = ["أحمد", "محمد", "محمود", "خالد", "علي", "حسن", "عمر", "طارق", "يوسف", "كريم", "سارة", "ندى", "منى", "نور", "مريم", "ياسين", "مصطفى", "وليد", "ماجد", "رامي"];
+const engNames = ["ahmed", "mohamed", "mahmoud", "khaled", "ali", "hassan", "omar", "tarek", "yousef", "kareem", "sara", "nada", "mona", "nour", "mariam", "yassin", "mostafa", "waleed", "majed", "rami"];
+
+if(!window.botAccounts || window.botAccounts.length === 0) {
+    window.botAccounts = [];
+    for(let i=1; i<=60; i++) {
+        let cat = PLATFORM_INTERESTS[i % PLATFORM_INTERESTS.length];
+        let n1 = i % arabNames.length;
+        let n2 = (i + 5) % arabNames.length;
+        let dName = arabNames[n1] + " " + arabNames[n2]; 
+        let hName = engNames[n1] + "_" + Math.floor(Math.random()*999+100); 
+        window.botAccounts.push({ name: hName, displayName: dName, pic: `https://ui-avatars.com/api/?name=${encodeURIComponent(dName)}&background=random&color=fff&size=150`, cover: "", location: "مصر", category: cat, type: "user" });
+    }
+}
+
+
+// -- المتغيرات والإعدادات العامة --
+window.CLOUDINARY_CLOUD_NAME = "diwaqfsap";
+window.CLOUDINARY_UPLOAD_PRESET = "ml_default";
+
+const app = initializeApp({
+    apiKey: "AIzaSyAD5-oCqWmvrjKD24uSRNqqxoijQnsnqA4",
+    authDomain: "mogtam3-1b98f.firebaseapp.com",
+    projectId: "mogtam3-1b98f",
+    storageBucket: "mogtam3-1b98f.firebasestorage.app",
+    messagingSenderId: "948636671408",
+    appId: "1:948636671408:web:501b87559ed12ff09a8a75",
+    databaseURL: "https://mogtam3-1b98f-default-rtdb.firebaseio.com"
+});
+const db = getDatabase(app);
+
 window.currentUser = localStorage.getItem('savedUser') || null;
 window.currentChatTarget = null;
 window.allUsersData = {};
