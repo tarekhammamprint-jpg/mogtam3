@@ -1133,3 +1133,16 @@ window.openCommunity = function(id){
 }
 
 window.renderCommunities();
+window.openCommunityCreator = function(){
+
+    const modal = document.getElementById(
+        "communityCreatorModal"
+    );
+
+    if(modal){
+
+        modal.style.display = "flex";
+
+    }
+
+}
