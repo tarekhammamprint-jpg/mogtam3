@@ -297,7 +297,262 @@
                     <button onclick="window.publishPost()" id="publishBtn" class="btn-primary" style="padding:8px 25px;"><em class="fas fa-paper-plane"></em> نشر</button>
                 </div>
             </div>
-            
+            <!-- زر إنشاء المجتمع -->
+<div id="communityFixedButton">
+
+    <button
+        id="openCommunityBtn"
+        type="button"
+    >
+
+        <em class="fas fa-users"></em>
+
+        إنشاء مجتمع
+
+    </button>
+
+</div>
+
+<!-- نافذة إنشاء المجتمع -->
+<div
+    class="modal"
+    id="communityCreatorModal"
+>
+
+    <div class="modal-content">
+
+        <span
+            class="close-btn"
+            onclick="document.getElementById('communityCreatorModal').style.display='none'"
+        >
+
+            <em class="fas fa-times"></em>
+
+        </span>
+
+        <h2
+            style="
+                text-align:center;
+                margin-bottom:20px;
+            "
+        >
+
+            إنشاء مجتمع جديد
+
+        </h2>
+
+        <input
+            type="text"
+            id="communityName"
+            class="modal-input"
+            placeholder="اسم المجتمع"
+        />
+
+        <textarea
+            id="communityDescription"
+            class="modal-input"
+            placeholder="وصف المجتمع"
+            style="min-height:120px;"
+        ></textarea>
+
+        <button
+            onclick="window.createCommunity()"
+            class="btn-primary"
+            style="
+                width:100%;
+                padding:14px;
+                margin-top:15px;
+            "
+        >
+
+            إنشاء المجتمع
+
+        </button>
+
+    </div>
+
+</div>
+
+<style>
+
+/* =========================
+   زر المجتمع
+========================= */
+
+#communityFixedButton{
+
+    position:relative;
+
+    width:100%;
+
+    margin:15px 0;
+
+    z-index:999999 !important;
+
+    pointer-events:auto !important;
+
+}
+
+#openCommunityBtn{
+
+    width:100%;
+
+    min-height:58px;
+
+    border:none;
+
+    border-radius:18px;
+
+    background:linear-gradient(
+        135deg,
+        #2563eb,
+        #7c3aed
+    );
+
+    color:white;
+
+    font-size:18px;
+
+    font-weight:800;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    gap:10px;
+
+    cursor:pointer;
+
+    position:relative;
+
+    z-index:999999 !important;
+
+    pointer-events:auto !important;
+
+    touch-action:manipulation;
+
+    -webkit-tap-highlight-color:transparent;
+
+}
+
+/* إصلاح الجوال */
+
+@media(max-width:768px){
+
+    #communityFixedButton{
+
+        position:sticky;
+
+        top:70px;
+
+    }
+
+    #openCommunityBtn{
+
+        min-height:54px;
+
+        font-size:16px;
+
+    }
+
+}
+
+</style>
+
+<script>
+
+/* =========================
+   فتح نافذة المجتمع
+========================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    function(){
+
+        const btn = document.getElementById(
+            "openCommunityBtn"
+        );
+
+        if(btn){
+
+            btn.addEventListener(
+                "click",
+                function(){
+
+                    const modal = document.getElementById(
+                        "communityCreatorModal"
+                    );
+
+                    if(modal){
+
+                        modal.style.display = "flex";
+
+                    }
+
+                }
+            );
+
+        }
+
+    }
+);
+
+/* =========================
+   إنشاء مجتمع
+========================= */
+
+window.communities = JSON.parse(
+    localStorage.getItem("communities")
+) || [];
+
+window.createCommunity = function(){
+
+    const name = document.getElementById(
+        "communityName"
+    ).value;
+
+    const description = document.getElementById(
+        "communityDescription"
+    ).value;
+
+    if(!name){
+
+        alert("اكتب اسم المجتمع");
+
+        return;
+
+    }
+
+    const community = {
+
+        id: Date.now(),
+
+        name,
+
+        description
+
+    };
+
+    window.communities.unshift(
+        community
+    );
+
+    localStorage.setItem(
+        "communities",
+        JSON.stringify(window.communities)
+    );
+
+    alert("تم إنشاء المجتمع");
+
+    document.getElementById(
+        "communityCreatorModal"
+    ).style.display = "none";
+
+}
+
+</script>
             <div id="postsFeed"></div>
         </div>
         
