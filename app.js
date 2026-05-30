@@ -976,3 +976,16 @@ function createSuggestedFriendsWidget() {
 }
 
 function initAndRunBots() {}
+const communityBtn = document.getElementById(
+    "openCommunityBtn"
+);
+
+if(communityBtn){
+
+    communityBtn.onclick = function(){
+
+        alert("زر المجتمع يعمل");
+
+    }
+
+}
