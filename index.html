@@ -370,7 +370,11 @@
             <!-- الهيدر الخاص بالمجتمع -->
             <div style="background:var(--primary); color:#fff; padding:25px; border-radius:16px; margin-bottom:20px; text-align:center;">
                 <h2 id="communityViewTitle" style="margin:0 0 10px 0;">اسم المجتمع</h2>
-                <p id="communityViewDesc" style="margin:0 0 20px 0; font-size:14px; opacity:0.9;"></p>
+                <p id="communityViewDesc" style="margin:0 0 15px 0; font-size:14px; opacity:0.9;"></p>
+                
+                <!-- حاوية أزرار التحكم والإدارة (تم إضافتها هنا لتنظيم الشكل ومنع التكرار) -->
+                <div id="communityHeaderActions" style="display:flex; justify-content:center; gap:10px; margin-bottom:15px;"></div>
+                
                 <button class="btn-primary" style="background:#10b981; font-size:16px; padding:12px 30px; box-shadow:0 4px 15px rgba(16,185,129,0.4);" onclick="window.startCommunityCall()">
                     <i class="fas fa-video"></i> بدء اجتماع فيديو/صوت 
                 </button>
@@ -390,6 +394,7 @@
         </div>
     </div>
 
+    <!-- استدعاء ملف الجافاسكريبت الرئيسي كـ module -->
     <script type="module" src="app.js"></script>
 </body>
 </html>
