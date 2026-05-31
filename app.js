@@ -23,7 +23,7 @@ const videoPoster = "https://placehold.co/600x400/1e293b/ffffff?text=Video+Loadi
 const reelPoster = "https://placehold.co/300x500/1e293b/ffffff?text=Reel+Video";
 const $ = (id) => document.getElementById(id);
 
-window.addEventListener('load', () => { setTimeout(() => { let il = $('initialLoader'); if (il && il.style.display !== 'none') { il.classList.add('hidden'); setTimeout(() => il.style.display = 'none', 400); } }, 4000); });
+window.addEventListener('load', () => { setTimeout(() => { let il = $('initialLoader'); if (il && il.style.display !== 'none') { il.classList.add('hidden'); setTimeout(() => il.style.display = 'none', 400); } }, 500); });
 window.addEventListener('hashchange', handleRouting);
 
 function handleRouting() {
