@@ -37,6 +37,7 @@ window.usersListenerActive = false;
 window.privateListenersStarted = false;
 window.allCommunities = {}; 
 window.currentCommunityId = null;
+window.currentCommunitySearchQuery = "";
 
 window.activeMentionInput = null;
 window.previousUnreadChats = {};
@@ -302,7 +303,7 @@ window.renderSuggestedUsersModal = () => {
     let s = window.getSuggestions ? window.getSuggestions().slice(0,15) : [], h=''; 
     if(s.length===0) h='<p style="text-align:center;color:#666;font-size:14px;padding:20px;">لا يوجد مقترحات حالياً (تظهر فقط للأصدقاء المشتركين أو المقربين).</p>'; 
     else s.forEach(x => { 
-        let p=x.data.profilePic||dA, d=window.getDisplayName(x.name), st=x.mutualCount>0?`مشتركون: ${x.mutualCount}`:'من منطقتك', rr = window.currentRequests && window.currentRequests[x.name], b=''; 
+        let p=x.data.profilePic||dA, d=window.getDisplayName(x.name), st=x.mutualCount>0?`مشترون: ${x.mutualCount}`:'من منطقتك', rr = window.currentRequests && window.currentRequests[x.name], b=''; 
         if(window.sentRequests && window.sentRequests[x.name]) b=`<button class="btn-secondary" disabled style="padding:6px 12px;font-size:13px;"><i class="fas fa-clock"></i> أرسل</button>`; 
         else if(rr) b=`<button class="btn-primary" style="background:#10b981;padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; 
         else b=`<button class="btn-primary" data-action="add" data-target="${x.name}" style="padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; 
@@ -377,37 +378,62 @@ window.createCommunity = async () => {
     alert("تم إنشاء المجتمع بنجاح!");
 };
 
-window.joinCommunity = (commId) => {
+window.requestJoinCommunity = (commId) => {
     if(!window.currentUser) return;
-    update(ref(db, `communities/${commId}/members`), { [window.currentUser]: true }).then(() => {
-        window.showToast("تم الانضمام", "لقد انضممت إلى المجتمع", dA);
+    update(ref(db, `communities/${commId}/requests`), { [window.currentUser]: true }).then(() => {
+        window.showToast("تم إرسال الطلب", "في انتظار موافقة المسئول", window.allUsersData[window.currentUser]?.profilePic || dA);
+        renderCommunitiesList();
     });
+};
+
+window.searchCommunities = (q) => {
+    window.currentCommunitySearchQuery = q.trim();
+    renderCommunitiesList();
 };
 
 function renderCommunitiesList() {
     let list = $('communitiesListArea');
     if(!list) return;
+    
+    let searchBarHtml = `
+    <div style="margin-bottom: 15px;">
+        <input type="text" id="commSearchInput" oninput="window.searchCommunities(this.value)" placeholder="ابحث عن مجتمعات للاتحاق بها..." style="width:100%; border:1px solid var(--border-color); padding:10px; border-radius:8px; font-family:inherit;" value="${window.currentCommunitySearchQuery || ''}">
+    </div>`;
+    
     let h = '';
+    let q = window.currentCommunitySearchQuery || '';
     
     Object.keys(window.allCommunities).forEach(id => {
         let comm = window.allCommunities[id];
         let memCount = comm.members ? Object.keys(comm.members).length : 0;
         let isMember = comm.members && comm.members[window.currentUser];
-        let btnHtml = isMember 
-            ? `<button class="btn-secondary" onclick="window.openCommunityView('${id}')">فتح المجتمع</button>` 
-            : `<button class="btn-primary" onclick="window.joinCommunity('${id}')">انضمام</button>`;
+        let hasRequested = comm.requests && comm.requests[window.currentUser];
+        
+        // إظهار المجموعات المشترك فيها فقط، أو المجموعات الأخرى عند استخدام شريط البحث المباشر
+        if (!isMember && (!q || !comm.name.toLowerCase().includes(q.toLowerCase()))) {
+            return;
+        }
+        
+        let btnHtml = '';
+        if (isMember) {
+            btnHtml = `<button class="btn-secondary" onclick="window.openCommunityView('${id}')">فتح المجتمع</button>`;
+        } else if (hasRequested) {
+            btnHtml = `<button class="btn-secondary" disabled style="background:#e2e8f0; color:#64748b;">قيد الانتظار</button>`;
+        } else {
+            btnHtml = `<button class="btn-primary" onclick="window.requestJoinCommunity('${id}')">طلب انضمام</button>`;
+        }
             
         h += `
         <div style="background:#f8fafc; border:1px solid var(--border-color); padding:15px; border-radius:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-                <h4 style="margin:0 0 5px 0; color:var(--primary); font-size:16px;">${comm.name}</h4>
+                <h4 style="margin:0 0 5px 0; color:var(--primary); font-size:16px;">${comm.name} ${isMember ? '<span style="font-size:11px; background:#eef2ff; color:var(--primary); padding:2px 6px; border-radius:4px; margin-right:5px;">مشترك</span>' : ''}</h4>
                 <div style="font-size:13px; color:var(--text-muted);">${comm.description || ''}</div>
                 <div style="font-size:12px; font-weight:bold; margin-top:5px;"><i class="fas fa-users"></i> ${memCount} أعضاء</div>
             </div>
             <div>${btnHtml}</div>
         </div>`;
     });
-    list.innerHTML = h || '<p style="text-align:center; color:#666;">لا توجد مجتمعات حالياً.</p>';
+    list.innerHTML = searchBarHtml + (h || '<p style="text-align:center; color:#666; padding:10px;">لا توجد مجتمعات لعرضها حالياً.</p>');
 }
 
 window.openCommunityView = (commId) => {
@@ -418,17 +444,113 @@ window.openCommunityView = (commId) => {
     $('communityViewTitle').innerText = comm.name;
     $('communityViewDesc').innerText = comm.description || '';
     
-    // إخفاء مودال القائمة وإظهار مودال المجتمع
+    let isAdmin = comm.admin === window.currentUser;
+    
+    let actionsHtml = `<button class="btn-secondary" onclick="window.viewCommunityMembers('${commId}')" style="margin-left:8px;"><i class="fas fa-users"></i> الأعضاء</button>`;
+    if (isAdmin) {
+        actionsHtml += `<button class="btn-primary" onclick="window.manageCommunityRequests('${commId}')" style="background:#f59e0b; border-color:#f59e0b;"><i class="fas fa-user-plus"></i> الطلبات</button>`;
+    }
+    
+    let actCont = $('communityHeaderActions');
+    if (!actCont) {
+        actCont = document.createElement('div');
+        actCont.id = 'communityHeaderActions';
+        actCont.style.display = 'flex';
+        actCont.style.gap = '5px';
+        actCont.style.marginTop = '10px';
+        $('communityViewTitle').parentNode.appendChild(actCont);
+    }
+    actCont.innerHTML = actionsHtml;
+    
     $('communitiesModal').classList.remove('show');
     $('communityViewModal').classList.add('show');
     
     renderCommunityFeed(commId);
 };
 
-// نظام المكالمات المجانية (Jitsi) - 0 DB Impact
+window.viewCommunityMembers = (commId) => {
+    let comm = window.allCommunities[commId];
+    if (!comm) return;
+    let isAdmin = comm.admin === window.currentUser;
+    let h = '<div style="padding:10px; background:#fff; border-radius:8px;"><h4 style="margin-bottom:15px; color:var(--primary);">أعضاء المجتمع</h4>';
+    
+    Object.keys(comm.members || {}).forEach(uid => {
+        let d = window.allUsersData[uid];
+        let name = d ? d.displayName : uid;
+        let pic = d ? (d.profilePic || dA) : dA;
+        
+        h += `
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9;">
+            <div style="display:flex; align-items:center; gap:8px;">
+                <img src="${pic}" class="avatar-small" style="width:30px; height:30px;">
+                <span style="font-size:14px; font-weight:bold;">${name} ${comm.admin === uid ? '<span style="color:#10b981; font-size:11px;">(مسئول)</span>' : ''}</span>
+            </div>`;
+        if (isAdmin && uid !== window.currentUser) {
+            h += `<button class="btn-secondary" style="background:#ef4444; color:#fff; padding:4px 8px; font-size:12px; border:none; border-radius:6px;" onclick="window.removeCommunityMember('${commId}', '${uid}')">إزالة</button>`;
+        }
+        h += `</div>`;
+    });
+    h += `<button class="btn-primary" style="margin-top:15px; width:100%;" onclick="renderCommunityFeed('${commId}')">العودة للمنشورات</button></div>`;
+    $('communityFeedArea').innerHTML = h;
+};
+
+window.removeCommunityMember = (commId, uid) => {
+    if (confirm("هل أنت متأكد من إزالة هذا العضو من المجتمع؟")) {
+        remove(ref(db, `communities/${commId}/members/${uid}`)).then(() => {
+            alert("تم إزالة العضو بنجاح.");
+            let comm = window.allCommunities[commId];
+            if (comm && comm.members) delete comm.members[uid];
+            window.viewCommunityMembers(commId);
+        });
+    }
+};
+
+window.manageCommunityRequests = (commId) => {
+    let comm = window.allCommunities[commId];
+    if (!comm) return;
+    let h = '<div style="padding:10px; background:#fff; border-radius:8px;"><h4 style="margin-bottom:15px; color:var(--primary);">طلبات الانضمام المعلقة</h4>';
+    
+    if (!comm.requests || Object.keys(comm.requests).length === 0) {
+        h += '<p style="text-align:center; color:#64748b; font-size:14px;">لا توجد طلبات معلقة حالياً.</p>';
+    } else {
+        Object.keys(comm.requests).forEach(uid => {
+            let d = window.allUsersData[uid];
+            let name = d ? d.displayName : uid;
+            let pic = d ? (d.profilePic || dA) : dA;
+            h += `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    <img src="${pic}" class="avatar-small" style="width:30px; height:30px;">
+                    <span style="font-size:14px; font-weight:bold;">${name}</span>
+                </div>
+                <div style="display:flex; gap:5px;">
+                    <button class="btn-primary" style="background:#10b981; border-color:#10b981; padding:4px 8px; font-size:12px;" onclick="window.approveCommRequest('${commId}', '${uid}')">قبول</button>
+                    <button class="btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="window.rejectCommRequest('${commId}', '${uid}')">رفض</button>
+                </div>
+            </div>`;
+        });
+    }
+    h += `<button class="btn-primary" style="margin-top:15px; width:100%;" onclick="renderCommunityFeed('${commId}')">العودة للمنشورات</button></div>`;
+    $('communityFeedArea').innerHTML = h;
+};
+
+window.approveCommRequest = (commId, uid) => {
+    let updates = {};
+    updates[`communities/${commId}/members/${uid}`] = true;
+    updates[`communities/${commId}/requests/${uid}`] = null;
+    update(ref(db), updates).then(() => {
+        window.manageCommunityRequests(commId);
+    });
+};
+
+window.rejectCommRequest = (commId, uid) => {
+    remove(ref(db, `communities/${commId}/requests/${uid}`)).then(() => {
+        window.manageCommunityRequests(commId);
+    });
+};
+
 window.startCommunityCall = () => {
     if(!window.currentCommunityId) return;
-    // يتم إنشاء غرفة فريدة لكل مجتمع بدون أي ضغط على الفايربيز
     let roomName = "Mogtam3_Community_" + window.currentCommunityId;
     let meetUrl = `https://meet.jit.si/${roomName}`;
     window.open(meetUrl, '_blank');
@@ -452,12 +574,41 @@ window.publishCommunityPost = () => {
     });
 };
 
+window.toggleCommPostLike = (commId, postId) => {
+    let r = ref(db, `communityPosts/${commId}/${postId}/likes/${window.currentUser}`);
+    get(r).then(s => {
+        if(s.exists()) remove(r);
+        else set(r, true);
+    });
+};
+
+window.addCommPostComment = (commId, postId) => {
+    let inp = document.getElementById(`commComment_${postId}`);
+    let txt = inp.value.trim();
+    if(!txt) return;
+    push(ref(db, `communityPosts/${commId}/${postId}/comments`), {
+        author: window.currentUser,
+        text: txt,
+        timestamp: Date.now()
+    }).then(() => {
+        inp.value = '';
+    });
+};
+
+window.deleteCommPost = (commId, postId) => {
+    if(confirm("هل أنت متأكد من حذف هذا المنشور؟")) {
+        remove(ref(db, `communityPosts/${commId}/${postId}`));
+    }
+};
+
 function renderCommunityFeed(commId) {
     let feedArea = $('communityFeedArea');
     if(!feedArea) return;
     feedArea.innerHTML = '<div style="text-align:center;"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
     
-    // المستمع الخاص ببوستات المجتمع (معزول عن البوستات الأساسية)
+    let comm = window.allCommunities[commId];
+    let isAdmin = comm && comm.admin === window.currentUser;
+    
     if(window.currentCommListener) window.currentCommListener();
     window.currentCommListener = onValue(query(ref(db, `communityPosts/${commId}`), limitToLast(30)), s => {
         let h = '';
@@ -471,18 +622,48 @@ function renderCommunityFeed(commId) {
                 let ap = window.allUsersData[p.author]?.profilePic || dA;
                 let ad = window.getDisplayName(p.author);
                 
+                let lc = p.likes ? Object.keys(p.likes).length : 0;
+                let hl = p.likes && p.likes[window.currentUser];
+                
+                let adminDeleteBtn = isAdmin ? `<button onclick="window.deleteCommPost('${commId}', '${p.id}')" style="color:#ef4444; background:none; border:none; cursor:pointer; font-size:13px;"><i class="fas fa-trash"></i> حذف</button>` : '';
+                
+                let commentsHtml = '';
+                if(p.comments) {
+                    Object.keys(p.comments).forEach(cid => {
+                        let c = p.comments[cid];
+                        let cName = window.getDisplayName(c.author);
+                        commentsHtml += `<div style="background:#f1f5f9; padding:6px 10px; border-radius:8px; margin-top:5px; font-size:13px; text-align:right;"><strong style="color:var(--primary);">${cName}:</strong> ${c.text}</div>`;
+                    });
+                }
+                
                 h += `
-                <div class="post" style="box-shadow:none; border:1px solid #e2e8f0;">
-                    <div class="post-header" style="margin-bottom:10px;">
-                        <div style="display:flex; gap:10px; align-items:center;">
+                <div class="post" style="box-shadow:none; border:1px solid #e2e8f0; margin-bottom:15px; padding:15px; border-radius:12px; background:#fff;">
+                    <div class="post-header" style="margin-bottom:10px; display:flex; justify-content:between; align-items:center; width:100%;">
+                        <div style="display:flex; gap:10px; align-items:center; flex:1;">
                             <img src="${ap}" class="avatar-small">
-                            <div style="display:flex; flex-direction:column; line-height:1.2;">
+                            <div style="display:flex; flex-direction:column; line-height:1.2; text-align:right;">
                                 <strong style="color:var(--text-main);">${ad}</strong>
                                 <span style="font-size:12px; color:var(--text-muted);">${dt}</span>
                             </div>
                         </div>
+                        <div>${adminDeleteBtn}</div>
                     </div>
-                    <div class="post-content" style="font-size:15px;">${window.formatMentions(p.text)}</div>
+                    <div class="post-content" style="font-size:15px; text-align:right; margin-bottom:10px;">${window.formatMentions(p.text)}</div>
+                    
+                    <div class="post-actions-bar" style="border-top:1px solid #f1f5f9; padding-top:8px; display:flex; gap:15px; justify-content:flex-start;">
+                        <button class="action-btn" onclick="window.toggleCommPostLike('${commId}', '${p.id}')" style="border:none; background:none; cursor:pointer; display:flex; align-items:center; gap:5px;">
+                            <i class="${hl?'fas':'far'} fa-heart" style="${hl?'color:#ef4444;':'color:#64748b;'}"></i>
+                            <span style="color:#64748b; font-size:13px;">${lc > 0 ? lc : 'إعجاب'}</span>
+                        </button>
+                    </div>
+                    
+                    <div class="comments-section" style="margin-top:10px; border-top:1px dashed #f1f5f9; padding-top:8px;">
+                        ${commentsHtml}
+                        <div style="display:flex; gap:8px; margin-top:8px;">
+                            <input type="text" id="commComment_${p.id}" placeholder="اكتب تعليقاً..." style="flex:1; border:1px solid #cbd5e1; border-radius:20px; padding:6px 12px; font-size:13px; font-family:inherit;">
+                            <button class="btn-primary" style="border-radius:20px; padding:6px 12px; font-size:13px;" onclick="window.addCommPostComment('${commId}', '${p.id}')"><i class="fas fa-paper-plane"></i></button>
+                        </div>
+                    </div>
                 </div>`;
             });
         }
@@ -583,12 +764,11 @@ window.startPrivateListeners = () => {
     listenToNotifications();
     listenToUnreadChats();
     listenToRecentChats();
-    listenToCommunities(); // <--- تشغيل مستمع المجتمعات
+    listenToCommunities();
     initAndRunBots();
     setTimeout(window.checkFriendsBirthdays, 3000);
 };
 
-// ... (نكمل مع باقي الدوال الأصلية كما هي بدون أي نقصان) ...
 function listenToCommunities() {
     onValue(ref(db, 'communities'), s => {
         window.allCommunities = s.exists() ? s.val() : {};
@@ -849,8 +1029,9 @@ window.submitModalComment = () => {
 window.executeShare = () => {
     if(!window.currentUser) return window.showRegisterModal();
     let id = $('sharePostId').value, c = $('shareCaption').value.trim(), p = window.postCache[id] || window.allPosts.find(x => x.id === id); if(!p) return;
-    let oa = p.isShare ? p.sharedData.author : p.author, sd = {author:oa, text:p.isShare?(p.sharedData.text||""):(p.text||""), timestamp:p.isShare?p.sharedData.timestamp:p.timestamp}, ti = p.isShare ? p.sharedData.image : p.image, tv = p.isShare ? p.sharedData.video : p.video; if(ti) sd.image = ti; if(tv) sd.video = tv;
-    let nr = push(ref(db, 'posts')); set(nr, {author:window.currentUser, text:c, isShare:true, sharedData:sd, timestamp:Date.now()}).then(() => { if(oa && oa !== window.currentUser) push(ref(db, `users/${oa}/notifications`), {type:'share', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); window.myFriends.forEach(f => { if(c.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); }); window.location.hash=''; window.goHome(); });
+    let oa = p.isShare ? p.sharedData.author : p.author, ot = p.isShare ? p.sharedData.text : p.text, oi = p.isShare ? p.sharedData.image : p.image, ov = p.isShare ? p.sharedData.video : p.video, ap = window.allUsersData[oa]?.profilePic || dA, st = window.formatMentions(ot), dn = window.getDisplayName(oa);
+    $('sharePreview').innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><img src="${ap}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;"><strong style="font-size:14px;">${dn}</strong></div><div style="font-size:14px;margin-bottom:8px;">${st}</div>${oi ? `<img src="${oi}" style="width:100%;max-height:150px;object-fit:cover;border-radius:8px;">` : ''}${ov ? `<video src="${ov}" style="width:100%;max-height:150px;background:#000;border-radius:8px;"></video>` : ''}`;
+    $('shareModal').classList.add('show'); document.body.style.overflow = 'hidden';
 };
 
 window.previewImage = (e) => { let f = e.target.files[0]; if(!f) return; let reader = new FileReader(); reader.onload = (ev) => { let preview = document.getElementById('editModalPicPreview'); let base64Input = document.getElementById('editPicBase64'); if(preview) preview.src = ev.target.result; if(base64Input) base64Input.value = ev.target.result; }; reader.readAsDataURL(f); };
@@ -875,15 +1056,6 @@ window.publishPost = async () => {
 
 window.deletePost = (id) => { if(confirm("حذف؟")) { remove(ref(db, `posts/${id}`)); window.location.hash=''; } };
 window.editPost = (id) => { let p = window.postCache[id]; if(!p) return; let nt = prompt("تعديل:", p.text || ''); if(nt !== null) update(ref(db, `posts/${id}`), {text:nt.trim()}); };
-
-window.openShareModal = (id) => {
-    if(!window.currentUser) return window.showRegisterModal();
-    let p = window.postCache[id] || window.allPosts.find(x => x.id === id); if(!p) return;
-    $('sharePostId').value = id; $('shareCaption').value = '';
-    let oa = p.isShare ? p.sharedData.author : p.author, ot = p.isShare ? p.sharedData.text : p.text, oi = p.isShare ? p.sharedData.image : p.image, ov = p.isShare ? p.sharedData.video : p.video, ap = window.allUsersData[oa]?.profilePic || dA, st = window.formatMentions(ot), dn = window.getDisplayName(oa);
-    $('sharePreview').innerHTML = `<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><img src="${ap}" style="width:30px;height:30px;border-radius:50%;object-fit:cover;"><strong style="font-size:14px;">${dn}</strong></div><div style="font-size:14px;margin-bottom:8px;">${st}</div>${oi ? `<img src="${oi}" style="width:100%;max-height:150px;object-fit:cover;border-radius:8px;">` : ''}${ov ? `<video src="${ov}" style="width:100%;max-height:150px;background:#000;border-radius:8px;"></video>` : ''}`;
-    $('shareModal').classList.add('show'); document.body.style.overflow = 'hidden';
-};
 
 window.openEditProfileLogic = () => {
     let d = window.allUsersData[window.currentUser] || {};
