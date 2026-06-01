@@ -14,6 +14,7 @@ window.usersListenerActive = false; window.privateListenersStarted = false;
 window.allCommunities = {}; window.currentCommunityId = null; window.currentCommunitySearchQuery = "";
 window.activeMentionInput = null; window.previousUnreadChats = {}; window.isChatBoxVisible = false;
 window.selectedMediaFile = null; window.selectedMediaType = null;
+window.selectedInterests = new Set();
 window.getDisplayName = (id) => window.allUsersData[id]?.displayName || id;
 window.getDisplayHandle = (id) => '@' + id;
 window.allReels = []; let reelsObserver = null;
@@ -203,6 +204,104 @@ window.rU = function() {
     if(hash === '' || hash === '#/') { window.location.replace('#/login'); }
     if(!window.usersListenerActive) { window.usersListenerActive = true; listenToUsers(); }
 };
+
+// --- دوال الريلز والمشاركة والإدارة (مفقودة بعد التقسيم) ---
+
+window.generateReelsWidgetHTML = () => {
+    if(!window.allReels || window.allReels.length === 0) return '';
+    let h = '<div class="reels-widget" style="background:#fff;border:1px solid var(--border-color);border-radius:16px;padding:15px;margin-bottom:20px;overflow:hidden;"><div style="font-weight:800;font-size:15px;color:var(--primary);margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="fas fa-film"></i> ريلز</div><div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:5px;">';
+    window.allReels.slice(0, 6).forEach((r, idx) => {
+        let globalIdx = window.allReels.findIndex(x => x.id === r.id);
+        let vc = r.views ? Object.keys(r.views).length : 0;
+        let ap = window.allUsersData[r.author]?.profilePic || dA;
+        h += `<div class="reel-thumb" style="flex-shrink:0;width:100px;height:160px;position:relative;cursor:pointer;border-radius:12px;overflow:hidden;" onclick="window.openReelsViewer(${globalIdx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto" style="width:100%;height:100%;object-fit:cover;pointer-events:none;background:#1e293b;"></video><div style="position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,0.7));padding:8px 6px;"><img src="${ap}" style="width:24px;height:24px;border-radius:50%;border:1px solid #fff;"><span style="color:#fff;font-size:10px;margin-right:4px;"><i class="fas fa-play"></i> ${vc}</span></div></div>`;
+    });
+    h += `</div></div>`;
+    return h;
+};
+
+window.renderReelsTopBar = () => {
+    let c = document.getElementById('reelsTopBar');
+    if(!c) return;
+    if(!window.allReels || window.allReels.length === 0) { c.style.display = 'none'; return; }
+    c.style.display = 'flex';
+    let h = '';
+    window.allReels.slice(0, 10).forEach((r, idx) => {
+        let ap = window.allUsersData[r.author]?.profilePic || dA;
+        let dn = window.getDisplayName(r.author);
+        h += `<div style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;flex-shrink:0;" onclick="window.openReelsViewer(${idx})"><div style="width:60px;height:60px;border-radius:50%;border:3px solid var(--primary);overflow:hidden;"><img src="${ap}" style="width:100%;height:100%;object-fit:cover;"></div><span style="font-size:11px;color:var(--text-muted);max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${dn}</span></div>`;
+    });
+    c.innerHTML = h;
+};
+
+window.openReelsLogic = (startIdx) => {
+    let area = document.getElementById('reelsScrollArea');
+    if(!area) return;
+    area.innerHTML = '';
+    if(!window.allReels || window.allReels.length === 0) {
+        area.innerHTML = '<p style="text-align:center;color:#fff;padding:40px;">لا يوجد ريلز حالياً.</p>';
+        document.getElementById('reelsModal')?.classList.add('show');
+        document.body.style.overflow = 'hidden'; return;
+    }
+    window.allReels.forEach((r, idx) => {
+        let ap = window.allUsersData[r.author]?.profilePic || dA;
+        let dn = window.getDisplayName(r.author);
+        let vc = r.views ? Object.keys(r.views).length : 0;
+        let lc = r.likes ? Object.keys(r.likes).length : 0;
+        let hl = window.currentUser && r.likes && r.likes[window.currentUser];
+        let div = document.createElement('div');
+        div.className = 'reel-item'; div.setAttribute('data-id', r.id);
+        div.innerHTML = `<video src="${r.video}" loop playsinline preload="auto" style="width:100%;height:100%;object-fit:cover;background:#000;"></video><div class="reel-overlay"><div class="reel-user-info"><a href="#/@${r.author}" onclick="window.closeModal('reelsModal')"><img src="${ap}" style="width:40px;height:40px;border-radius:50%;border:2px solid #fff;"></a><span style="color:#fff;font-weight:700;">${dn}</span></div><div class="reel-text">${r.text||''}</div><div class="reel-actions"><button onclick="window.toggleReelLike('${r.id}',this)" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;"><i class="${hl?'fas':'far'} fa-heart" style="${hl?'color:#ef4444;':''}"></i><span style="font-size:12px;">${lc}</span></button><div style="color:#fff;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:13px;"><i class="fas fa-eye" style="font-size:20px;"></i><span>${vc}</span></div></div></div>`;
+        area.appendChild(div);
+        if(reelsObserver) reelsObserver.observe(div);
+    });
+    document.getElementById('reelsModal')?.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => { let items = area.querySelectorAll('.reel-item'); if(items[startIdx]) items[startIdx].scrollIntoView({behavior:'instant'}); }, 100);
+};
+
+window.toggleReelLike = (id, btn) => {
+    if(!window.currentUser) return window.showRegisterModal();
+    let r = ref(db, `posts/${id}/likes/${window.currentUser}`);
+    get(r).then(s => {
+        if(s.exists()) { remove(r); if(btn){ let i=btn.querySelector('i'); if(i){i.className='far fa-heart';i.style.color='';} let sp=btn.querySelector('span'); if(sp&&!isNaN(parseInt(sp.innerText))) sp.innerText=parseInt(sp.innerText)-1; } }
+        else { set(r, true); if(btn){ let i=btn.querySelector('i'); if(i){i.className='fas fa-heart';i.style.color='#ef4444';} let sp=btn.querySelector('span'); if(sp&&!isNaN(parseInt(sp.innerText))) sp.innerText=parseInt(sp.innerText)+1; } }
+    });
+};
+
+window.openShareLogic = (id) => {
+    if(!window.currentUser) return window.showRegisterModal();
+    let p = window.postCache[id] || window.allPosts.find(x => x.id === id);
+    let sharePostIdEl = document.getElementById('sharePostId');
+    if(sharePostIdEl) sharePostIdEl.value = id;
+    if(p) { window.executeShare(); } else {
+        get(ref(db, `posts/${id}`)).then(s => { if(s.exists()){ let post=s.val(); post.id=id; window.postCache[id]=post; window.allPosts.push(post); window.executeShare(); } });
+    }
+};
+
+window.checkFriendsBirthdays = () => {
+    if(!window.currentUser || !window.myFriends) return;
+    let today = new Date(), tm = today.getMonth()+1, td = today.getDate();
+    window.myFriends.forEach(f => {
+        let d = window.allUsersData[f]; if(!d || !d.birthdate) return;
+        let parts = d.birthdate.split('-'); if(parts.length < 3) return;
+        let bm = parseInt(parts[1]), bd = parseInt(parts[2]);
+        if(bm === tm && bd === td) window.showToast('🎂 عيد ميلاد!', `اليوم عيد ميلاد ${window.getDisplayName(f)}`, d.profilePic || dA);
+    });
+};
+
+window.warnUser = (uid) => {
+    if(!window.currentUser || window.currentUser.toLowerCase() !== 'admin21') return;
+    let msg = prompt(`رسالة تحذير لـ ${window.getDisplayName(uid)}:`);
+    if(msg) push(ref(db, `users/${uid}/notifications`), {type:'system', text:'⚠️ تحذير من الإدارة: ' + msg, timestamp:Date.now(), read:false});
+};
+
+window.adminDeletePost = (id) => {
+    if(!window.currentUser || window.currentUser.toLowerCase() !== 'admin21') return;
+    if(confirm('حذف هذا المنشور إدارياً؟')) remove(ref(db, `posts/${id}`));
+};
+
+// --- نهاية الدوال المضافة ---
 
 if(window.currentUser){ 
     let b=$('loginBtn'); if(b){ b.innerText="جاري..."; b.disabled=true; } 
