@@ -11,6 +11,7 @@ const PLATFORM_INTERESTS = [
     "ألعاب فيديو", "تاريخ وحضارات", "علوم وطبيعة", "اقتصاد وأعمال", 
     "عقارات واستثمار", "أدب وشعر", "تنمية بشرية", "حيوانات أليفة"
 ];
+window.PLATFORM_INTERESTS = PLATFORM_INTERESTS;
 
 const arabNames = ["أحمد", "محمد", "محمود", "خالد", "علي", "حسن", "عمر", "طارق", "يوسف", "كريم", "سارة", "ندى", "منى", "نور", "مريم", "ياسين", "مصطفى", "وليد", "ماجد", "رامي"];
 const engNames = ["ahmed", "mohamed", "mahmoud", "khaled", "ali", "hassan", "omar", "tarek", "yousef", "kareem", "sara", "nada", "mona", "nour", "mariam", "yassin", "mostafa", "waleed", "majed", "rami"];
