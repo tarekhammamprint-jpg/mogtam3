@@ -9,7 +9,7 @@ window.CLOUDINARY_CLOUD_NAME = "diwaqfsap"; window.CLOUDINARY_UPLOAD_PRESET = "m
 window.currentUser = localStorage.getItem('savedUser') || null;
 window.currentChatTarget = null; window.allUsersData = {}; window.allFriendsData = {};
 window.myFriends = []; window.allPosts = []; window.postCache = {}; window.renderedPostIds = new Set();
-window.isInitialLoad = true; window.currentRequests = {}; window.sentRequests = {}; window.feedLim = 15; 
+window.isInitialLoad = true; window.currentRequests = {}; window.sentRequests = {}; window.feedLim = 5; 
 window.usersListenerActive = false; window.privateListenersStarted = false;
 window.allCommunities = {}; window.currentCommunityId = null; window.currentCommunitySearchQuery = "";
 window.activeMentionInput = null; window.previousUnreadChats = {}; window.isChatBoxVisible = false;
@@ -23,7 +23,7 @@ const videoPoster = "https://placehold.co/600x400/1e293b/ffffff?text=Video+Loadi
 const reelPoster = "https://placehold.co/300x500/1e293b/ffffff?text=Reel+Video";
 const $ = (id) => document.getElementById(id);
 
-window.addEventListener('load', () => { setTimeout(() => { let il = $('initialLoader'); if (il && il.style.display !== 'none') { il.classList.add('hidden'); setTimeout(() => il.style.display = 'none', 400); } }, 500); });
+window.addEventListener('load', () => { setTimeout(() => { let il = $('initialLoader'); if (il && il.style.display !== 'none') { il.classList.add('hidden'); setTimeout(() => il.style.display = 'none', 400); } }, 4000); });
 window.addEventListener('hashchange', handleRouting);
 
 function handleRouting() {
@@ -54,7 +54,7 @@ window.goHome = () => {
     let sb = $('sidebarArea'); if(sb) sb.classList.remove('mobile-show');
     $('globalSearch').value=''; $('searchResults').style.display='none'; $('chatSearchInput').value=''; $('chatSearchBox').style.display='none'; $('friendsList').style.display='block';
     let rl=$('msgRequestsList'); if(rl&&rl.innerHTML!=='') { $('msgRequestsHeader').style.display='block'; rl.style.display='block'; }
-    window.renderedPostIds = new Set(window.allPosts.map(p => p.id)); $('newPostsBtn').style.display='none'; window.feedLim=15; renderFeed();
+    window.renderedPostIds = new Set(window.allPosts.map(p => p.id)); $('newPostsBtn').style.display='none'; window.feedLim=5; renderFeed();
 };
 
 window.uploadToCloudinary = async (file, type) => { let fd = new FormData(); fd.append('file', file); fd.append('upload_preset', window.CLOUDINARY_UPLOAD_PRESET); let res = await fetch(`https://api.cloudinary.com/v1_1/${window.CLOUDINARY_CLOUD_NAME}/${type}/upload`, {method:'POST', body:fd}); let data = await res.json(); return data.secure_url; };
@@ -87,8 +87,8 @@ window.toggleInterest = (el, cat) => { if(window.selectedInterests.has(cat)) { w
 window.saveUserInterests = () => { if(window.selectedInterests.size < 3) return alert("الرجاء اختيار 3 اهتمامات على الأقل ليتم تخصيص المنصة لك."); let arr = Array.from(window.selectedInterests); let btn = $('saveInterestsBtn'), ot = btn.innerText; btn.innerText = "جاري الحفظ..."; btn.disabled = true; update(ref(db, `users/${window.currentUser}`), { interests: arr }).then(() => { $('interestsModal').classList.remove('show'); document.body.style.overflow = 'auto'; btn.innerText = ot; btn.disabled = false; alert("تم تخصيص تجربتك بنجاح! ✨"); }).catch(e => { alert("حدث خطأ"); btn.innerText = ot; btn.disabled = false; }); };
 
 function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(100)), s => { let l = []; if(s.exists()){ s.forEach(c => { let p=c.val(); p.id=c.key; l.push(p); window.postCache[p.id]=p; }); l.sort((a,b) => b.timestamp - a.timestamp); } window.allPosts = l; window.allReels = l.filter(p => p.video != null && window.allUsersData[p.author] && !window.allUsersData[p.author].isBot); window.renderReelsTopBar(); if(window.isInitialLoad){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); window.isInitialLoad=false; handleRouting(); } else { let hash = window.location.hash; if(hash.startsWith('#/post/')){ let up = window.postCache[decodeURIComponent(hash.replace('#/post/', ''))]; if(up) window.openPostLogic(up.id); } let nc = l.filter(p=>!window.renderedPostIds.has(p.id)).length, mp = l.some(p=>p.author===window.currentUser&&!window.renderedPostIds.has(p.id)); if(mp){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); $('newPostsBtn').style.display='none'; } else if(nc>=3){ $('newPostsBtn').style.display='block'; $('newPostsBtn').innerText=`عرض الجديدة (${nc}) ⬆️`; } else { let ci=new Set(l.map(p=>p.id)); for(let id of window.renderedPostIds) if(!ci.has(id)) window.renderedPostIds.delete(id); } } if(window.location.hash.startsWith('#/@')) try { renderProfilePosts(decodeURIComponent(window.location.hash.replace('#/@', ''))) } catch(e){} }); }
-window.showNewPosts = () => { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim=15; renderFeed(); $('newPostsBtn').style.display='none'; window.scrollTo({top:0, behavior:'smooth'}); };
-window.addEventListener('scroll', () => { if((window.innerHeight+window.scrollY) >= document.body.offsetHeight-800){ if(window.feedLim < window.allPosts.length){ window.feedLim += 15; renderFeed(); } } });
+window.showNewPosts = () => { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim=5; renderFeed(); $('newPostsBtn').style.display='none'; window.scrollTo({top:0, behavior:'smooth'}); };
+window.addEventListener('scroll', () => { if((window.innerHeight+window.scrollY) >= document.body.offsetHeight-800){ if(window.feedLim < window.allPosts.length){ window.feedLim += 5; renderFeed(); } } });
 
 function createPostHTML(p, cp, it=false, im=false) {
     let dt = new Date(p.timestamp).toLocaleString('ar-EG'), ap = window.allUsersData[p.author]?.profilePic || dA, ism = p.author === window.currentUser, ad = window.getDisplayName(p.author), ah = `<span style="font-size:12px;color:var(--text-muted);font-weight:normal;">@${p.author}</span>`, af = '';
@@ -166,7 +166,7 @@ window.getSuggestions = () => { let ml = window.currentUser ? (window.allUsersDa
 function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;"><i class="fas ${x.mutualCount > 0 ? 'fa-user-friends' : 'fa-map-marker-alt'}"></i> ${x.mutualCount > 0 ? `مشتركون: ${x.mutualCount}` : 'من منطقتك'}</span></a>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
 
 function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window.allUsersData = s.val(); if(window.isInitialLoad){ listenToPosts(); } if(window.currentUser){ renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); } } }); }
-function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ window.feedLim=15; renderFeed(); } }); }
+function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ window.feedLim=5; renderFeed(); } }); }
 function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unreadChats`), s => { window.unreadChatsData = s.exists() ? s.val() : {}; let t=0; if(window.currentChatTarget && window.isChatBoxVisible && window.unreadChatsData[window.currentChatTarget]){ remove(ref(db,`users/${window.currentUser}/unreadChats/${window.currentChatTarget}`)); delete window.unreadChatsData[window.currentChatTarget]; } for(let x in window.unreadChatsData){ let c = window.unreadChatsData[x], p = window.previousUnreadChats[x]||0; t+=c; if(c>p && x!==window.currentChatTarget) window.showToast("رسالة جديدة", `أرسل ${window.getDisplayName(x)} رسالة`, window.allUsersData[x]?.profilePic); } window.previousUnreadChats = {...window.unreadChatsData}; let b1=$('chatBadge'), b2=$('chatBadgeMobile'); if(t>0){ b1.style.display='inline-block'; b1.innerText=t; b2.style.display='inline-block'; b2.innerText=t; } else { b1.style.display='none'; b2.style.display='none'; } renderSidebarUsers(); }); }
 function listenToRecentChats(){ onValue(ref(db,`users/${window.currentUser}/recentChats`), s => { window.recentChatsData = s.exists() ? s.val() : {}; renderSidebarUsers(); }); }
 function listenToCommunities() { onValue(ref(db, 'communities'), s => { window.allCommunities = s.exists() ? s.val() : {}; if($('communitiesModal') && $('communitiesModal').classList.contains('show')) { window.renderCommunitiesList(); } }); }
@@ -187,7 +187,7 @@ window.fL = function(u, d) {
     if(!d.interests || d.interests.length === 0) { setTimeout(window.renderInterestsModal, 1000); }
     if(!window.usersListenerActive) { window.usersListenerActive = true; listenToUsers(); }
     window.startPrivateListeners();
-    if(!window.isInitialLoad) { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim = 15; renderFeed(); handleRouting(); }
+    if(!window.isInitialLoad) { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim = 5; renderFeed(); handleRouting(); }
 };
 
 window.rU = function() { 
