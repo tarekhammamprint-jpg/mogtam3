@@ -13,20 +13,7 @@ const PLATFORM_INTERESTS = [
 ];
 window.PLATFORM_INTERESTS = PLATFORM_INTERESTS;
 
-const arabNames = ["أحمد", "محمد", "محمود", "خالد", "علي", "حسن", "عمر", "طارق", "يوسف", "كريم", "سارة", "ندى", "منى", "نور", "مريم", "ياسين", "مصطفى", "وليد", "ماجد", "رامي"];
-const engNames = ["ahmed", "mohamed", "mahmoud", "khaled", "ali", "hassan", "omar", "tarek", "yousef", "kareem", "sara", "nada", "mona", "nour", "mariam", "yassin", "mostafa", "waleed", "majed", "rami"];
 
-if(!window.botAccounts || window.botAccounts.length === 0) {
-    window.botAccounts = [];
-    for(let i=1; i<=60; i++) {
-        let cat = PLATFORM_INTERESTS[i % PLATFORM_INTERESTS.length];
-        let n1 = i % arabNames.length;
-        let n2 = (i + 5) % arabNames.length;
-        let dName = arabNames[n1] + " " + arabNames[n2]; 
-        let hName = engNames[n1] + "_" + Math.floor(Math.random()*999+100); 
-        window.botAccounts.push({ name: hName, displayName: dName, pic: `https://ui-avatars.com/api/?name=${encodeURIComponent(dName)}&background=random&color=fff&size=150`, cover: "", location: "مصر", category: cat, type: "user" });
-    }
-}
 
 const cN = {"اسلام":"eslam","إسلام":"eslam","همام":"hammam","ابو":"abu","أبو":"abu","عاطف":"atef","محمد":"mohamed","محمود":"mahmoud","احمد":"ahmed","أحمد":"ahmed","مصطفى":"mostafa","علي":"ali","خالد":"khaled","يوسف":"yousef","ابراهيم":"ibrahim","حسن":"hassan","حسين":"hussein","عبد":"abdel","طارق":"tareq","فهد":"fahad","ياسين":"yassin","سيف":"saif","ماجد":"majed","حازم":"hazem","وليد":"waleed","سامر":"samer","رامي":"rami","كريم":"karim","زياد":"ziad","بهاء":"bahaa","صالح":"saleh","عادل":"adel","سعد":"saad","فيصل":"faisal","سليمان":"soliman","هشام":"hesham","عصام":"essam"};
 const a2e = {"أ":"a","إ":"e","ا":"a","آ":"a","ب":"b","ت":"t","ث":"th","ج":"j","ح":"h","خ":"kh","د":"d","ذ":"z","ر":"r","ز":"z","س":"s","ش":"sh","ص":"s","ض":"d","ط":"t","ظ":"z","ع":"a","غ":"gh","ف":"f","ق":"q","ك":"k","ل":"l","م":"m","ن":"n","ه":"h","و":"w","ي":"y","ى":"a","ة":"a"," ":"_"};
