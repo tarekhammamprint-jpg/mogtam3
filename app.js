@@ -225,11 +225,17 @@ window.renderReelsTopBar = () => {
     if(!c) return;
     if(!window.allReels || window.allReels.length === 0) { c.style.display = 'none'; return; }
     c.style.display = 'flex';
-    let h = '';
+    let h = `<div class="reel-add-btn" onclick="window.scrollTo({top:0,behavior:'smooth'}); document.getElementById('postContent')?.focus()"><i class="fas fa-plus"></i><span>أضف ريلز</span></div>`;
     window.allReels.slice(0, 10).forEach((r, idx) => {
         let ap = window.allUsersData[r.author]?.profilePic || dA;
         let dn = window.getDisplayName(r.author);
-        h += `<div style="display:flex;flex-direction:column;align-items:center;gap:5px;cursor:pointer;flex-shrink:0;" onclick="window.openReelsViewer(${idx})"><div style="width:60px;height:60px;border-radius:50%;border:3px solid var(--primary);overflow:hidden;"><img src="${ap}" style="width:100%;height:100%;object-fit:cover;"></div><span style="font-size:11px;color:var(--text-muted);max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${dn}</span></div>`;
+        let vc = r.views ? Object.keys(r.views).length : 0;
+        h += `<div class="reel-thumb" onclick="window.openReelsViewer(${idx})">
+            <video src="${r.video}" autoplay loop muted playsinline preload="auto"></video>
+            <img src="${ap}" class="r-author-pic">
+            <span class="r-views"><i class="fas fa-play"></i> ${vc}</span>
+            <span class="r-author-name">${dn}</span>
+        </div>`;
     });
     c.innerHTML = h;
 };
@@ -240,7 +246,7 @@ window.openReelsLogic = (startIdx) => {
     area.innerHTML = '';
     if(!window.allReels || window.allReels.length === 0) {
         area.innerHTML = '<p style="text-align:center;color:#fff;padding:40px;">لا يوجد ريلز حالياً.</p>';
-        document.getElementById('reelsModal')?.classList.add('show');
+        document.getElementById('reelsViewerModal')?.classList.add('show');
         document.body.style.overflow = 'hidden'; return;
     }
     window.allReels.forEach((r, idx) => {
@@ -250,14 +256,33 @@ window.openReelsLogic = (startIdx) => {
         let lc = r.likes ? Object.keys(r.likes).length : 0;
         let hl = window.currentUser && r.likes && r.likes[window.currentUser];
         let div = document.createElement('div');
-        div.className = 'reel-item'; div.setAttribute('data-id', r.id);
-        div.innerHTML = `<video src="${r.video}" loop playsinline preload="auto" style="width:100%;height:100%;object-fit:cover;background:#000;"></video><div class="reel-overlay"><div class="reel-user-info"><a href="#/@${r.author}" onclick="window.closeModal('reelsModal')"><img src="${ap}" style="width:40px;height:40px;border-radius:50%;border:2px solid #fff;"></a><span style="color:#fff;font-weight:700;">${dn}</span></div><div class="reel-text">${r.text||''}</div><div class="reel-actions"><button onclick="window.toggleReelLike('${r.id}',this)" style="background:none;border:none;color:#fff;font-size:24px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;"><i class="${hl?'fas':'far'} fa-heart" style="${hl?'color:#ef4444;':''}"></i><span style="font-size:12px;">${lc}</span></button><div style="color:#fff;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:13px;"><i class="fas fa-eye" style="font-size:20px;"></i><span>${vc}</span></div></div></div>`;
+        div.className = 'reel-screen'; div.setAttribute('data-id', r.id);
+        div.innerHTML = `
+            <video src="${r.video}" loop playsinline preload="auto" style="width:100%;height:100%;object-fit:contain;background:#000;"></video>
+            <div class="reel-overlay"></div>
+            <div class="reel-side-actions">
+                <button class="reel-action-btn" onclick="window.toggleReelLike('${r.id}',this)">
+                    <i class="${hl?'fas':'far'} fa-heart" style="${hl?'color:#ef4444;':''}"></i>
+                    <span>${lc}</span>
+                </button>
+                <div class="reel-action-btn">
+                    <i class="fas fa-eye"></i>
+                    <span>${vc}</span>
+                </div>
+            </div>
+            <div class="reel-info">
+                <div class="r-author-hdr" onclick="window.closeModal('reelsViewerModal'); window.openProfile('${r.author}')">
+                    <img src="${ap}">
+                    <h4>${dn}</h4>
+                </div>
+                <p>${r.text || ''}</p>
+            </div>`;
         area.appendChild(div);
         if(reelsObserver) reelsObserver.observe(div);
     });
-    document.getElementById('reelsModal')?.classList.add('show');
+    document.getElementById('reelsViewerModal')?.classList.add('show');
     document.body.style.overflow = 'hidden';
-    setTimeout(() => { let items = area.querySelectorAll('.reel-item'); if(items[startIdx]) items[startIdx].scrollIntoView({behavior:'instant'}); }, 100);
+    setTimeout(() => { let items = area.querySelectorAll('.reel-screen'); if(items[startIdx]) items[startIdx].scrollIntoView({behavior:'instant'}); }, 100);
 };
 
 window.toggleReelLike = (id, btn) => {
