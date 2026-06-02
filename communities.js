@@ -12,14 +12,14 @@ window.openCommunitiesModal = () => {
 
 window.createCommunity = async () => {
     let name = $('communityNameInput').value.trim(), desc = $('communityDescInput').value.trim();
-    if(!name) return alert("الرجاء إدخال اسم المجتمع");
+    if(!name) return window.dlgAlert("الرجاء إدخال اسم المجتمع.", "warning", "بيانات ناقصة");
     let btn = $('createCommunityBtn'), ot = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري...'; btn.disabled = true;
     let newCommRef = push(ref(db, 'communities'));
     let data = { name: name, description: desc, admin: window.currentUser, timestamp: Date.now(), members: {} };
     data.members[window.currentUser] = true; 
     await set(newCommRef, data);
     $('communityNameInput').value = ''; $('communityDescInput').value = ''; btn.innerHTML = ot; btn.disabled = false;
-    alert("تم إنشاء المجتمع بنجاح!");
+    window.dlgAlert("تم إنشاء المجتمع بنجاح! 🎉", "success", "تم الإنشاء");
 };
 
 window.requestJoinCommunity = (commId) => {
@@ -74,7 +74,7 @@ window.viewCommunityMembers = (commId) => {
     $('communityFeedArea').innerHTML = h;
 };
 
-window.removeCommunityMember = (commId, uid) => { if (confirm("هل أنت متأكد من إزالة العضو؟")) { remove(ref(db, `communities/${commId}/members/${uid}`)).then(() => { alert("تم إزالة العضو."); window.viewCommunityMembers(commId); }); } };
+window.removeCommunityMember = (commId, uid) => { window.dlgDanger("هل أنت متأكد من إزالة هذا العضو؟", "إزالة العضو").then(ok => { if(ok) remove(ref(db, `communities/${commId}/members/${uid}`)).then(() => { window.dlgAlert("تم إزالة العضو بنجاح.", "success", "تم"); window.viewCommunityMembers(commId); }); }); };
 
 window.manageCommunityRequests = (commId) => {
     let comm = window.allCommunities[commId]; if (!comm) return;
@@ -103,7 +103,7 @@ window.publishCommunityPost = () => {
 
 window.toggleCommPostLike = (commId, postId) => { let r = ref(db, `communityPosts/${commId}/${postId}/likes/${window.currentUser}`); get(r).then(s => { if(s.exists()) remove(r); else set(r, true); }); };
 window.addCommPostComment = (commId, postId) => { let inp = document.getElementById(`commComment_${postId}`); let txt = inp.value.trim(); if(!txt) return; push(ref(db, `communityPosts/${commId}/${postId}/comments`), { author: window.currentUser, text: txt, timestamp: Date.now() }).then(() => { inp.value = ''; }); };
-window.deleteCommPost = (commId, postId) => { if(confirm("حذف؟")) remove(ref(db, `communityPosts/${commId}/${postId}`)); };
+window.deleteCommPost = (commId, postId) => { window.dlgDanger("هل تريد حذف هذا المنشور؟").then(ok => { if(ok) remove(ref(db, `communityPosts/${commId}/${postId}`)); }); };
 
 window.renderCommunityFeed = (commId) => {
     let feedArea = $('communityFeedArea'); if(!feedArea) return;
