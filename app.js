@@ -4,6 +4,156 @@ import "./auth.js";
 import "./communities.js";
 import "./chat.js";
 
+// ============================================================
+//  نظام النوافذ المخصص — مدمج في app.js
+// ============================================================
+function initDialogSystem() {
+  const style = document.createElement('style');
+  style.textContent = `
+    #dlg-overlay {
+      position:fixed;inset:0;z-index:99999;
+      background:rgba(15,23,42,.6);
+      backdrop-filter:blur(6px);
+      display:flex;align-items:center;justify-content:center;
+      padding:20px;
+      opacity:0;pointer-events:none;
+      transition:opacity .22s ease;
+    }
+    #dlg-overlay.dlg-show{opacity:1;pointer-events:auto;}
+    #dlg-box{
+      background:#fff;border-radius:22px;
+      width:100%;max-width:400px;
+      box-shadow:0 24px 80px rgba(0,0,0,.25);
+      overflow:hidden;
+      transform:scale(.88) translateY(24px);
+      transition:transform .28s cubic-bezier(.34,1.56,.64,1);
+      font-family:'Cairo',sans-serif;direction:rtl;
+    }
+    #dlg-overlay.dlg-show #dlg-box{transform:scale(1) translateY(0);}
+    #dlg-icon-wrap{padding:28px 28px 0;display:flex;justify-content:center;}
+    .dlg-ic{width:68px;height:68px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;}
+    .dlg-ic.info   {background:#eff6ff;color:#2563eb;}
+    .dlg-ic.success{background:#f0fdf4;color:#16a34a;}
+    .dlg-ic.warning{background:#fffbeb;color:#d97706;}
+    .dlg-ic.danger {background:#fef2f2;color:#dc2626;}
+    .dlg-ic.question{background:#f5f3ff;color:#7c3aed;}
+    .dlg-ic.input  {background:#f0f9ff;color:#0284c7;}
+    #dlg-body{padding:18px 26px 22px;text-align:center;}
+    #dlg-title{font-size:18px;font-weight:800;color:#0f172a;margin-bottom:8px;line-height:1.4;}
+    #dlg-msg{font-size:14px;color:#475569;line-height:1.8;}
+    #dlg-inp{
+      width:100%;margin-top:14px;padding:12px 16px;
+      border:2px solid #e2e8f0;border-radius:12px;
+      font-family:'Cairo',sans-serif;font-size:14px;
+      outline:none;box-sizing:border-box;
+      direction:rtl;text-align:right;transition:border .2s;
+    }
+    #dlg-inp:focus{border-color:#2563eb;}
+    #dlg-footer{padding:4px 20px 22px;display:flex;gap:10px;justify-content:center;}
+    .dlg-btn{
+      flex:1;min-width:90px;max-width:180px;
+      padding:11px 16px;border:none;border-radius:12px;
+      font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;
+      cursor:pointer;transition:filter .15s,transform .1s;
+    }
+    .dlg-btn:hover{filter:brightness(.92);}
+    .dlg-btn:active{transform:scale(.97);}
+    .dlg-ok    {background:#2563eb;color:#fff;}
+    .dlg-cancel{background:#f1f5f9;color:#475569;}
+    .dlg-danger{background:#ef4444;color:#fff;}
+    .dlg-success{background:#10b981;color:#fff;}
+    .dlg-warn  {background:#f59e0b;color:#fff;}
+  `;
+  document.head.appendChild(style);
+
+  const ov = document.createElement('div');
+  ov.id = 'dlg-overlay';
+  ov.innerHTML = `<div id="dlg-box">
+    <div id="dlg-icon-wrap"><div class="dlg-ic" id="dlg-ic"></div></div>
+    <div id="dlg-body">
+      <div id="dlg-title"></div>
+      <div id="dlg-msg"></div>
+      <input id="dlg-inp" type="text" style="display:none">
+    </div>
+    <div id="dlg-footer"></div>
+  </div>`;
+  document.body.appendChild(ov);
+
+  const ICONS = {
+    info:'<i class="fas fa-info"></i>',
+    success:'<i class="fas fa-check"></i>',
+    warning:'<i class="fas fa-exclamation"></i>',
+    danger:'<i class="fas fa-times"></i>',
+    question:'<i class="fas fa-question"></i>',
+    input:'<i class="fas fa-pencil-alt"></i>',
+  };
+
+  function dlgOpen(opts) {
+    return new Promise(resolve => {
+      const type = opts.type || 'info';
+      const inp  = document.getElementById('dlg-inp');
+      document.getElementById('dlg-ic').className    = 'dlg-ic ' + type;
+      document.getElementById('dlg-ic').innerHTML    = ICONS[type] || ICONS.info;
+      document.getElementById('dlg-title').innerHTML = opts.title   || '';
+      document.getElementById('dlg-msg').innerHTML   = opts.message || '';
+
+      if (opts.isPrompt) {
+        inp.style.display   = 'block';
+        inp.value           = opts.defaultVal || '';
+        inp.placeholder     = opts.placeholder || '';
+        setTimeout(() => inp.focus(), 260);
+      } else {
+        inp.style.display = 'none';
+      }
+
+      const footer = document.getElementById('dlg-footer');
+      footer.innerHTML = '';
+      (opts.buttons || [{label:'حسناً',val:true,cls:'dlg-ok'}]).forEach(b => {
+        const btn = document.createElement('button');
+        btn.className = 'dlg-btn ' + (b.cls || 'dlg-ok');
+        btn.innerHTML = b.label;
+        btn.onclick   = () => { dlgClose(); resolve(opts.isPrompt ? (b.val ? inp.value : null) : b.val); };
+        footer.appendChild(btn);
+      });
+
+      ov.classList.add('dlg-show');
+
+      function onKey(e) {
+        if (e.key === 'Escape') { dlgClose(); document.removeEventListener('keydown',onKey); resolve(opts.isPrompt ? null : false); }
+        if (e.key === 'Enter' && opts.isPrompt && document.activeElement === inp) { dlgClose(); document.removeEventListener('keydown',onKey); resolve(inp.value); }
+      }
+      document.addEventListener('keydown', onKey);
+    });
+  }
+
+  function dlgClose() { document.getElementById('dlg-overlay').classList.remove('dlg-show'); }
+
+  window.dlgAlert = (msg, type='info', title='') =>
+    dlgOpen({ type, title, message: msg, buttons:[{label:'حسناً',val:true,cls:'dlg-ok'}] });
+
+  window.dlgConfirm = (msg, title='تأكيد', type='question', okLabel='تأكيد', okCls='dlg-ok') =>
+    dlgOpen({ type, title, message: msg, buttons:[
+      {label:'إلغاء',val:false,cls:'dlg-cancel'},
+      {label:okLabel,val:true, cls:okCls}
+    ]});
+
+  window.dlgDanger = (msg, title='تأكيد الحذف') =>
+    window.dlgConfirm(msg, title, 'danger', 'حذف', 'dlg-danger');
+
+  window.dlgPrompt = (title, defaultVal='', placeholder='') =>
+    dlgOpen({ type:'input', title, message:'', isPrompt:true, defaultVal, placeholder,
+      buttons:[{label:'إلغاء',val:false,cls:'dlg-cancel'},{label:'تأكيد',val:true,cls:'dlg-ok'}]
+    });
+}
+
+// تشغيل بعد جاهزية DOM
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initDialogSystem);
+} else {
+  initDialogSystem();
+}
+
+
 // -- المتغيرات والإعدادات العامة --
 window.CLOUDINARY_CLOUD_NAME = "diwaqfsap"; window.CLOUDINARY_UPLOAD_PRESET = "ml_default";
 window.currentUser = localStorage.getItem('savedUser') || null;
