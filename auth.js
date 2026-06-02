@@ -34,24 +34,24 @@ window.closeRegisterModal = () => { let lw = $('loginModal'); if(lw) { lw.style.
 
 window.topLogin = () => {
     let u = $('topLoginUser').value.trim(); if(u.startsWith('@')) u = u.substring(1); let p = $('topLoginPass').value.trim();
-    if(!u || !p) return alert("أدخل البيانات!");
+    if(!u || !p) return window.dlgAlert("الرجاء إدخال اسم المستخدم وكلمة المرور.", "warning", "بيانات ناقصة");
     get(ref(db, `users/${u}`)).then(s => {
-        if(s.exists()){ if(s.val().password === p) { window.fL(u, s.val()); } else alert("خطأ بالمرور!"); } else alert("غير موجود.");
-    }).catch(() => alert("رُفض الاتصال."));
+        if(s.exists()){ if(s.val().password === p) { window.fL(u, s.val()); } else window.dlgAlert("كلمة المرور غير صحيحة.", "danger", "خطأ في الدخول"); } else window.dlgAlert("هذا الحساب غير موجود.", "warning", "غير موجود");
+    }).catch(() => window.dlgAlert("فشل الاتصال بالخادم، يرجى المحاولة لاحقاً.", "danger", "خطأ في الاتصال"));
 };
 
 window.login = () => { 
     if("Notification" in window && Notification.permission === "default") Notification.requestPermission(); 
     let u = $('usernameInput').value.trim(); if(u.startsWith('@')) u = u.substring(1); let p = $('passwordInput').value.trim(); 
-    if(!u || !p) return alert("أدخل البيانات!"); let b = $('loginBtn'), ot = b.innerText; b.innerText="جاري..."; b.disabled = true; 
-    let tc = setTimeout(() => { alert("انتهى الوقت!"); b.innerText=ot; b.disabled = false; }, 10000); 
-    get(ref(db, `users/${u}`)).then(s => { clearTimeout(tc); if(s.exists()){ if(s.val().password === p) window.fL(u, s.val()); else { alert("خطأ بالمرور!"); b.innerText=ot; b.disabled=false; } } else { alert("غير موجود."); b.innerText=ot; b.disabled=false; } }).catch(() => { clearTimeout(tc); alert("رُفض الاتصال."); b.innerText=ot; b.disabled=false; }); 
+    if(!u || !p) return window.dlgAlert("الرجاء إدخال اسم المستخدم وكلمة المرور.", "warning", "بيانات ناقصة"); let b = $('loginBtn'), ot = b.innerText; b.innerText="جاري..."; b.disabled = true; 
+    let tc = setTimeout(() => { window.dlgAlert("انتهى وقت الاتصال، يرجى المحاولة مجدداً.", "warning", "انتهى الوقت"); b.innerText=ot; b.disabled = false; }, 10000); 
+    get(ref(db, `users/${u}`)).then(s => { clearTimeout(tc); if(s.exists()){ if(s.val().password === p) window.fL(u, s.val()); else { window.dlgAlert("كلمة المرور غير صحيحة.", "danger", "خطأ في الدخول"); b.innerText=ot; b.disabled=false; } } else { window.dlgAlert("هذا الحساب غير موجود.", "warning", "غير موجود"); b.innerText=ot; b.disabled=false; } }).catch(() => { clearTimeout(tc); window.dlgAlert("فشل الاتصال بالخادم.", "danger", "خطأ"); b.innerText=ot; b.disabled=false; }); 
 };
 
 window.registerUser = () => {
     let d = $('regDisplayName').value.trim(), dbv = $('regDob').value, p = $('regPassword').value.trim(), r = document.getElementsByName('selectedHandle'), sh = null;
     for(let i=0; i<r.length; i++) { if(r[i].checked) { sh = r[i].value; break; } }
-    if(!d || !dbv || !p || !sh) return alert("أكمل البيانات"); if(p.length < 6) return alert("كلمة المرور 6 أحرف على الأقل");
+    if(!d || !dbv || !p || !sh) return window.dlgAlert("الرجاء إكمال جميع البيانات المطلوبة.", "warning", "بيانات ناقصة"); if(p.length < 6) return window.dlgAlert("كلمة المرور يجب أن تكون 6 أحرف على الأقل.", "warning", "كلمة مرور ضعيفة");
     let btn = $('regBtn'), ot = btn.innerText; btn.innerText = "جاري..."; btn.disabled = true;
     async function getLoc() {
         return new Promise(resolve => {
@@ -62,17 +62,16 @@ window.registerUser = () => {
     }
     getLoc().then(loc => { 
         get(ref(db,`users/${sh}`)).then(s => { 
-            if(s.exists()) { alert("المعرف محجوز"); btn.innerText = ot; btn.disabled = false; } 
+            if(s.exists()) { window.dlgAlert("هذا المعرف محجوز، يرجى اختيار معرف آخر.", "warning", "المعرف محجوز"); btn.innerText = ot; btn.disabled = false; } 
             else { set(ref(db,`users/${sh}`), { displayName: d, birthdate: dbv, password: p, online: true, profilePic: dA, bio: "مستخدم جديد", isBot: false, location: loc, job: "", education: "", hobbies: "", interests: [] }).then(() => { $('usernameInput').value = sh; $('passwordInput').value = p; window.login(); }); } 
-        }).catch(() => { alert("خطأ"); btn.innerText = ot; btn.disabled = false; }); 
+        }).catch(() => { window.dlgAlert("حدث خطأ، يرجى المحاولة مجدداً.", "danger", "خطأ"); btn.innerText = ot; btn.disabled = false; }); 
     });
 };
 
 window.logoutUser = () => { 
-    if(window.currentUser && confirm("تسجيل الخروج؟")) { 
+    if(window.currentUser) { window.dlgConfirm("هل تريد تسجيل الخروج؟", "تسجيل الخروج", "question", "خروج").then(ok => { if(!ok) return; 
         let user = window.currentUser;
         set(ref(db, `users/${user}/online`), false).then(() => { 
             localStorage.removeItem('savedUser'); window.location.replace(window.location.pathname + '#/login'); window.location.reload(); 
-        }).catch(() => { localStorage.removeItem('savedUser'); window.location.replace(window.location.pathname + '#/login'); window.location.reload(); }); 
-    } 
+        }).catch(() => { localStorage.removeItem('savedUser'); window.location.replace(window.location.pathname + '#/login'); window.location.reload(); }); }); } 
 };
