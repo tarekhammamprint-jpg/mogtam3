@@ -243,7 +243,24 @@ window.fL = function(u, d) {
     let n = d.displayName || u; $('currentUserDisplay').innerText = n; let p = d.profilePic || dA; 
     ['myNavAvatar','composerAvatar','myShareAvatar','mobileNavAvatar','modalMyPic'].forEach(x=>{ if($(x)) $(x).src=p; }); 
     let ab = $('adminBtn'); if(ab){ ab.style.display = (u.toLowerCase()==='admin21') ? 'flex' : 'none'; } 
-    let oRef = ref(db, `users/${u}/online`); set(oRef, true); onDisconnect(oRef).set(false); 
+    let oRef = ref(db, `users/${u}/online`); set(oRef, true); onDisconnect(oRef).set(false);
+    // مراقبة حالة الإيقاف في الوقت الفعلي
+    onValue(ref(db, `users/${u}/banned`), (snap) => {
+        if (snap.val() === true) {
+            get(ref(db, `users/${u}`)).then(s => {
+                if (!s.exists()) return;
+                let ud = s.val();
+                let now = Date.now();
+                let perm = !ud.banUntil || ud.banUntil === 0;
+                let expired = !perm && ud.banUntil < now;
+                if (!expired) {
+                    set(ref(db, `users/${u}/online`), false);
+                    localStorage.removeItem('savedUser');
+                    window.showBanScreen(ud);
+                }
+            });
+        }
+    }); 
     if(!d.interests || d.interests.length === 0) { setTimeout(window.renderInterestsModal, 1000); }
     if(!window.usersListenerActive) { window.usersListenerActive = true; listenToUsers(); }
     window.startPrivateListeners();
