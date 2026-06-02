@@ -47,13 +47,13 @@ window.closeChat = (e) => { e.stopPropagation(); window.isChatBoxVisible = false
 
 window.sendChatMedia = async (e, type) => {
     let f = e.target.files[0]; if(!f || !window.currentChatTarget) return;
-    if(type === 'video' && f.size > 50*1024*1024) return alert('الفيديو كبير جداً!');
+    if(type === 'video' && f.size > 50*1024*1024) return window.dlgAlert('الفيديو كبير جداً! الحد الأقصى 50 ميجا.', 'warning', 'تنبيه');
     let t = window.currentChatTarget, rid = [window.currentUser, t].sort().join('_'), n = Date.now();
     try {
         let url = await window.uploadToCloudinary(f, type);
         let d = {sender:window.currentUser, timestamp:n, read:false}; if(type === 'image') d.image = url; else d.video = url;
         push(ref(db, `chats/${rid}`), d).then(() => { update(ref(db, `users/${window.currentUser}/recentChats`), {[t]:n}); update(ref(db, `users/${t}/recentChats`), {[window.currentUser]:n}); let ur = ref(db, `users/${t}/unreadChats/${window.currentUser}`); get(ur).then(s => set(ur, (s.exists() ? s.val() : 0) + 1)); });
-    } catch(err) { alert('فشل الرفع'); }
+    } catch(err) { window.dlgAlert('فشل رفع الملف، يرجى المحاولة مجدداً.', 'danger', 'خطأ'); }
 };
 
 window.handleChatInput = () => { if(!window.currentChatTarget) return; let r = [window.currentUser, window.currentChatTarget].sort().join('_'); set(ref(db, `chats_typing/${r}/${window.currentUser}`), true); clearTimeout(tT); tT = setTimeout(() => set(ref(db, `chats_typing/${r}/${window.currentUser}`), false), 1500); };
