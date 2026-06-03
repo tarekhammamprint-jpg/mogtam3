@@ -4,6 +4,72 @@ import "./auth.js";
 import "./communities.js";
 import "./chat.js";
 
+// ── نظام المتابعة ─────────────────────────────────────────
+window.followChannel = async (channelId, btn) => {
+    if (!window.currentUser) return window.showRegisterModal();
+    const r = ref(db, `users/${channelId}/followers/${window.currentUser}`);
+    const snap = await get(r);
+    if (snap.exists()) {
+        await remove(r);
+        await remove(ref(db, `users/${window.currentUser}/following/${channelId}`));
+        if (btn) { btn.innerHTML = '<i class="fas fa-plus"></i> متابعة'; btn.classList.remove('following'); }
+    } else {
+        await set(r, true);
+        await set(ref(db, `users/${window.currentUser}/following/${channelId}`), true);
+        if (btn) { btn.innerHTML = '<i class="fas fa-check"></i> تتابع'; btn.classList.add('following'); }
+    }
+    // تحديث العداد
+    const countSnap = await get(ref(db, `users/${channelId}/followers`));
+    const count = countSnap.exists() ? Object.keys(countSnap.val()).length : 0;
+    const countEl = btn ? btn.closest('.channel-card')?.querySelector('.followers-count') : null;
+    if (countEl) countEl.innerText = count + ' متابع';
+};
+
+window.renderNewsChannels = async () => {
+    const area = document.getElementById('newsChannelsArea');
+    if (!area) return;
+    const snap = await get(ref(db, 'users'));
+    if (!snap.exists()) return;
+    const users = snap.val();
+    const channels = Object.entries(users).filter(([, u]) => u.isNewsBot);
+    if (channels.length === 0) { area.innerHTML = ''; return; }
+
+    // اهتمامات المستخدم الحالي
+    const myInterests = new Set(window.allUsersData[window.currentUser]?.interests || []);
+
+    // ترتيب: المتوافقة مع اهتمامات المستخدم أولاً
+    channels.sort(([, a], [, b]) => {
+        const aMatch = (a.interests || []).some(i => myInterests.has(i)) ? 1 : 0;
+        const bMatch = (b.interests || []).some(i => myInterests.has(i)) ? 1 : 0;
+        return bMatch - aMatch;
+    });
+
+    let h = `<div style="margin:0 0 12px;font-size:15px;font-weight:800;color:var(--text-main);display:flex;align-items:center;gap:8px;">
+        <i class="fas fa-satellite-dish" style="color:var(--primary);"></i> قنوات الأخبار
+    </div><div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin;">`;
+
+    for (const [id, u] of channels) {
+        const fc = u.followers ? Object.keys(u.followers).length : 0;
+        const isFollowing = u.followers && u.followers[window.currentUser];
+        h += `<div class="channel-card" style="flex-shrink:0;width:140px;background:#fff;border-radius:16px;border:1px solid var(--border-color);overflow:hidden;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+            <div style="height:55px;background:url('${u.coverPic||''}') center/cover;position:relative;">
+                <img src="${u.profilePic || dA}" style="width:50px;height:50px;border-radius:50%;border:3px solid #fff;position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);object-fit:cover;">
+            </div>
+            <div style="padding:26px 10px 12px;">
+                <div style="font-size:12px;font-weight:800;color:var(--text-main);line-height:1.3;margin-bottom:3px;">${u.displayName}</div>
+                <div class="followers-count" style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">${fc} متابع</div>
+                <button onclick="window.followChannel('${id}', this)" 
+                    class="follow-btn${isFollowing ? ' following' : ''}"
+                    style="width:100%;border:none;padding:6px;border-radius:20px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;background:${isFollowing ? '#e0e7ff' : 'var(--primary)'};color:${isFollowing ? 'var(--primary)' : '#fff'};transition:all .2s;">
+                    <i class="fas fa-${isFollowing ? 'check' : 'plus'}"></i> ${isFollowing ? 'تتابع' : 'متابعة'}
+                </button>
+            </div>
+        </div>`;
+    }
+    h += '</div>';
+    area.innerHTML = h;
+};
+
 // ============================================================
 //  نظام النوافذ المخصص — مدمج في app.js
 // ============================================================
@@ -259,7 +325,10 @@ function createPostHTML(p, cp, it=false, im=false) {
 function renderFeed() {
     let pf = document.getElementById('postsFeed'); if(!window.currentUser) { if(pf) pf.innerHTML = ''; return; }
     let h='', sg=window.getSuggestions?window.getSuggestions():[], iN=window.currentUser?window.myFriends.length===0:true, vp=[], reg=[], tr=[];
-    window.allPosts.forEach(p => { if(!window.renderedPostIds.has(p.id)) return; let im = p.author === window.currentUser; let ifR = window.currentUser ? window.myFriends.includes(p.author) : false; let lc = p.likes ? Object.keys(p.likes).length : 0; let it = lc >= 10; if(iN){ if(im || it) vp.push({p:p, it:it}); } else { if(im || ifR) reg.push({p:p, it:it}); else if(it) tr.push({p:p, it:true}); } });
+    window.allPosts.forEach(p => { if(!window.renderedPostIds.has(p.id)) return; let im = p.author === window.currentUser; let ifR = window.currentUser ? window.myFriends.includes(p.author) : false;
+        // إضافة منشورات القنوات التي يتابعها المستخدم
+        let isFollowedChannel = p.isNewsBot && window.allUsersData[window.currentUser]?.following && window.allUsersData[window.currentUser].following[p.author];
+        if(isFollowedChannel) { reg.push({p:p, it:false}); return; } let lc = p.likes ? Object.keys(p.likes).length : 0; let it = lc >= 10; if(iN){ if(im || it) vp.push({p:p, it:it}); } else { if(im || ifR) reg.push({p:p, it:it}); else if(it) tr.push({p:p, it:true}); } });
     if(!iN){ let t_i = 0; for(let i=0; i<reg.length; i++){ vp.push(reg[i]); if((i+1)%10===0 && t_i<tr.length){ vp.push(tr[t_i]); t_i++; } } }
     vp.slice(0, window.feedLim || 5).forEach((v,i) => { h += createPostHTML(v.p, 'feed', v.it, false); if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget(); if(window.currentUser && i>0 && i%5===0) h += window.generateReelsWidgetHTML(); });
     if(pf) { pf.innerHTML = h || '<p style="text-align:center;color:#666;padding:20px;">المنشورات تظهر هنا.</p>'; document.querySelectorAll('#postsFeed video').forEach(v => window.videoObserver.observe(v)); }
@@ -414,6 +483,9 @@ window.fL = function(u, d) {
     if(!d.interests || d.interests.length === 0) { setTimeout(window.renderInterestsModal, 1000); }
     if(!window.usersListenerActive) { window.usersListenerActive = true; listenToUsers(); }
     window.startPrivateListeners();
+    // تحميل قنوات الأخبار
+    let nca = document.getElementById('newsChannelsArea');
+    if(nca) { nca.style.display='block'; window.renderNewsChannels(); }
     if(!window.isInitialLoad) { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim = 5; renderFeed(); handleRouting(); }
 };
 
