@@ -12,17 +12,39 @@ window.followChannel = async (channelId, btn) => {
     if (snap.exists()) {
         await remove(r);
         await remove(ref(db, `users/${window.currentUser}/following/${channelId}`));
-        if (btn) { btn.innerHTML = '<i class="fas fa-plus"></i> متابعة'; btn.classList.remove('following'); }
+        // تحديث محلي فوري
+        if (window.allUsersData[window.currentUser]) {
+            if (!window.allUsersData[window.currentUser].following) window.allUsersData[window.currentUser].following = {};
+            delete window.allUsersData[window.currentUser].following[channelId];
+        }
+        if (btn) { 
+            btn.innerHTML = '<i class="fas fa-plus"></i> متابعة'; 
+            btn.classList.remove('following');
+            btn.style.background = 'var(--primary)';
+            btn.style.color = '#fff';
+        }
     } else {
         await set(r, true);
         await set(ref(db, `users/${window.currentUser}/following/${channelId}`), true);
-        if (btn) { btn.innerHTML = '<i class="fas fa-check"></i> تتابع'; btn.classList.add('following'); }
+        // تحديث محلي فوري
+        if (window.allUsersData[window.currentUser]) {
+            if (!window.allUsersData[window.currentUser].following) window.allUsersData[window.currentUser].following = {};
+            window.allUsersData[window.currentUser].following[channelId] = true;
+        }
+        if (btn) { 
+            btn.innerHTML = '<i class="fas fa-check"></i> تتابع'; 
+            btn.classList.add('following');
+            btn.style.background = '#e0e7ff';
+            btn.style.color = 'var(--primary)';
+        }
     }
     // تحديث العداد
     const countSnap = await get(ref(db, `users/${channelId}/followers`));
     const count = countSnap.exists() ? Object.keys(countSnap.val()).length : 0;
     const countEl = btn ? btn.closest('.channel-card')?.querySelector('.followers-count') : null;
     if (countEl) countEl.innerText = count + ' متابع';
+    // إعادة رسم الفيد لإظهار/إخفاء منشورات القناة فوراً
+    if (typeof renderFeed === 'function') renderFeed();
 };
 
 window.renderNewsChannels = async () => {
@@ -52,11 +74,11 @@ window.renderNewsChannels = async () => {
         const fc = u.followers ? Object.keys(u.followers).length : 0;
         const isFollowing = u.followers && u.followers[window.currentUser];
         h += `<div class="channel-card" style="flex-shrink:0;width:140px;background:#fff;border-radius:16px;border:1px solid var(--border-color);overflow:hidden;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-            <div style="height:55px;background:url('${u.coverPic||''}') center/cover;position:relative;">
+            <div style="height:55px;background:url('${u.coverPic||''}') center/cover;position:relative;cursor:pointer;" onclick="window.openProfile('${id}')">
                 <img src="${u.profilePic || dA}" style="width:50px;height:50px;border-radius:50%;border:3px solid #fff;position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);object-fit:cover;">
             </div>
             <div style="padding:26px 10px 12px;">
-                <div style="font-size:12px;font-weight:800;color:var(--text-main);line-height:1.3;margin-bottom:3px;">${u.displayName}</div>
+                <div style="font-size:12px;font-weight:800;color:var(--text-main);line-height:1.3;margin-bottom:3px;cursor:pointer;" onclick="window.openProfile('${id}')">${u.displayName}</div>
                 <div class="followers-count" style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">${fc} متابع</div>
                 <button onclick="window.followChannel('${id}', this)" 
                     class="follow-btn${isFollowing ? ' following' : ''}"
@@ -326,8 +348,9 @@ function renderFeed() {
     let pf = document.getElementById('postsFeed'); if(!window.currentUser) { if(pf) pf.innerHTML = ''; return; }
     let h='', sg=window.getSuggestions?window.getSuggestions():[], iN=window.currentUser?window.myFriends.length===0:true, vp=[], reg=[], tr=[];
     window.allPosts.forEach(p => { if(!window.renderedPostIds.has(p.id)) return; let im = p.author === window.currentUser; let ifR = window.currentUser ? window.myFriends.includes(p.author) : false;
-        // إضافة منشورات القنوات التي يتابعها المستخدم
-        let isFollowedChannel = p.isNewsBot && window.allUsersData[window.currentUser]?.following && window.allUsersData[window.currentUser].following[p.author];
+        // إضافة منشورات القنوات المتابَعة
+        let myFollowing = window.allUsersData[window.currentUser] && window.allUsersData[window.currentUser].following ? window.allUsersData[window.currentUser].following : {};
+        let isFollowedChannel = p.isNewsBot && myFollowing[p.author];
         if(isFollowedChannel) { reg.push({p:p, it:false}); return; } let lc = p.likes ? Object.keys(p.likes).length : 0; let it = lc >= 10; if(iN){ if(im || it) vp.push({p:p, it:it}); } else { if(im || ifR) reg.push({p:p, it:it}); else if(it) tr.push({p:p, it:true}); } });
     if(!iN){ let t_i = 0; for(let i=0; i<reg.length; i++){ vp.push(reg[i]); if((i+1)%10===0 && t_i<tr.length){ vp.push(tr[t_i]); t_i++; } } }
     vp.slice(0, window.feedLim || 5).forEach((v,i) => { h += createPostHTML(v.p, 'feed', v.it, false); if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget(); if(window.currentUser && i>0 && i%5===0) h += window.generateReelsWidgetHTML(); });
