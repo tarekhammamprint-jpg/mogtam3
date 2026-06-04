@@ -406,54 +406,41 @@ function renderProfilePosts(u) {
     let pp = window.allUsersData[u]?.profilePic || dA;
     let h = '', ph = '';
     ph += `<a href="#/@${u}"><img src="${pp}" style="cursor:pointer;"></a>`;
-    // استخدام allPosts المحفوظة بدلاً من جلب كل شيء من Firebase
-    let userPosts = (window.allPosts || []).filter(p => p.author === u);
-    // إذا لم توجد في الكاش، اجلبها من Firebase
-    if (userPosts.length === 0) {
-        $('profilePostsFeed').innerHTML = '<div style="text-align:center;padding:20px;color:var(--primary);"><i class="fas fa-spinner fa-spin fa-2x"></i><br>جاري جلب المنشورات...</div>';
-        get(query(ref(db, 'posts'), orderByChild('author'), equalTo(u))).then(s => {
-            if(s.exists()) {
-                userPosts = [];
-                s.forEach(c => { let p = c.val(); p.id = c.key; userPosts.push(p); window.postCache[p.id] = p; });
-                userPosts.sort((a,b) => b.timestamp - a.timestamp);
-                userPosts.forEach(p => { 
-                    if(!p.isReel) { 
-                        let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10; 
-                        h += createPostHTML(p, 'profile', it, false); 
-                        if(p.image) ph += `<a href="#/post/${p.id}"><img src="${p.image}" style="cursor:pointer;"></a>`;
-                        if(p.video) ph += `<a href="#/post/${p.id}"><video src="${p.video}" style="cursor:pointer;"></video></a>`;
-                    } 
-                });
-            }
-            $('profilePostsFeed').innerHTML = h || '<p style="text-align:center;color:#666;font-size:13px;">لا مقالات.</p>';
-            $('profilePhotosGrid').innerHTML = ph;
-            document.querySelectorAll('#profilePostsFeed video').forEach(v => window.videoObserver.observe(v));
-        }).catch(() => {
-            // fallback: عرض من allPosts فقط بدون Firebase query
-            userPosts = Object.values(window.postCache || {}).filter(p => p.author === u);
+    $('profilePostsFeed').innerHTML = '<div style="text-align:center;padding:20px;color:var(--primary);"><i class="fas fa-spinner fa-spin fa-2x"></i><br>جاري جلب المنشورات...</div>';
+    
+    // دائماً نجلب من Firebase مباشرة لضمان ظهور كل المنشورات القديمة والجديدة
+    get(ref(db, 'posts')).then(s => {
+        if(s.exists()) {
+            let userPosts = [];
+            s.forEach(c => { 
+                let p = c.val(); p.id = c.key; 
+                if(p.author === u) { userPosts.push(p); window.postCache[p.id] = p; }
+            });
             userPosts.sort((a,b) => b.timestamp - a.timestamp);
             userPosts.forEach(p => { 
                 if(!p.isReel) { 
                     let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10; 
                     h += createPostHTML(p, 'profile', it, false); 
+                    if(p.image) ph += `<a href="#/post/${p.id}"><img src="${p.image}" style="cursor:pointer;"></a>`;
+                    if(p.video) ph += `<a href="#/post/${p.id}"><video src="${p.video}" style="cursor:pointer;"></video></a>`;
                 } 
             });
-            $('profilePostsFeed').innerHTML = h || '<p style="text-align:center;color:#666;font-size:13px;">لا مقالات.</p>';
+        }
+        $('profilePostsFeed').innerHTML = h || '<p style="text-align:center;color:#666;font-size:13px;">لا مقالات.</p>';
+        $('profilePhotosGrid').innerHTML = ph;
+        document.querySelectorAll('#profilePostsFeed video').forEach(v => window.videoObserver.observe(v));
+    }).catch(() => {
+        // fallback من الكاش المحلي
+        let userPosts = Object.values(window.postCache || {}).filter(p => p.author === u);
+        userPosts.sort((a,b) => b.timestamp - a.timestamp);
+        userPosts.forEach(p => { 
+            if(!p.isReel) { 
+                let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10; 
+                h += createPostHTML(p, 'profile', it, false); 
+            } 
         });
-        return;
-    }
-    userPosts.sort((a,b) => b.timestamp - a.timestamp);
-    userPosts.forEach(p => { 
-        if(!p.isReel) { 
-            let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10; 
-            h += createPostHTML(p, 'profile', it, false); 
-            if(p.image) ph += `<a href="#/post/${p.id}"><img src="${p.image}" style="cursor:pointer;"></a>`;
-            if(p.video) ph += `<a href="#/post/${p.id}"><video src="${p.video}" style="cursor:pointer;"></video></a>`;
-        } 
-    });
-    $('profilePostsFeed').innerHTML = h || '<p style="text-align:center;color:#666;font-size:13px;">لا مقالات.</p>';
-    $('profilePhotosGrid').innerHTML = ph;
-    document.querySelectorAll('#profilePostsFeed video').forEach(v => window.videoObserver.observe(v)); let rh = ''; let userReels = window.allReels.filter(r => r.author === u); if(userReels.length > 0) { userReels.forEach(r => { let globalIdx = window.allReels.findIndex(x => x.id === r.id); let vc = r.views ? Object.keys(r.views).length : 0; rh += `<div class="reel-thumb" style="width:100%; height:180px;" onclick="window.openReelsViewer(${globalIdx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto" poster="${reelPoster}" style="pointer-events:none; background:#1e293b; object-fit:cover;"></video><span class="r-views"><i class="fas fa-play"></i> ${vc}</span></div>`; }); } $('profileReelsGrid').innerHTML = rh || '<p style="text-align:center;color:#666;grid-column:span 3;">لا يوجد ريلز لهذا الحساب.</p>'; get(ref(db, `friends/${u}`)).then(s => { let fh = ''; if(s.exists()) { Object.keys(s.val()).forEach(f => { let pic = window.allUsersData[f]?.profilePic || dA, dn = window.getDisplayName(f), mc = 0; if(f !== window.currentUser) { let tf = window.allFriendsData[f] ? Object.keys(window.allFriendsData[f]) : []; mc = tf.filter(x => window.myFriends.includes(x)).length; } let mt = f === window.currentUser ? '' : (mc > 0 ? `<span class="f-mutual"><i class="fas fa-user-friends"></i> ${mc} مشتركون</span>` : `<span class="f-mutual">لا مشتركون</span>`); fh += `<a href="#/@${f}" class="friend-card" style="color:inherit; text-decoration:none;"><img src="${pic}"><div style="display:flex;flex-direction:column;justify-content:center;"><span class="f-name">${dn}</span>${mt}</div></a>`; }); } $('profileFriendsList').innerHTML = fh || '<p style="text-align:center;color:#666;font-size:13px;grid-column:span 2;">لا أصدقاء.</p>'; }); }
+        $('profilePostsFeed').innerHTML = h || '<p style="text-align:center;color:#666;font-size:13px;">لا مقالات.</p>';
+    }); let rh = ''; let userReels = window.allReels.filter(r => r.author === u); if(userReels.length > 0) { userReels.forEach(r => { let globalIdx = window.allReels.findIndex(x => x.id === r.id); let vc = r.views ? Object.keys(r.views).length : 0; rh += `<div class="reel-thumb" style="width:100%; height:180px;" onclick="window.openReelsViewer(${globalIdx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto" poster="${reelPoster}" style="pointer-events:none; background:#1e293b; object-fit:cover;"></video><span class="r-views"><i class="fas fa-play"></i> ${vc}</span></div>`; }); } $('profileReelsGrid').innerHTML = rh || '<p style="text-align:center;color:#666;grid-column:span 3;">لا يوجد ريلز لهذا الحساب.</p>'; get(ref(db, `friends/${u}`)).then(s => { let fh = ''; if(s.exists()) { Object.keys(s.val()).forEach(f => { let pic = window.allUsersData[f]?.profilePic || dA, dn = window.getDisplayName(f), mc = 0; if(f !== window.currentUser) { let tf = window.allFriendsData[f] ? Object.keys(window.allFriendsData[f]) : []; mc = tf.filter(x => window.myFriends.includes(x)).length; } let mt = f === window.currentUser ? '' : (mc > 0 ? `<span class="f-mutual"><i class="fas fa-user-friends"></i> ${mc} مشتركون</span>` : `<span class="f-mutual">لا مشتركون</span>`); fh += `<a href="#/@${f}" class="friend-card" style="color:inherit; text-decoration:none;"><img src="${pic}"><div style="display:flex;flex-direction:column;justify-content:center;"><span class="f-name">${dn}</span>${mt}</div></a>`; }); } $('profileFriendsList').innerHTML = fh || '<p style="text-align:center;color:#666;font-size:13px;grid-column:span 2;">لا أصدقاء.</p>'; }); }
 
 window.sendFriendRequestToFromFeed = (t, b) => { if(!window.currentUser) { window.showRegisterModal(); return; } if(t === window.currentUser) return; window.sentRequests[t] = true; document.querySelectorAll(`button[data-action="add"][data-target="${t}"]`).forEach(x => { x.innerHTML = `<i class="fas fa-clock"></i> أرسل`; x.style.background = "#e2e8f0"; x.style.color = "#0f172a"; x.disabled = true; }); if(b && !b.hasAttribute('data-target')) { b.innerHTML = `<i class="fas fa-clock"></i> أرسل`; b.style.background = "#e2e8f0"; b.style.color = "#0f172a"; b.disabled = true; } set(ref(db, `friendRequests/${t}/${window.currentUser}`), Date.now()).then(() => push(ref(db, `users/${t}/notifications`), {type:'friend_req', from:window.currentUser, timestamp:Date.now(), read:false})); };
 window.cancelFriendRequest = (t) => { if(!window.currentUser) return; delete window.sentRequests[t]; remove(ref(db, `friendRequests/${t}/${window.currentUser}`)).then(() => window.openProfile(t)); };
