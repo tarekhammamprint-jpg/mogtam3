@@ -610,12 +610,11 @@ window.generateReelsWidgetHTML = () => {
 window.renderReelsTopBar = () => {
     let c = document.getElementById('reelsTopBar');
     if (!c) return;
-    // استخدام allReels المحدّث من listenToPosts — لا نعيد تعريفه هنا
     let reels = window.allReels && window.allReels.length > 0 
         ? window.allReels 
         : (window.allPosts || []).filter(p => p.video && !p.isNewsBot);
     if (reels.length === 0) { c.style.display = 'none'; return; }
-    c.style.removeProperty('display');
+    c.style.display = 'flex';  // إجبار الإظهار
     let h = `<div class="reel-add-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})"><i class="fas fa-plus"></i><span>أضف ريلز</span></div>`;
     reels.slice(0, 10).forEach((r, idx) => {
         let globalIdx = window.allReels.findIndex(x => x.id === r.id);
