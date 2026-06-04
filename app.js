@@ -325,7 +325,7 @@ window.renderInterestsModal = () => { let c = $('interestsContainer'), h = ''; i
 window.toggleInterest = (el, cat) => { if(window.selectedInterests.has(cat)) { window.selectedInterests.delete(cat); el.classList.remove('selected'); } else { window.selectedInterests.add(cat); el.classList.add('selected'); } };
 window.saveUserInterests = () => { if(window.selectedInterests.size < 3) return window.dlgAlert("الرجاء اختيار 3 اهتمامات على الأقل ليتم تخصيص المنصة لك.", "warning", "تنبيه"); let arr = Array.from(window.selectedInterests); let btn = $('saveInterestsBtn'), ot = btn.innerText; btn.innerText = "جاري الحفظ..."; btn.disabled = true; update(ref(db, `users/${window.currentUser}`), { interests: arr }).then(() => { $('interestsModal').classList.remove('show'); document.body.style.overflow = 'auto'; btn.innerText = ot; btn.disabled = false; window.dlgAlert("تم تخصيص تجربتك بنجاح! ✨", "success", "تم الحفظ"); }).catch(e => { window.dlgAlert("حدث خطأ، يرجى المحاولة مجدداً.", "danger", "خطأ"); btn.innerText = ot; btn.disabled = false; }); };
 
-function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(100)), s => { let l = []; if(s.exists()){ s.forEach(c => { let p=c.val(); p.id=c.key; l.push(p); window.postCache[p.id]=p; }); l.sort((a,b) => b.timestamp - a.timestamp); } window.allPosts = l; window.allReels = l.filter(p => p.video != null); window.renderReelsTopBar(); if(window.isInitialLoad){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); window.isInitialLoad=false; handleRouting(); } else { let hash = window.location.hash; if(hash.startsWith('#/post/')){ let up = window.postCache[decodeURIComponent(hash.replace('#/post/', ''))]; if(up) window.openPostLogic(up.id); } let nc = l.filter(p=>!window.renderedPostIds.has(p.id)).length, mp = l.some(p=>p.author===window.currentUser&&!window.renderedPostIds.has(p.id)); if(mp){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); $('newPostsBtn').style.display='none'; } else if(nc>=3){ $('newPostsBtn').style.display='block'; $('newPostsBtn').innerText=`عرض الجديدة (${nc}) ⬆️`; } else { let ci=new Set(l.map(p=>p.id)); for(let id of window.renderedPostIds) if(!ci.has(id)) window.renderedPostIds.delete(id); } } if(window.location.hash.startsWith('#/@')) try { renderProfilePosts(decodeURIComponent(window.location.hash.replace('#/@', ''))) } catch(e){} }); }
+function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(100)), s => { let l = []; if(s.exists()){ s.forEach(c => { let p=c.val(); p.id=c.key; l.push(p); window.postCache[p.id]=p; }); l.sort((a,b) => b.timestamp - a.timestamp); } window.allPosts = l; window.allReels = l.filter(p => p.video != null && !p.isNewsBot); window.renderReelsTopBar(); if(window.isInitialLoad){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); window.isInitialLoad=false; handleRouting(); } else { let hash = window.location.hash; if(hash.startsWith('#/post/')){ let up = window.postCache[decodeURIComponent(hash.replace('#/post/', ''))]; if(up) window.openPostLogic(up.id); } let nc = l.filter(p=>!window.renderedPostIds.has(p.id)).length, mp = l.some(p=>p.author===window.currentUser&&!window.renderedPostIds.has(p.id)); if(mp){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); $('newPostsBtn').style.display='none'; } else if(nc>=3){ $('newPostsBtn').style.display='block'; $('newPostsBtn').innerText=`عرض الجديدة (${nc}) ⬆️`; } else { let ci=new Set(l.map(p=>p.id)); for(let id of window.renderedPostIds) if(!ci.has(id)) window.renderedPostIds.delete(id); } } if(window.location.hash.startsWith('#/@')) try { renderProfilePosts(decodeURIComponent(window.location.hash.replace('#/@', ''))) } catch(e){} }); }
 window.showNewPosts = () => { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim=5; renderFeed(); $('newPostsBtn').style.display='none'; window.scrollTo({top:0, behavior:'smooth'}); };
 window.addEventListener('scroll', () => { if((window.innerHeight+window.scrollY) >= document.body.offsetHeight-800){ if(window.feedLim < window.allPosts.length){ window.feedLim += 5; renderFeed(); } } });
 
@@ -610,16 +610,20 @@ window.generateReelsWidgetHTML = () => {
 window.renderReelsTopBar = () => {
     let c = document.getElementById('reelsTopBar');
     if (!c) return;
-    let reels = (window.allPosts || []).filter(p => p.video);
+    // استخدام allReels المحدّث من listenToPosts — لا نعيد تعريفه هنا
+    let reels = window.allReels && window.allReels.length > 0 
+        ? window.allReels 
+        : (window.allPosts || []).filter(p => p.video && !p.isNewsBot);
     if (reels.length === 0) { c.style.display = 'none'; return; }
-    window.allReels = reels;
     c.style.removeProperty('display');
     let h = `<div class="reel-add-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})"><i class="fas fa-plus"></i><span>أضف ريلز</span></div>`;
     reels.slice(0, 10).forEach((r, idx) => {
+        let globalIdx = window.allReels.findIndex(x => x.id === r.id);
+        if (globalIdx === -1) globalIdx = idx;
         let ap = (window.allUsersData[r.author] && window.allUsersData[r.author].profilePic) ? window.allUsersData[r.author].profilePic : dA;
         let dn = window.getDisplayName(r.author);
         let vc = r.views ? Object.keys(r.views).length : 0;
-        h += `<div class="reel-thumb" onclick="window.openReelsViewer(${idx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto"></video><img src="${ap}" class="r-author-pic"><span class="r-views"><i class="fas fa-play"></i> ${vc}</span><span class="r-author-name">${dn}</span></div>`;
+        h += `<div class="reel-thumb" onclick="window.openReelsViewer(${globalIdx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto"></video><img src="${ap}" class="r-author-pic"><span class="r-views"><i class="fas fa-play"></i> ${vc}</span><span class="r-author-name">${dn}</span></div>`;
     });
     c.innerHTML = h;
 };
