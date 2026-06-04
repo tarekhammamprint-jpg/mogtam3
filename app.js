@@ -4,94 +4,6 @@ import "./auth.js";
 import "./communities.js";
 import "./chat.js";
 
-// ── نظام المتابعة ─────────────────────────────────────────
-window.followChannel = async (channelId, btn) => {
-    if (!window.currentUser) return window.showRegisterModal();
-    const r = ref(db, `users/${channelId}/followers/${window.currentUser}`);
-    const snap = await get(r);
-    if (snap.exists()) {
-        await remove(r);
-        await remove(ref(db, `users/${window.currentUser}/following/${channelId}`));
-        // تحديث محلي فوري
-        if (window.allUsersData[window.currentUser]) {
-            if (!window.allUsersData[window.currentUser].following) window.allUsersData[window.currentUser].following = {};
-            delete window.allUsersData[window.currentUser].following[channelId];
-        }
-        if (btn) { 
-            btn.innerHTML = '<i class="fas fa-plus"></i> متابعة'; 
-            btn.classList.remove('following');
-            btn.style.background = 'var(--primary)';
-            btn.style.color = '#fff';
-        }
-    } else {
-        await set(r, true);
-        await set(ref(db, `users/${window.currentUser}/following/${channelId}`), true);
-        // تحديث محلي فوري
-        if (window.allUsersData[window.currentUser]) {
-            if (!window.allUsersData[window.currentUser].following) window.allUsersData[window.currentUser].following = {};
-            window.allUsersData[window.currentUser].following[channelId] = true;
-        }
-        if (btn) { 
-            btn.innerHTML = '<i class="fas fa-check"></i> تتابع'; 
-            btn.classList.add('following');
-            btn.style.background = '#e0e7ff';
-            btn.style.color = 'var(--primary)';
-        }
-    }
-    // تحديث العداد
-    const countSnap = await get(ref(db, `users/${channelId}/followers`));
-    const count = countSnap.exists() ? Object.keys(countSnap.val()).length : 0;
-    const countEl = btn ? btn.closest('.channel-card')?.querySelector('.followers-count') : null;
-    if (countEl) countEl.innerText = count + ' متابع';
-    // إعادة رسم الفيد لإظهار/إخفاء منشورات القناة فوراً
-    if (typeof renderFeed === 'function') renderFeed();
-};
-
-window.renderNewsChannels = async () => {
-    const area = document.getElementById('newsChannelsArea');
-    if (!area) return;
-    const snap = await get(ref(db, 'users'));
-    if (!snap.exists()) return;
-    const users = snap.val();
-    const channels = Object.entries(users).filter(([, u]) => u.isNewsBot);
-    if (channels.length === 0) { area.innerHTML = ''; return; }
-
-    // اهتمامات المستخدم الحالي
-    const myInterests = new Set(window.allUsersData[window.currentUser]?.interests || []);
-
-    // ترتيب: المتوافقة مع اهتمامات المستخدم أولاً
-    channels.sort(([, a], [, b]) => {
-        const aMatch = (a.interests || []).some(i => myInterests.has(i)) ? 1 : 0;
-        const bMatch = (b.interests || []).some(i => myInterests.has(i)) ? 1 : 0;
-        return bMatch - aMatch;
-    });
-
-    let h = `<div style="margin:0 0 12px;font-size:15px;font-weight:800;color:var(--text-main);display:flex;align-items:center;gap:8px;">
-        <i class="fas fa-satellite-dish" style="color:var(--primary);"></i> قنوات الأخبار
-    </div><div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin;">`;
-
-    for (const [id, u] of channels) {
-        const fc = u.followers ? Object.keys(u.followers).length : 0;
-        const isFollowing = u.followers && u.followers[window.currentUser];
-        h += `<div class="channel-card" style="flex-shrink:0;width:140px;background:#fff;border-radius:16px;border:1px solid var(--border-color);overflow:hidden;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-            <div style="height:55px;background:url('${u.coverPic||''}') center/cover;position:relative;cursor:pointer;" onclick="window.openProfile('${id}')">
-                <img src="${u.profilePic || dA}" style="width:50px;height:50px;border-radius:50%;border:3px solid #fff;position:absolute;bottom:-22px;left:50%;transform:translateX(-50%);object-fit:cover;">
-            </div>
-            <div style="padding:26px 10px 12px;">
-                <div style="font-size:12px;font-weight:800;color:var(--text-main);line-height:1.3;margin-bottom:3px;cursor:pointer;" onclick="window.openProfile('${id}')">${u.displayName}</div>
-                <div class="followers-count" style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">${fc} متابع</div>
-                <button onclick="window.followChannel('${id}', this)" 
-                    class="follow-btn${isFollowing ? ' following' : ''}"
-                    style="width:100%;border:none;padding:6px;border-radius:20px;font-family:inherit;font-size:11px;font-weight:700;cursor:pointer;background:${isFollowing ? '#e0e7ff' : 'var(--primary)'};color:${isFollowing ? 'var(--primary)' : '#fff'};transition:all .2s;">
-                    <i class="fas fa-${isFollowing ? 'check' : 'plus'}"></i> ${isFollowing ? 'تتابع' : 'متابعة'}
-                </button>
-            </div>
-        </div>`;
-    }
-    h += '</div>';
-    area.innerHTML = h;
-};
-
 // ============================================================
 //  نظام النوافذ المخصص — مدمج في app.js
 // ============================================================
@@ -325,14 +237,7 @@ window.renderInterestsModal = () => { let c = $('interestsContainer'), h = ''; i
 window.toggleInterest = (el, cat) => { if(window.selectedInterests.has(cat)) { window.selectedInterests.delete(cat); el.classList.remove('selected'); } else { window.selectedInterests.add(cat); el.classList.add('selected'); } };
 window.saveUserInterests = () => { if(window.selectedInterests.size < 3) return window.dlgAlert("الرجاء اختيار 3 اهتمامات على الأقل ليتم تخصيص المنصة لك.", "warning", "تنبيه"); let arr = Array.from(window.selectedInterests); let btn = $('saveInterestsBtn'), ot = btn.innerText; btn.innerText = "جاري الحفظ..."; btn.disabled = true; update(ref(db, `users/${window.currentUser}`), { interests: arr }).then(() => { $('interestsModal').classList.remove('show'); document.body.style.overflow = 'auto'; btn.innerText = ot; btn.disabled = false; window.dlgAlert("تم تخصيص تجربتك بنجاح! ✨", "success", "تم الحفظ"); }).catch(e => { window.dlgAlert("حدث خطأ، يرجى المحاولة مجدداً.", "danger", "خطأ"); btn.innerText = ot; btn.disabled = false; }); };
 
-function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(500)), s => { let l = []; if(s.exists()){ s.forEach(c => { let p=c.val(); p.id=c.key; window.postCache[p.id]=p; if(!p.isNewsBot) l.push(p); }); l.sort((a,b) => b.timestamp - a.timestamp); } // دمج مع postCache للاحتفاظ بالقديم
-    l.forEach(p => { window.postCache[p.id] = p; });
-    // إضافة المنشورات القديمة من postCache إذا لم تكن في l
-    let allCachedPosts = Object.values(window.postCache);
-    let lIds = new Set(l.map(p => p.id));
-    let oldPosts = allCachedPosts.filter(p => !lIds.has(p.id));
-    window.allPosts = l;
-    window.renderReelsTopBar(); if(window.isInitialLoad){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); window.isInitialLoad=false; handleRouting(); } else { let hash = window.location.hash; if(hash.startsWith('#/post/')){ let up = window.postCache[decodeURIComponent(hash.replace('#/post/', ''))]; if(up) window.openPostLogic(up.id); } let nc = l.filter(p=>!window.renderedPostIds.has(p.id)).length, mp = l.some(p=>p.author===window.currentUser&&!window.renderedPostIds.has(p.id)); if(mp){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); $('newPostsBtn').style.display='none'; } else if(nc>=3){ $('newPostsBtn').style.display='block'; $('newPostsBtn').innerText=`عرض الجديدة (${nc}) ⬆️`; } else { let ci=new Set(l.map(p=>p.id)); for(let id of window.renderedPostIds) if(!ci.has(id)) window.renderedPostIds.delete(id); } } if(window.location.hash.startsWith('#/@')) try { renderProfilePosts(decodeURIComponent(window.location.hash.replace('#/@', ''))) } catch(e){} }); }
+function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(100)), s => { let l = []; if(s.exists()){ s.forEach(c => { let p=c.val(); p.id=c.key; l.push(p); window.postCache[p.id]=p; }); l.sort((a,b) => b.timestamp - a.timestamp); } window.allPosts = l; window.allReels = l.filter(p => p.video != null); window.renderReelsTopBar(); if(window.isInitialLoad){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); window.isInitialLoad=false; handleRouting(); } else { let hash = window.location.hash; if(hash.startsWith('#/post/')){ let up = window.postCache[decodeURIComponent(hash.replace('#/post/', ''))]; if(up) window.openPostLogic(up.id); } let nc = l.filter(p=>!window.renderedPostIds.has(p.id)).length, mp = l.some(p=>p.author===window.currentUser&&!window.renderedPostIds.has(p.id)); if(mp){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); $('newPostsBtn').style.display='none'; } else if(nc>=3){ $('newPostsBtn').style.display='block'; $('newPostsBtn').innerText=`عرض الجديدة (${nc}) ⬆️`; } else { let ci=new Set(l.map(p=>p.id)); for(let id of window.renderedPostIds) if(!ci.has(id)) window.renderedPostIds.delete(id); } } if(window.location.hash.startsWith('#/@')) try { renderProfilePosts(decodeURIComponent(window.location.hash.replace('#/@', ''))) } catch(e){} }); }
 window.showNewPosts = () => { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim=5; renderFeed(); $('newPostsBtn').style.display='none'; window.scrollTo({top:0, behavior:'smooth'}); };
 window.addEventListener('scroll', () => { if((window.innerHeight+window.scrollY) >= document.body.offsetHeight-800){ if(window.feedLim < window.allPosts.length){ window.feedLim += 5; renderFeed(); } } });
 
@@ -354,8 +259,7 @@ function createPostHTML(p, cp, it=false, im=false) {
 function renderFeed() {
     let pf = document.getElementById('postsFeed'); if(!window.currentUser) { if(pf) pf.innerHTML = ''; return; }
     let h='', sg=window.getSuggestions?window.getSuggestions():[], iN=window.currentUser?window.myFriends.length===0:true, vp=[], reg=[], tr=[];
-    window.allPosts.forEach(p => { if(!window.renderedPostIds.has(p.id)) return; let im = p.author === window.currentUser; let ifR = window.currentUser ? window.myFriends.includes(p.author) : false;
- let lc = p.likes ? Object.keys(p.likes).length : 0; let it = lc >= 10; if(iN){ if(im || it) vp.push({p:p, it:it}); } else { if(im || ifR) reg.push({p:p, it:it}); else if(it) tr.push({p:p, it:true}); } });
+    window.allPosts.forEach(p => { if(!window.renderedPostIds.has(p.id)) return; let im = p.author === window.currentUser; let ifR = window.currentUser ? window.myFriends.includes(p.author) : false; let lc = p.likes ? Object.keys(p.likes).length : 0; let it = lc >= 10; if(iN){ if(im || it) vp.push({p:p, it:it}); } else { if(im || ifR) reg.push({p:p, it:it}); else if(it) tr.push({p:p, it:true}); } });
     if(!iN){ let t_i = 0; for(let i=0; i<reg.length; i++){ vp.push(reg[i]); if((i+1)%10===0 && t_i<tr.length){ vp.push(tr[t_i]); t_i++; } } }
     vp.slice(0, window.feedLim || 5).forEach((v,i) => { h += createPostHTML(v.p, 'feed', v.it, false); if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget(); if(window.currentUser && i>0 && i%5===0) h += window.generateReelsWidgetHTML(); });
     if(pf) { pf.innerHTML = h || '<p style="text-align:center;color:#666;padding:20px;">المنشورات تظهر هنا.</p>'; document.querySelectorAll('#postsFeed video').forEach(v => window.videoObserver.observe(v)); }
@@ -389,75 +293,9 @@ window.deletePost = (id) => { window.dlgDanger("هل تريد حذف هذا ال
 window.openEditProfileLogic = () => { let d = window.allUsersData[window.currentUser] || {}; $('editModalPicPreview').src = d.profilePic || dA; $('editPicBase64').value = d.profilePic || ''; $('editBio').value = d.bio || ''; $('editLocation').value = d.location || ''; $('editJob').value = d.job || ''; $('editEducation').value = d.education || ''; $('editHobbies').value = d.hobbies || ''; $('editDobProfile').value = d.birthdate || ''; $('editProfileModal').classList.add('show'); document.body.style.overflow = 'hidden'; };
 window.openProfileLogic = (u) => { window.switchProfileTab('posts'); let d = window.allUsersData[u]; if(!d) { get(ref(db, `users/${u}`)).then(s => { if(s.exists()){ window.allUsersData[u] = s.val(); renderProfileData(u, s.val()); } else { window.dlgAlert("الحساب غير موجود.", "warning", "غير موجود"); window.goHome(); } }); } else { renderProfileData(u, d); } };
 
-function renderProfileData(u, d) { $('profPic').src = d.profilePic || dA; $('profName').innerText = window.getDisplayName(u); $('profHandle').innerText = '@' + u; $('profBio').innerText = d.bio || "لا نبذة."; $('profLocText').innerText = d.location || "غير محدد"; $('profileAboutArea').innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;border:1px solid var(--border-color);text-align:right;"><h4 style="margin-top:0;color:var(--primary);border-bottom:1px solid #e2e8f0;padding-bottom:10px;">معلومات</h4><div><strong>المدينة:</strong> <br>${d.location||'غير محدد'}</div><div><strong>تاريخ الميلاد:</strong> <br>${d.birthdate||'غير محدد'}</div><div><strong>المهنة:</strong> <br>${d.job||'غير محدد'}</div><div><strong>الدراسة:</strong> <br>${d.education||'غير محدد'}</div><div><strong>الهوايات:</strong> <br>${d.hobbies||'غير محدد'}</div></div>`; let intArea = $('profInterestsArea'); if(d.interests && d.interests.length > 0) { intArea.style.display = 'flex'; intArea.innerHTML = d.interests.map(i => `<span style="background:#eef2ff; color:var(--primary); padding:4px 10px; border-radius:12px; font-size:12px; font-weight:700;">${i}</span>`).join(''); } else { intArea.style.display = 'none'; } let ce = $('profCoverImg'); if(d.coverPic) { ce.src = d.coverPic; ce.style.display = 'block'; } else ce.style.display = 'none'; $('statPosts').innerText = window.allPosts.filter(p => p.author === u && !p.isReel).length; $('statPhotos').innerText = window.allPosts.filter(p => p.author === u && (p.image || p.video) && !p.isReel).length; $('statFriends').innerText = Object.keys(window.allFriendsData[u] || {}).length; let ac = $('profActions'); let ism = (u === window.currentUser), isf = window.currentUser ? window.myFriends.includes(u) : false, rr = window.currentRequests && window.currentRequests[u]; if(!window.currentUser) { $('coverEditBtn').style.display = 'none'; ac.innerHTML = `<button class="btn-primary" onclick="window.showRegisterModal()"><i class="fas fa-user-plus"></i> تسجيل الدخول للتفاعل</button>`; } else if(d.isNewsBot) {
-        // حساب قناة أخبار — زر متابعة فقط
-        $('coverEditBtn').style.display = 'none';
-        let isFollowing = d.followers && d.followers[window.currentUser];
-        ac.innerHTML = `<button class="follow-btn${isFollowing ? ' following' : ''}" 
-            onclick="window.followChannel('${u}', this)"
-            style="padding:10px 24px;border:none;border-radius:12px;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;background:${isFollowing ? '#e0e7ff' : 'var(--primary)'};color:${isFollowing ? 'var(--primary)' : '#fff'};">
-            <i class="fas fa-${isFollowing ? 'check' : 'plus'}"></i> ${isFollowing ? 'تتابع' : '+ متابعة'}
-        </button>`;
-        // عرض عدد المتابعين بدلاً من الأصدقاء
-        let followersCount = d.followers ? Object.keys(d.followers).length : 0;
-        $('statFriends').innerText = followersCount;
-        // تغيير تسمية إحصائية الأصدقاء
-        let friendsLabel = document.querySelector('.stat-friends-label');
-        if(friendsLabel) friendsLabel.innerText = 'متابع';
-    } else if(ism) { $('coverEditBtn').style.display = 'flex'; ac.innerHTML = `<button class="btn-primary" onclick="window.openEditProfileModal()"><i class="fas fa-edit"></i> تعديل</button><button class="btn-secondary" onclick="window.location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); let c = $('postContent'); c.value = 'حساب رائع: @${u} ✨'; c.focus();"><i class="fas fa-share"></i> مشاركة</button>`; } else { $('coverEditBtn').style.display = 'none'; let sb = `<button class="btn-secondary" onclick="window.location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); let c = $('postContent'); c.value = 'حساب رائع: @${u} ✨'; c.focus();"><i class="fas fa-share"></i> مشاركة</button>`; if(isf) ac.innerHTML = `<button class="btn-secondary" style="background:#ef4444;color:#fff;" onclick="window.unfriend('${u}')"><i class="fas fa-user-minus"></i></button><button class="btn-primary" onclick="window.location.hash=''; setTimeout(()=>window.openChat('${u}'),300)"><i class="fas fa-comment-dots"></i> رسالة</button> ${sb}`; else if(rr) ac.innerHTML = `<button class="btn-primary" style="background:#10b981;" onclick="window.acceptRequestFromProfile('${u}',this)"><i class="fas fa-check"></i> قبول</button> ${sb}`; else if(window.sentRequests && window.sentRequests[u]) ac.innerHTML = `<button class="btn-secondary" onclick="window.cancelFriendRequest('${u}')"><i class="fas fa-user-times"></i> إلغاء</button> ${sb}`; else { ac.innerHTML = `<button class="btn-secondary" disabled>جاري...</button>`; get(ref(db, `friendRequests/${u}/${window.currentUser}`)).then(s => { if($('profHandle').innerText.replace('@', '') === u) { if(s.exists()) { window.sentRequests[u] = true; ac.innerHTML = `<button class="btn-secondary" onclick="window.cancelFriendRequest('${u}')"><i class="fas fa-user-times"></i> إلغاء</button> ${sb}`; } else ac.innerHTML = `<button class="btn-primary" data-action="add" data-target="${u}" onclick="window.sendFriendRequestToFromFeed('${u}',this)"><i class="fas fa-user-plus"></i> إضافة</button> ${sb}`; } }).catch(e => console.log(e)); } } $('profileModal').classList.add('show'); document.body.style.overflow = 'hidden'; try { renderProfilePosts(u) } catch(e) {} }
+function renderProfileData(u, d) { $('profPic').src = d.profilePic || dA; $('profName').innerText = window.getDisplayName(u); $('profHandle').innerText = '@' + u; $('profBio').innerText = d.bio || "لا نبذة."; $('profLocText').innerText = d.location || "غير محدد"; $('profileAboutArea').innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;border:1px solid var(--border-color);text-align:right;"><h4 style="margin-top:0;color:var(--primary);border-bottom:1px solid #e2e8f0;padding-bottom:10px;">معلومات</h4><div><strong>المدينة:</strong> <br>${d.location||'غير محدد'}</div><div><strong>تاريخ الميلاد:</strong> <br>${d.birthdate||'غير محدد'}</div><div><strong>المهنة:</strong> <br>${d.job||'غير محدد'}</div><div><strong>الدراسة:</strong> <br>${d.education||'غير محدد'}</div><div><strong>الهوايات:</strong> <br>${d.hobbies||'غير محدد'}</div></div>`; let intArea = $('profInterestsArea'); if(d.interests && d.interests.length > 0) { intArea.style.display = 'flex'; intArea.innerHTML = d.interests.map(i => `<span style="background:#eef2ff; color:var(--primary); padding:4px 10px; border-radius:12px; font-size:12px; font-weight:700;">${i}</span>`).join(''); } else { intArea.style.display = 'none'; } let ce = $('profCoverImg'); if(d.coverPic) { ce.src = d.coverPic; ce.style.display = 'block'; } else ce.style.display = 'none'; $('statPosts').innerText = window.allPosts.filter(p => p.author === u && !p.isReel).length; $('statPhotos').innerText = window.allPosts.filter(p => p.author === u && (p.image || p.video) && !p.isReel).length; $('statFriends').innerText = Object.keys(window.allFriendsData[u] || {}).length; let ac = $('profActions'); let ism = (u === window.currentUser), isf = window.currentUser ? window.myFriends.includes(u) : false, rr = window.currentRequests && window.currentRequests[u]; if(!window.currentUser) { $('coverEditBtn').style.display = 'none'; ac.innerHTML = `<button class="btn-primary" onclick="window.showRegisterModal()"><i class="fas fa-user-plus"></i> تسجيل الدخول للتفاعل</button>`; } else if(ism) { $('coverEditBtn').style.display = 'flex'; ac.innerHTML = `<button class="btn-primary" onclick="window.openEditProfileModal()"><i class="fas fa-edit"></i> تعديل</button><button class="btn-secondary" onclick="window.location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); let c = $('postContent'); c.value = 'حساب رائع: @${u} ✨'; c.focus();"><i class="fas fa-share"></i> مشاركة</button>`; } else { $('coverEditBtn').style.display = 'none'; let sb = `<button class="btn-secondary" onclick="window.location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); let c = $('postContent'); c.value = 'حساب رائع: @${u} ✨'; c.focus();"><i class="fas fa-share"></i> مشاركة</button>`; if(isf) ac.innerHTML = `<button class="btn-secondary" style="background:#ef4444;color:#fff;" onclick="window.unfriend('${u}')"><i class="fas fa-user-minus"></i></button><button class="btn-primary" onclick="window.location.hash=''; setTimeout(()=>window.openChat('${u}'),300)"><i class="fas fa-comment-dots"></i> رسالة</button> ${sb}`; else if(rr) ac.innerHTML = `<button class="btn-primary" style="background:#10b981;" onclick="window.acceptRequestFromProfile('${u}',this)"><i class="fas fa-check"></i> قبول</button> ${sb}`; else if(window.sentRequests && window.sentRequests[u]) ac.innerHTML = `<button class="btn-secondary" onclick="window.cancelFriendRequest('${u}')"><i class="fas fa-user-times"></i> إلغاء</button> ${sb}`; else { ac.innerHTML = `<button class="btn-secondary" disabled>جاري...</button>`; get(ref(db, `friendRequests/${u}/${window.currentUser}`)).then(s => { if($('profHandle').innerText.replace('@', '') === u) { if(s.exists()) { window.sentRequests[u] = true; ac.innerHTML = `<button class="btn-secondary" onclick="window.cancelFriendRequest('${u}')"><i class="fas fa-user-times"></i> إلغاء</button> ${sb}`; } else ac.innerHTML = `<button class="btn-primary" data-action="add" data-target="${u}" onclick="window.sendFriendRequestToFromFeed('${u}',this)"><i class="fas fa-user-plus"></i> إضافة</button> ${sb}`; } }).catch(e => console.log(e)); } } $('profileModal').classList.add('show'); document.body.style.overflow = 'hidden'; try { renderProfilePosts(u) } catch(e) {} }
 window.previewCoverImage = async (e) => { let f = e.target.files[0]; if(!f) return; let bt = $('coverEditBtn'), ot = bt.innerHTML; bt.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; try { let url = await window.uploadToCloudinary(f, 'image'); $('profCoverImg').src = url; $('profCoverImg').style.display = 'block'; await update(ref(db, `users/${window.currentUser}`), {coverPic:url}); } catch(err) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); } bt.innerHTML = ot; }; window.saveProfile = async () => { let p = $('editPicBase64').value; if(p && p.startsWith('data:')) { let b = $('saveProfileBtn'), ot = b.innerHTML; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...'; b.disabled = true; try { p = await window.uploadToCloudinary(p, 'image'); } catch(e) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); b.innerHTML = ot; b.disabled = false; return; } b.innerHTML = ot; b.disabled = false; } let up = {bio:$('editBio').value.trim(), location:$('editLocation').value.trim(), job:$('editJob').value.trim(), education:$('editEducation').value.trim(), hobbies:$('editHobbies').value.trim(), birthdate:$('editDobProfile').value}; if(p) up.profilePic = p; await update(ref(db, `users/${window.currentUser}`), up); if(p) { $('myNavAvatar').src = p; $('mobileNavAvatar').src = p; } window.location.hash = '#/@' + window.currentUser; };
-function renderProfilePosts(u) { 
-    let pp = window.allUsersData[u]?.profilePic || dA;
-    let h = '', ph = '';
-    ph += `<a href="#/@${u}"><img src="${pp}" style="cursor:pointer;"></a>`;
-    $('profilePostsFeed').innerHTML = '<div style="text-align:center;padding:20px;color:var(--primary);"><i class="fas fa-spinner fa-spin fa-2x"></i><br>جاري جلب المنشورات...</div>';
-    
-    // دائماً نجلب من Firebase مباشرة لضمان ظهور كل المنشورات القديمة والجديدة
-    get(ref(db, 'posts')).then(s => {
-        if(s.exists()) {
-            let userPosts = [];
-            s.forEach(c => { 
-                let p = c.val(); p.id = c.key; 
-                if(p.author === u) { userPosts.push(p); window.postCache[p.id] = p; }
-            });
-            userPosts.sort((a,b) => b.timestamp - a.timestamp);
-            userPosts.forEach(p => { 
-                if(!p.isReel) { 
-                    let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10; 
-                    h += createPostHTML(p, 'profile', it, false); 
-                    if(p.image) ph += `<a href="#/post/${p.id}"><img src="${p.image}" style="cursor:pointer;"></a>`;
-                    if(p.video) ph += `<a href="#/post/${p.id}"><video src="${p.video}" style="cursor:pointer;"></video></a>`;
-                } 
-            });
-        }
-        $('profilePostsFeed').innerHTML = h || '<p style="text-align:center;color:#666;font-size:13px;">لا مقالات.</p>';
-        $('profilePhotosGrid').innerHTML = ph;
-        document.querySelectorAll('#profilePostsFeed video').forEach(v => window.videoObserver.observe(v));
-    }).catch(() => {
-        // fallback من الكاش المحلي
-        let userPosts = Object.values(window.postCache || {}).filter(p => p.author === u);
-        userPosts.sort((a,b) => b.timestamp - a.timestamp);
-        userPosts.forEach(p => { 
-            if(!p.isReel) { 
-                let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10; 
-                h += createPostHTML(p, 'profile', it, false); 
-            } 
-        });
-        $('profilePostsFeed').innerHTML = h || '<p style="text-align:center;color:#666;font-size:13px;">لا مقالات.</p>';
-    }); // جلب ريلز المستخدم من allPosts + postCache
-    let rh = '';
-    let allCached = [...(window.allPosts || []), ...Object.values(window.postCache || {})];
-    let seen = new Set();
-    let userReels = allCached.filter(p => { if(p.author === u && p.video && !seen.has(p.id)) { seen.add(p.id); return true; } return false; });
-    if(userReels.length > 0) {
-        userReels.forEach((r, idx) => {
-            let globalIdx = window.allReels.findIndex(x => x.id === r.id);
-            if(globalIdx === -1) { window.allReels.push(r); globalIdx = window.allReels.length - 1; }
-            let vc = r.views ? Object.keys(r.views).length : 0;
-            rh += `<div class="reel-thumb" style="width:100%; height:180px;" onclick="window.openReelsViewer(${globalIdx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto" style="pointer-events:none; background:#1e293b; object-fit:cover;"></video><span class="r-views"><i class="fas fa-play"></i> ${vc}</span></div>`;
-        });
-    }
-    $('profileReelsGrid').innerHTML = rh || '<p style="text-align:center;color:#666;grid-column:span 3;">لا يوجد ريلز لهذا الحساب.</p>'; get(ref(db, `friends/${u}`)).then(s => { let fh = ''; if(s.exists()) { Object.keys(s.val()).forEach(f => { let pic = window.allUsersData[f]?.profilePic || dA, dn = window.getDisplayName(f), mc = 0; if(f !== window.currentUser) { let tf = window.allFriendsData[f] ? Object.keys(window.allFriendsData[f]) : []; mc = tf.filter(x => window.myFriends.includes(x)).length; } let mt = f === window.currentUser ? '' : (mc > 0 ? `<span class="f-mutual"><i class="fas fa-user-friends"></i> ${mc} مشتركون</span>` : `<span class="f-mutual">لا مشتركون</span>`); fh += `<a href="#/@${f}" class="friend-card" style="color:inherit; text-decoration:none;"><img src="${pic}"><div style="display:flex;flex-direction:column;justify-content:center;"><span class="f-name">${dn}</span>${mt}</div></a>`; }); } $('profileFriendsList').innerHTML = fh || '<p style="text-align:center;color:#666;font-size:13px;grid-column:span 2;">لا أصدقاء.</p>'; }); }
+function renderProfilePosts(u) { let pp = window.allUsersData[u]?.profilePic || dA; $('profilePostsFeed').innerHTML = '<div style="text-align:center;padding:20px;color:var(--primary);"><i class="fas fa-spinner fa-spin fa-2x"></i><br>جاري جلب المنشورات...</div>'; get(query(ref(db, 'posts'), orderByChild('author'), equalTo(u))).then(s => { let h = '', ph = ''; ph += `<a href="#/@${u}"><img src="${pp}" style="cursor:pointer;"></a>`; if(s.exists()) { let userPosts = []; s.forEach(c => { let p = c.val(); p.id = c.key; userPosts.push(p); window.postCache[p.id] = p; }); userPosts.sort((a,b) => b.timestamp - a.timestamp); userPosts.forEach(p => { if(!p.isReel) { let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10; h += createPostHTML(p, 'profile', it, false); if(p.image) ph += `<a href="#/post/${p.id}"><img src="${p.image}" style="cursor:pointer;"></a>`; if(p.video) ph += `<a href="#/post/${p.id}"><video src="${p.video}" style="cursor:pointer;"></video></a>`; } }); } $('profilePostsFeed').innerHTML = h || '<p style="text-align:center;color:#666;font-size:13px;">لا مقالات.</p>'; $('profilePhotosGrid').innerHTML = ph; document.querySelectorAll('#profilePostsFeed video').forEach(v => window.videoObserver.observe(v)); }).catch(e => { $('profilePostsFeed').innerHTML = '<p style="text-align:center;color:#ef4444;">حدث خطأ في جلب المنشورات.</p>'; }); let rh = ''; let userReels = window.allReels.filter(r => r.author === u); if(userReels.length > 0) { userReels.forEach(r => { let globalIdx = window.allReels.findIndex(x => x.id === r.id); let vc = r.views ? Object.keys(r.views).length : 0; rh += `<div class="reel-thumb" style="width:100%; height:180px;" onclick="window.openReelsViewer(${globalIdx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto" poster="${reelPoster}" style="pointer-events:none; background:#1e293b; object-fit:cover;"></video><span class="r-views"><i class="fas fa-play"></i> ${vc}</span></div>`; }); } $('profileReelsGrid').innerHTML = rh || '<p style="text-align:center;color:#666;grid-column:span 3;">لا يوجد ريلز لهذا الحساب.</p>'; get(ref(db, `friends/${u}`)).then(s => { let fh = ''; if(s.exists()) { Object.keys(s.val()).forEach(f => { let pic = window.allUsersData[f]?.profilePic || dA, dn = window.getDisplayName(f), mc = 0; if(f !== window.currentUser) { let tf = window.allFriendsData[f] ? Object.keys(window.allFriendsData[f]) : []; mc = tf.filter(x => window.myFriends.includes(x)).length; } let mt = f === window.currentUser ? '' : (mc > 0 ? `<span class="f-mutual"><i class="fas fa-user-friends"></i> ${mc} مشتركون</span>` : `<span class="f-mutual">لا مشتركون</span>`); fh += `<a href="#/@${f}" class="friend-card" style="color:inherit; text-decoration:none;"><img src="${pic}"><div style="display:flex;flex-direction:column;justify-content:center;"><span class="f-name">${dn}</span>${mt}</div></a>`; }); } $('profileFriendsList').innerHTML = fh || '<p style="text-align:center;color:#666;font-size:13px;grid-column:span 2;">لا أصدقاء.</p>'; }); }
 
 window.sendFriendRequestToFromFeed = (t, b) => { if(!window.currentUser) { window.showRegisterModal(); return; } if(t === window.currentUser) return; window.sentRequests[t] = true; document.querySelectorAll(`button[data-action="add"][data-target="${t}"]`).forEach(x => { x.innerHTML = `<i class="fas fa-clock"></i> أرسل`; x.style.background = "#e2e8f0"; x.style.color = "#0f172a"; x.disabled = true; }); if(b && !b.hasAttribute('data-target')) { b.innerHTML = `<i class="fas fa-clock"></i> أرسل`; b.style.background = "#e2e8f0"; b.style.color = "#0f172a"; b.disabled = true; } set(ref(db, `friendRequests/${t}/${window.currentUser}`), Date.now()).then(() => push(ref(db, `users/${t}/notifications`), {type:'friend_req', from:window.currentUser, timestamp:Date.now(), read:false})); };
 window.cancelFriendRequest = (t) => { if(!window.currentUser) return; delete window.sentRequests[t]; remove(ref(db, `friendRequests/${t}/${window.currentUser}`)).then(() => window.openProfile(t)); };
@@ -477,36 +315,6 @@ function renderSidebarUsers() { let fh = '', fa = [], rh = '', ra = []; window.m
 
 window.getSuggestions = () => { let ml = window.currentUser ? (window.allUsersData[window.currentUser]?.location || "غير محدد") : "غير محدد", sg = []; for(let u in window.allUsersData) { if(u === window.currentUser || window.myFriends.includes(u)) continue; let d = window.allUsersData[u];  let tf = Object.keys(window.allFriendsData[u] || {}), mc = tf.filter(f => window.myFriends.includes(f)).length, isl = (d.location && d.location === ml && ml !== "غير محدد"); if(mc > 0 || isl) { sg.push({name:u, data:d, mutualCount:mc, isSameLocation:isl}); } } sg.sort((a,b) => { if(b.mutualCount !== a.mutualCount) return b.mutualCount - a.mutualCount; if(b.isSameLocation && !a.isSameLocation) return 1; if(!b.isSameLocation && a.isSameLocation) return -1; return 0; }); return sg; };
 function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;"><i class="fas ${x.mutualCount > 0 ? 'fa-user-friends' : 'fa-map-marker-alt'}"></i> ${x.mutualCount > 0 ? `مشتركون: ${x.mutualCount}` : 'من منطقتك'}</span></a>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
-
-
-// ── مستمع مستقل للريلز — منفصل تماماً عن المنشورات ──────────
-
-// ── مستمع منفصل لمنشورات القنوات ────────────────────────────
-function listenToNewsBotPosts() {
-    onValue(query(ref(db, 'newsPosts'), orderByChild('timestamp'), limitToLast(50)), s => {
-        window.allNewsPosts = [];
-        if (s.exists()) {
-            s.forEach(c => { let p = c.val(); p.id = c.key; window.allNewsPosts.push(p); window.postCache[p.id] = p; });
-            window.allNewsPosts.sort((a, b) => b.timestamp - a.timestamp);
-        }
-        if (window.currentUser) renderFeed();
-    });
-}
-
-function listenToReels() {
-    onValue(query(ref(db, 'posts'), orderByChild('timestamp'), limitToLast(200)), s => {
-        if (s.exists()) {
-            let reels = [];
-            s.forEach(c => {
-                let p = c.val(); p.id = c.key;
-                if (p.video && !p.isNewsBot) reels.push(p);
-            });
-            reels.sort((a, b) => b.timestamp - a.timestamp);
-            window.allReels = reels;
-            window.renderReelsTopBar();
-        }
-    });
-}
 
 function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window.allUsersData = s.val(); if(window.isInitialLoad){ listenToPosts(); } if(window.currentUser){ renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); } } }); }
 function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ window.feedLim=5; renderFeed(); } }); }
@@ -606,11 +414,6 @@ window.fL = function(u, d) {
     if(!d.interests || d.interests.length === 0) { setTimeout(window.renderInterestsModal, 1000); }
     if(!window.usersListenerActive) { window.usersListenerActive = true; listenToUsers(); }
     window.startPrivateListeners();
-    listenToReels();
-    listenToNewsBotPosts();
-    // تحميل قنوات الأخبار
-    let nca = document.getElementById('newsChannelsArea');
-    if(nca) { nca.style.display='block'; window.renderNewsChannels(); }
     if(!window.isInitialLoad) { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim = 5; renderFeed(); handleRouting(); }
 };
 
@@ -646,17 +449,16 @@ window.generateReelsWidgetHTML = () => {
 window.renderReelsTopBar = () => {
     let c = document.getElementById('reelsTopBar');
     if (!c) return;
-    let reels = window.allReels || [];
+    let reels = (window.allPosts || []).filter(p => p.video);
     if (reels.length === 0) { c.style.display = 'none'; return; }
-    c.style.display = 'flex';  // إجبار الإظهار
+    window.allReels = reels;
+    c.style.removeProperty('display');
     let h = `<div class="reel-add-btn" onclick="window.scrollTo({top:0,behavior:'smooth'})"><i class="fas fa-plus"></i><span>أضف ريلز</span></div>`;
     reels.slice(0, 10).forEach((r, idx) => {
-        let globalIdx = window.allReels.findIndex(x => x.id === r.id);
-        if (globalIdx === -1) globalIdx = idx;
         let ap = (window.allUsersData[r.author] && window.allUsersData[r.author].profilePic) ? window.allUsersData[r.author].profilePic : dA;
         let dn = window.getDisplayName(r.author);
         let vc = r.views ? Object.keys(r.views).length : 0;
-        h += `<div class="reel-thumb" onclick="window.openReelsViewer(${globalIdx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto"></video><img src="${ap}" class="r-author-pic"><span class="r-views"><i class="fas fa-play"></i> ${vc}</span><span class="r-author-name">${dn}</span></div>`;
+        h += `<div class="reel-thumb" onclick="window.openReelsViewer(${idx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto"></video><img src="${ap}" class="r-author-pic"><span class="r-views"><i class="fas fa-play"></i> ${vc}</span><span class="r-author-name">${dn}</span></div>`;
     });
     c.innerHTML = h;
 };
