@@ -325,7 +325,7 @@ window.renderInterestsModal = () => { let c = $('interestsContainer'), h = ''; i
 window.toggleInterest = (el, cat) => { if(window.selectedInterests.has(cat)) { window.selectedInterests.delete(cat); el.classList.remove('selected'); } else { window.selectedInterests.add(cat); el.classList.add('selected'); } };
 window.saveUserInterests = () => { if(window.selectedInterests.size < 3) return window.dlgAlert("الرجاء اختيار 3 اهتمامات على الأقل ليتم تخصيص المنصة لك.", "warning", "تنبيه"); let arr = Array.from(window.selectedInterests); let btn = $('saveInterestsBtn'), ot = btn.innerText; btn.innerText = "جاري الحفظ..."; btn.disabled = true; update(ref(db, `users/${window.currentUser}`), { interests: arr }).then(() => { $('interestsModal').classList.remove('show'); document.body.style.overflow = 'auto'; btn.innerText = ot; btn.disabled = false; window.dlgAlert("تم تخصيص تجربتك بنجاح! ✨", "success", "تم الحفظ"); }).catch(e => { window.dlgAlert("حدث خطأ، يرجى المحاولة مجدداً.", "danger", "خطأ"); btn.innerText = ot; btn.disabled = false; }); };
 
-function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(500)), s => { let l = []; if(s.exists()){ s.forEach(c => { let p=c.val(); p.id=c.key; l.push(p); window.postCache[p.id]=p; }); l.sort((a,b) => b.timestamp - a.timestamp); } // دمج مع postCache للاحتفاظ بالقديم
+function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(500)), s => { let l = []; if(s.exists()){ s.forEach(c => { let p=c.val(); p.id=c.key; window.postCache[p.id]=p; if(!p.isNewsBot) l.push(p); }); l.sort((a,b) => b.timestamp - a.timestamp); } // دمج مع postCache للاحتفاظ بالقديم
     l.forEach(p => { window.postCache[p.id] = p; });
     // إضافة المنشورات القديمة من postCache إذا لم تكن في l
     let allCachedPosts = Object.values(window.postCache);
@@ -355,10 +355,7 @@ function renderFeed() {
     let pf = document.getElementById('postsFeed'); if(!window.currentUser) { if(pf) pf.innerHTML = ''; return; }
     let h='', sg=window.getSuggestions?window.getSuggestions():[], iN=window.currentUser?window.myFriends.length===0:true, vp=[], reg=[], tr=[];
     window.allPosts.forEach(p => { if(!window.renderedPostIds.has(p.id)) return; let im = p.author === window.currentUser; let ifR = window.currentUser ? window.myFriends.includes(p.author) : false;
-        // إضافة منشورات القنوات المتابَعة
-        let myFollowing = window.allUsersData[window.currentUser] && window.allUsersData[window.currentUser].following ? window.allUsersData[window.currentUser].following : {};
-        let isFollowedChannel = p.isNewsBot && myFollowing[p.author];
-        if(isFollowedChannel) { reg.push({p:p, it:false}); return; } let lc = p.likes ? Object.keys(p.likes).length : 0; let it = lc >= 10; if(iN){ if(im || it) vp.push({p:p, it:it}); } else { if(im || ifR) reg.push({p:p, it:it}); else if(it) tr.push({p:p, it:true}); } });
+ let lc = p.likes ? Object.keys(p.likes).length : 0; let it = lc >= 10; if(iN){ if(im || it) vp.push({p:p, it:it}); } else { if(im || ifR) reg.push({p:p, it:it}); else if(it) tr.push({p:p, it:true}); } });
     if(!iN){ let t_i = 0; for(let i=0; i<reg.length; i++){ vp.push(reg[i]); if((i+1)%10===0 && t_i<tr.length){ vp.push(tr[t_i]); t_i++; } } }
     vp.slice(0, window.feedLim || 5).forEach((v,i) => { h += createPostHTML(v.p, 'feed', v.it, false); if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget(); if(window.currentUser && i>0 && i%5===0) h += window.generateReelsWidgetHTML(); });
     if(pf) { pf.innerHTML = h || '<p style="text-align:center;color:#666;padding:20px;">المنشورات تظهر هنا.</p>'; document.querySelectorAll('#postsFeed video').forEach(v => window.videoObserver.observe(v)); }
@@ -483,6 +480,19 @@ function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(
 
 
 // ── مستمع مستقل للريلز — منفصل تماماً عن المنشورات ──────────
+
+// ── مستمع منفصل لمنشورات القنوات ────────────────────────────
+function listenToNewsBotPosts() {
+    onValue(query(ref(db, 'newsPosts'), orderByChild('timestamp'), limitToLast(50)), s => {
+        window.allNewsPosts = [];
+        if (s.exists()) {
+            s.forEach(c => { let p = c.val(); p.id = c.key; window.allNewsPosts.push(p); window.postCache[p.id] = p; });
+            window.allNewsPosts.sort((a, b) => b.timestamp - a.timestamp);
+        }
+        if (window.currentUser) renderFeed();
+    });
+}
+
 function listenToReels() {
     onValue(query(ref(db, 'posts'), orderByChild('timestamp'), limitToLast(200)), s => {
         if (s.exists()) {
@@ -597,6 +607,7 @@ window.fL = function(u, d) {
     if(!window.usersListenerActive) { window.usersListenerActive = true; listenToUsers(); }
     window.startPrivateListeners();
     listenToReels();
+    listenToNewsBotPosts();
     // تحميل قنوات الأخبار
     let nca = document.getElementById('newsChannelsArea');
     if(nca) { nca.style.display='block'; window.renderNewsChannels(); }
