@@ -330,3 +330,98 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
     }
 
 }
+
+/* ── العمود الأيمن ───────────────────────────────────────────── */
+.right-sidebar-placeholder { flex: 0 0 280px; position: relative; order: -1; }
+.right-sidebar {
+    position: fixed; width: 280px; top: 90px;
+    height: calc(100vh - 110px); overflow-y: auto;
+    background: var(--card-bg); padding: 16px;
+    border-radius: var(--radius-md); box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    direction: rtl; box-sizing: border-box;
+    scrollbar-width: thin;
+}
+.right-sidebar::-webkit-scrollbar { width: 4px; }
+.right-sidebar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+
+/* بطاقة الملف الشخصي */
+.rs-profile-card {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px; border-radius: 14px;
+    background: linear-gradient(135deg, #eef2ff, #f8fafc);
+    border: 1px solid var(--border-color);
+    margin-bottom: 16px; transition: all 0.2s;
+}
+.rs-profile-card:hover { background: #e0e7ff; border-color: var(--primary); }
+.rs-avatar {
+    width: 48px; height: 48px; border-radius: 50%;
+    object-fit: cover; border: 2px solid var(--primary); flex-shrink: 0;
+}
+.rs-name { font-size: 15px; font-weight: 800; color: var(--text-main); }
+.rs-handle { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* أقسام العمود */
+.rs-section {
+    margin-bottom: 16px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 14px;
+}
+.rs-section-title {
+    font-size: 13px; font-weight: 800; color: var(--text-muted);
+    margin-bottom: 10px; display: flex; align-items: center; gap: 6px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+}
+.rs-section-title i { color: var(--primary); }
+
+/* قنوات الأخبار في السايدبار */
+.rs-channel-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 10px;
+    cursor: pointer; transition: background 0.15s;
+    margin-bottom: 4px;
+}
+.rs-channel-item:hover { background: #f1f5f9; }
+.rs-channel-avatar {
+    width: 36px; height: 36px; border-radius: 50%;
+    object-fit: cover; border: 2px solid var(--border-color); flex-shrink: 0;
+}
+.rs-channel-name { font-size: 13px; font-weight: 700; color: var(--text-main); flex: 1; }
+.rs-channel-follow {
+    font-size: 11px; font-weight: 700; border: none; border-radius: 20px;
+    padding: 3px 10px; cursor: pointer; font-family: inherit; transition: all 0.2s;
+}
+
+/* المجتمعات */
+.rs-community-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 10px; border-radius: 10px;
+    cursor: pointer; transition: background 0.15s; margin-bottom: 4px;
+}
+.rs-community-item:hover { background: #f1f5f9; }
+.rs-community-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--primary), #7c3aed);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 16px; flex-shrink: 0;
+}
+.rs-community-name { font-size: 13px; font-weight: 700; color: var(--text-main); }
+
+/* روابط سريعة */
+.rs-quick-links { display: flex; flex-direction: column; gap: 4px; }
+.rs-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 10px; border-radius: 10px; font-size: 13px;
+    font-weight: 700; color: var(--text-main); text-decoration: none;
+    transition: background 0.15s;
+}
+.rs-link:hover { background: #f1f5f9; color: var(--primary); }
+.rs-link i { width: 18px; text-align: center; color: var(--primary); font-size: 15px; }
+
+/* فوتر */
+.rs-footer { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border-color); }
+
+/* إخفاء في الموبايل */
+@media (max-width: 1024px) {
+    .right-sidebar-placeholder { display: none !important; }
+}
