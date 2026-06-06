@@ -276,11 +276,52 @@
     </div>
 
     <div class="main-container">
+        <!-- العمود الأيمن — ثابت مثل فيسبوك -->
+        <div class="right-sidebar-placeholder" id="rightSidebarContainer" style="display:none;">
+            <div class="right-sidebar" id="rightSidebar">
+                <!-- صورة المستخدم واسمه -->
+                <a href="#" id="rightSidebarProfileLink" style="text-decoration:none;color:inherit;">
+                    <div class="rs-profile-card" id="rsProfileCard">
+                        <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="rsAvatar" class="rs-avatar">
+                        <div>
+                            <div id="rsName" class="rs-name">مرحباً</div>
+                            <div id="rsHandle" class="rs-handle">@</div>
+                        </div>
+                    </div>
+                </a>
+
+                <!-- قنوات الأخبار -->
+                <div class="rs-section" id="rsChannelsSection" style="display:none;">
+                    <div class="rs-section-title">
+                        <i class="fas fa-satellite-dish"></i> قنوات الأخبار
+                    </div>
+                    <div id="rsChannelsList"></div>
+                </div>
+
+                <!-- المجتمعات -->
+                <div class="rs-section" id="rsCommunitiesSection" style="display:none;">
+                    <div class="rs-section-title">
+                        <i class="fas fa-users"></i> مجتمعاتي
+                    </div>
+                    <div id="rsCommunityList"></div>
+                </div>
+
+                <!-- روابط سريعة -->
+                <div class="rs-section">
+                    <div class="rs-quick-links">
+                        <a href="#/requests" class="rs-link"><i class="fas fa-user-friends"></i> طلبات الصداقة</a>
+                        <a onclick="window.openCommunitiesModal()" class="rs-link" style="cursor:pointer;"><i class="fas fa-globe"></i> اكتشف مجتمعات</a>
+                        <a onclick="window.openAdminStats()" class="rs-link" style="cursor:pointer;"><i class="fas fa-chart-bar"></i> الإحصائيات</a>
+                    </div>
+                </div>
+
+                <div class="rs-footer">مجتمعنا © 2025</div>
+            </div>
+        </div>
+
         <div class="feed-area">
             <div onclick="window.showNewPosts()" class="new-posts-btn" id="newPostsBtn">عرض المنشورات الجديدة ⬆️</div>
             <div id="reelsTopBar" class="reels-container" style="display: none;"></div>
-            <!-- قسم قنوات الأخبار -->
-            <div id="newsChannelsArea" style="background:#fff;border:1px solid var(--border-color);border-radius:16px;padding:15px;margin-bottom:16px;display:none;"></div>
             
             <div class="composer-box" id="composerBox" style="display:none;">
                 <div style="display:flex;gap:10px;margin-bottom:10px;direction:rtl;">
