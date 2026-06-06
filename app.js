@@ -49,6 +49,76 @@ window.renderNewsChannels = async () => {
 };
 
 
+// ── العمود الأيمن ─────────────────────────────────────────────
+window.initRightSidebar = async () => {
+    const container = document.getElementById('rightSidebarContainer');
+    if (!container) return;
+    container.style.display = 'block';
+
+    // تحديث بيانات المستخدم
+    const d = window.allUsersData[window.currentUser] || {};
+    const rsAvatar = document.getElementById('rsAvatar');
+    const rsName = document.getElementById('rsName');
+    const rsHandle = document.getElementById('rsHandle');
+    const rsLink = document.getElementById('rightSidebarProfileLink');
+    if (rsAvatar) rsAvatar.src = d.profilePic || dA;
+    if (rsName) rsName.innerText = d.displayName || window.currentUser;
+    if (rsHandle) rsHandle.innerText = '@' + window.currentUser;
+    if (rsLink) rsLink.href = '#/@' + window.currentUser;
+
+    // قنوات الأخبار
+    window.renderRightSidebarChannels();
+
+    // المجتمعات
+    window.renderRightSidebarCommunities();
+};
+
+window.renderRightSidebarChannels = async () => {
+    const section = document.getElementById('rsChannelsSection');
+    const list = document.getElementById('rsChannelsList');
+    if (!section || !list) return;
+    try {
+        const snap = await get(ref(db, 'users'));
+        if (!snap.exists()) return;
+        const allU = snap.val();
+        const channels = Object.entries(allU).filter(([, u]) => u.isNewsBot);
+        if (channels.length === 0) { section.style.display = 'none'; return; }
+        section.style.display = 'block';
+        let h = '';
+        channels.forEach(([id, u]) => {
+            const isF = u.followers && u.followers[window.currentUser];
+            h += `<div class="rs-channel-item" onclick="window.openProfile('${id}')">
+                <img src="${u.profilePic||dA}" class="rs-channel-avatar">
+                <span class="rs-channel-name">${u.displayName}</span>
+                <button class="rs-channel-follow" 
+                    style="background:${isF?'#e0e7ff':'var(--primary)'};color:${isF?'var(--primary)':'#fff'};"
+                    onclick="event.stopPropagation();window.followChannel('${id}',this)">
+                    ${isF?'تتابع':'+ تابع'}
+                </button>
+            </div>`;
+        });
+        list.innerHTML = h;
+    } catch(e) {}
+};
+
+window.renderRightSidebarCommunities = () => {
+    const section = document.getElementById('rsCommunitiesSection');
+    const list = document.getElementById('rsCommunityList');
+    if (!section || !list) return;
+    const myCommunities = Object.entries(window.allCommunities || {})
+        .filter(([, c]) => c.members && c.members[window.currentUser]);
+    if (myCommunities.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    let h = '';
+    myCommunities.slice(0, 6).forEach(([id, c]) => {
+        h += `<div class="rs-community-item" onclick="window.openCommunityView('${id}')">
+            <div class="rs-community-icon"><i class="fas fa-users"></i></div>
+            <span class="rs-community-name">${c.name}</span>
+        </div>`;
+    });
+    list.innerHTML = h;
+};
+
 // ============================================================
 //  نظام النوافذ المخصص — مدمج في app.js
 // ============================================================
@@ -394,7 +464,7 @@ function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window
 function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ window.feedLim=5; renderFeed(); } }); }
 function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unreadChats`), s => { window.unreadChatsData = s.exists() ? s.val() : {}; let t=0; if(window.currentChatTarget && window.isChatBoxVisible && window.unreadChatsData[window.currentChatTarget]){ remove(ref(db,`users/${window.currentUser}/unreadChats/${window.currentChatTarget}`)); delete window.unreadChatsData[window.currentChatTarget]; } for(let x in window.unreadChatsData){ let c = window.unreadChatsData[x], p = window.previousUnreadChats[x]||0; t+=c; if(c>p && x!==window.currentChatTarget) window.showToast("رسالة جديدة", `أرسل ${window.getDisplayName(x)} رسالة`, window.allUsersData[x]?.profilePic); } window.previousUnreadChats = {...window.unreadChatsData}; let b1=$('chatBadge'), b2=$('chatBadgeMobile'); if(t>0){ b1.style.display='inline-block'; b1.innerText=t; b2.style.display='inline-block'; b2.innerText=t; } else { b1.style.display='none'; b2.style.display='none'; } renderSidebarUsers(); }); }
 function listenToRecentChats(){ onValue(ref(db,`users/${window.currentUser}/recentChats`), s => { window.recentChatsData = s.exists() ? s.val() : {}; renderSidebarUsers(); }); }
-function listenToCommunities() { onValue(ref(db, 'communities'), s => { window.allCommunities = s.exists() ? s.val() : {}; if($('communitiesModal') && $('communitiesModal').classList.contains('show')) { window.renderCommunitiesList(); } }); }
+function listenToCommunities() { onValue(ref(db, 'communities'), s => { window.allCommunities = s.exists() ? s.val() : {}; if($('communitiesModal') && $('communitiesModal').classList.contains('show')) { window.renderCommunitiesList(); } window.renderRightSidebarCommunities && window.renderRightSidebarCommunities(); }); }
 
 window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); };
 
