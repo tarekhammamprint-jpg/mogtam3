@@ -4,6 +4,68 @@ import "./auth.js";
 import "./communities.js";
 import "./chat.js";
 
+// ════ العمود الأيمن ════
+window.initRightSidebar = async () => {
+    const container = document.getElementById('rightSidebarContainer');
+    if (!container || !window.currentUser) return;
+    container.style.display = 'block';
+
+    // بيانات المستخدم
+    const d = window.allUsersData[window.currentUser] || {};
+    const pic = d.profilePic || dA;
+    const name = d.displayName || window.currentUser;
+    let el;
+    el = document.getElementById('rsUserPic');    if(el) el.src = pic;
+    el = document.getElementById('rsUserName');   if(el) el.innerText = name;
+    el = document.getElementById('rsUserHandle'); if(el) el.innerText = '@' + window.currentUser;
+    el = document.getElementById('rsProfileLink');if(el) el.href = '#/@' + window.currentUser;
+
+    window.renderRSChannels();
+    window.renderRSCommunities();
+};
+
+window.renderRSChannels = async () => {
+    const wrap = document.getElementById('rsChannelsWrap');
+    const list = document.getElementById('rsChannelsList');
+    if (!wrap || !list) return;
+    try {
+        const snap = await get(ref(db, 'users'));
+        if (!snap.exists()) return;
+        const channels = Object.entries(snap.val()).filter(([,u]) => u.isNewsBot);
+        if (channels.length === 0) { wrap.style.display = 'none'; return; }
+        wrap.style.display = 'block';
+        list.innerHTML = channels.slice(0, 6).map(([id, u]) => {
+            const isF = u.followers && u.followers[window.currentUser];
+            return `<div class="rs-channel-row" onclick="window.openProfile('${id}')">
+                <img src="${u.profilePic||dA}" class="rs-channel-pic">
+                <span class="rs-channel-name">${u.displayName}</span>
+                <button class="rs-channel-btn"
+                    style="background:${isF?'#e0e7ff':'var(--primary)'};color:${isF?'var(--primary)':'#fff'};"
+                    onclick="event.stopPropagation();window.followChannel('${id}',this)">
+                    ${isF ? '✓' : '+ تابع'}
+                </button>
+            </div>`;
+        }).join('');
+    } catch(e) {}
+};
+
+window.renderRSCommunities = () => {
+    const wrap = document.getElementById('rsCommWrap');
+    const list = document.getElementById('rsCommunityList');
+    if (!wrap || !list) return;
+    const mine = Object.entries(window.allCommunities || {})
+        .filter(([,c]) => c.members && c.members[window.currentUser]);
+    if (mine.length === 0) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    list.innerHTML = mine.slice(0, 5).map(([id, c]) =>
+        `<div class="rs-comm-row" onclick="window.openCommunityView('${id}')">
+            <div class="rs-comm-icon"><i class="fas fa-users"></i></div>
+            <span class="rs-comm-name">${c.name}</span>
+        </div>`
+    ).join('');
+};
+
+
 // ── قنوات الأخبار والمتابعة ──────────────────────────────────
 window.followChannel = async (channelId, btn) => {
     if (!window.currentUser) return window.showRegisterModal();
@@ -49,75 +111,6 @@ window.renderNewsChannels = async () => {
 };
 
 
-// ── العمود الأيمن ─────────────────────────────────────────────
-window.initRightSidebar = async () => {
-    const container = document.getElementById('rightSidebarContainer');
-    if (!container) return;
-    container.style.display = 'block';
-
-    // تحديث بيانات المستخدم
-    const d = window.allUsersData[window.currentUser] || {};
-    const rsAvatar = document.getElementById('rsAvatar');
-    const rsName = document.getElementById('rsName');
-    const rsHandle = document.getElementById('rsHandle');
-    const rsLink = document.getElementById('rightSidebarProfileLink');
-    if (rsAvatar) rsAvatar.src = d.profilePic || dA;
-    if (rsName) rsName.innerText = d.displayName || window.currentUser;
-    if (rsHandle) rsHandle.innerText = '@' + window.currentUser;
-    if (rsLink) rsLink.href = '#/@' + window.currentUser;
-
-    // قنوات الأخبار
-    window.renderRightSidebarChannels();
-
-    // المجتمعات
-    window.renderRightSidebarCommunities();
-};
-
-window.renderRightSidebarChannels = async () => {
-    const section = document.getElementById('rsChannelsSection');
-    const list = document.getElementById('rsChannelsList');
-    if (!section || !list) return;
-    try {
-        const snap = await get(ref(db, 'users'));
-        if (!snap.exists()) return;
-        const allU = snap.val();
-        const channels = Object.entries(allU).filter(([, u]) => u.isNewsBot);
-        if (channels.length === 0) { section.style.display = 'none'; return; }
-        section.style.display = 'block';
-        let h = '';
-        channels.forEach(([id, u]) => {
-            const isF = u.followers && u.followers[window.currentUser];
-            h += `<div class="rs-channel-item" onclick="window.openProfile('${id}')">
-                <img src="${u.profilePic||dA}" class="rs-channel-avatar">
-                <span class="rs-channel-name">${u.displayName}</span>
-                <button class="rs-channel-follow" 
-                    style="background:${isF?'#e0e7ff':'var(--primary)'};color:${isF?'var(--primary)':'#fff'};"
-                    onclick="event.stopPropagation();window.followChannel('${id}',this)">
-                    ${isF?'تتابع':'+ تابع'}
-                </button>
-            </div>`;
-        });
-        list.innerHTML = h;
-    } catch(e) {}
-};
-
-window.renderRightSidebarCommunities = () => {
-    const section = document.getElementById('rsCommunitiesSection');
-    const list = document.getElementById('rsCommunityList');
-    if (!section || !list) return;
-    const myCommunities = Object.entries(window.allCommunities || {})
-        .filter(([, c]) => c.members && c.members[window.currentUser]);
-    if (myCommunities.length === 0) { section.style.display = 'none'; return; }
-    section.style.display = 'block';
-    let h = '';
-    myCommunities.slice(0, 6).forEach(([id, c]) => {
-        h += `<div class="rs-community-item" onclick="window.openCommunityView('${id}')">
-            <div class="rs-community-icon"><i class="fas fa-users"></i></div>
-            <span class="rs-community-name">${c.name}</span>
-        </div>`;
-    });
-    list.innerHTML = h;
-};
 
 // ============================================================
 //  نظام النوافذ المخصص — مدمج في app.js
