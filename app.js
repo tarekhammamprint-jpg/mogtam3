@@ -4,6 +4,7 @@ import "./auth.js";
 import "./communities.js";
 import "./chat.js";
 
+
 // ── قنوات الأخبار والمتابعة ──────────────────────────────────
 window.followChannel = async (channelId, btn) => {
     if (!window.currentUser) return window.showRegisterModal();
@@ -47,6 +48,7 @@ window.renderNewsChannels = async () => {
         area.style.display = 'block';
     } catch(e) { console.log('renderNewsChannels error:', e); }
 };
+
 
 
 // ============================================================
@@ -215,6 +217,68 @@ window.getDisplayHandle = (id) => '@' + id;
 window.allReels = []; let reelsObserver = null;
 
 const dA = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+
+// ════ العمود الأيمن ════
+window.initRightSidebar = async () => {
+    const container = document.getElementById('rightSidebarContainer');
+    if (!container || !window.currentUser) return;
+    container.style.display = 'block';
+
+    // بيانات المستخدم
+    const d = window.allUsersData[window.currentUser] || {};
+    const pic = d.profilePic || dA;
+    const name = d.displayName || window.currentUser;
+    let el;
+    el = document.getElementById('rsUserPic');    if(el) el.src = pic;
+    el = document.getElementById('rsUserName');   if(el) el.innerText = name;
+    el = document.getElementById('rsUserHandle'); if(el) el.innerText = '@' + window.currentUser;
+    el = document.getElementById('rsProfileLink');if(el) el.href = '#/@' + window.currentUser;
+
+    window.renderRSChannels();
+    window.renderRSCommunities();
+};
+
+window.renderRSChannels = async () => {
+    const wrap = document.getElementById('rsChannelsWrap');
+    const list = document.getElementById('rsChannelsList');
+    if (!wrap || !list) return;
+    try {
+        const snap = await get(ref(db, 'users'));
+        if (!snap.exists()) return;
+        const channels = Object.entries(snap.val()).filter(([,u]) => u.isNewsBot);
+        if (channels.length === 0) { wrap.style.display = 'none'; return; }
+        wrap.style.display = 'block';
+        list.innerHTML = channels.slice(0, 6).map(([id, u]) => {
+            const isF = u.followers && u.followers[window.currentUser];
+            return `<div class="rs-channel-row" onclick="window.openProfile('${id}')">
+                <img src="${u.profilePic||dA}" class="rs-channel-pic">
+                <span class="rs-channel-name">${u.displayName}</span>
+                <button class="rs-channel-btn"
+                    style="background:${isF?'#e0e7ff':'var(--primary)'};color:${isF?'var(--primary)':'#fff'};"
+                    onclick="event.stopPropagation();window.followChannel('${id}',this)">
+                    ${isF ? '✓' : '+ تابع'}
+                </button>
+            </div>`;
+        }).join('');
+    } catch(e) {}
+};
+
+window.renderRSCommunities = () => {
+    const wrap = document.getElementById('rsCommWrap');
+    const list = document.getElementById('rsCommunityList');
+    if (!wrap || !list) return;
+    const mine = Object.entries(window.allCommunities || {})
+        .filter(([,c]) => c.members && c.members[window.currentUser]);
+    if (mine.length === 0) { wrap.style.display = 'none'; return; }
+    wrap.style.display = 'block';
+    list.innerHTML = mine.slice(0, 5).map(([id, c]) =>
+        `<div class="rs-comm-row" onclick="window.openCommunityView('${id}')">
+            <div class="rs-comm-icon"><i class="fas fa-users"></i></div>
+            <span class="rs-comm-name">${c.name}</span>
+        </div>`
+    ).join('');
+};
+
 const videoPoster = "https://placehold.co/600x400/1e293b/ffffff?text=Video+Loading...";
 const reelPoster = "https://placehold.co/300x500/1e293b/ffffff?text=Reel+Video";
 const $ = (id) => document.getElementById(id);
@@ -390,11 +454,11 @@ function listenToReels() {
     });
 }
 
-function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window.allUsersData = s.val(); if(window.isInitialLoad){ listenToPosts(); } if(window.currentUser){ renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); } } }); }
+function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window.allUsersData = s.val(); if(window.isInitialLoad){ listenToPosts(); } if(window.currentUser){ renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); window.initRightSidebar && window.initRightSidebar(); } } }); }
 function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ window.feedLim=5; renderFeed(); } }); }
 function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unreadChats`), s => { window.unreadChatsData = s.exists() ? s.val() : {}; let t=0; if(window.currentChatTarget && window.isChatBoxVisible && window.unreadChatsData[window.currentChatTarget]){ remove(ref(db,`users/${window.currentUser}/unreadChats/${window.currentChatTarget}`)); delete window.unreadChatsData[window.currentChatTarget]; } for(let x in window.unreadChatsData){ let c = window.unreadChatsData[x], p = window.previousUnreadChats[x]||0; t+=c; if(c>p && x!==window.currentChatTarget) window.showToast("رسالة جديدة", `أرسل ${window.getDisplayName(x)} رسالة`, window.allUsersData[x]?.profilePic); } window.previousUnreadChats = {...window.unreadChatsData}; let b1=$('chatBadge'), b2=$('chatBadgeMobile'); if(t>0){ b1.style.display='inline-block'; b1.innerText=t; b2.style.display='inline-block'; b2.innerText=t; } else { b1.style.display='none'; b2.style.display='none'; } renderSidebarUsers(); }); }
 function listenToRecentChats(){ onValue(ref(db,`users/${window.currentUser}/recentChats`), s => { window.recentChatsData = s.exists() ? s.val() : {}; renderSidebarUsers(); }); }
-function listenToCommunities() { onValue(ref(db, 'communities'), s => { window.allCommunities = s.exists() ? s.val() : {}; if($('communitiesModal') && $('communitiesModal').classList.contains('show')) { window.renderCommunitiesList(); } }); }
+function listenToCommunities() { onValue(ref(db, 'communities'), s => { window.allCommunities = s.exists() ? s.val() : {}; if($('communitiesModal') && $('communitiesModal').classList.contains('show')) { window.renderCommunitiesList(); } window.renderRightSidebarCommunities && window.renderRightSidebarCommunities(); }); }
 
 window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); };
 
@@ -490,6 +554,7 @@ window.fL = function(u, d) {
     window.startPrivateListeners();
     listenToReels();
     listenToNewsBotPosts();
+    setTimeout(() => window.initRightSidebar(), 1500);
     setTimeout(() => { let nca = document.getElementById('newsChannelsArea'); if(nca) window.renderNewsChannels(); }, 1500);
     if(!window.isInitialLoad) { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim = 5; renderFeed(); handleRouting(); }
 };
