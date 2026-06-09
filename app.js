@@ -368,12 +368,42 @@ function createPostHTML(p, cp, it=false, im=false) {
 function renderFeed() {
     let pf = document.getElementById('postsFeed'); if(!window.currentUser) { if(pf) pf.innerHTML = ''; return; }
     let h='', sg=window.getSuggestions?window.getSuggestions():[], iN=window.currentUser?window.myFriends.length===0:true, vp=[], reg=[], tr=[];
-    // إضافة منشورات القنوات المتابَعة
+
+    // منشورات القنوات المتابَعة — تُضاف دائماً بغض النظر عن الأصدقاء
     let myFollowing = (window.allUsersData[window.currentUser]?.following) || {};
-    (window.allNewsPosts || []).filter(p => myFollowing[p.author]).forEach(p => reg.push({p:p, it:false}));
-    window.allPosts.forEach(p => { if(!window.renderedPostIds.has(p.id)) return; let im = p.author === window.currentUser; let ifR = window.currentUser ? window.myFriends.includes(p.author) : false; let lc = p.likes ? Object.keys(p.likes).length : 0; let it = lc >= 10; if(iN){ if(im || it) vp.push({p:p, it:it}); } else { if(im || ifR) reg.push({p:p, it:it}); else if(it) tr.push({p:p, it:true}); } });
-    if(!iN){ let t_i = 0; for(let i=0; i<reg.length; i++){ vp.push(reg[i]); if((i+1)%10===0 && t_i<tr.length){ vp.push(tr[t_i]); t_i++; } } }
-    vp.slice(0, window.feedLim || 5).forEach((v,i) => { h += createPostHTML(v.p, 'feed', v.it, false); if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget(); if(window.currentUser && i>0 && i%5===0) h += window.generateReelsWidgetHTML(); });
+    (window.allNewsPosts || []).filter(p => myFollowing[p.author]).forEach(p => vp.push({p:p, it:false}));
+
+    // منشورات المستخدمين
+    window.allPosts.forEach(p => {
+        if(!window.renderedPostIds.has(p.id)) return;
+        let im = p.author === window.currentUser;
+        let ifR = window.myFriends.includes(p.author);
+        let lc = p.likes ? Object.keys(p.likes).length : 0;
+        let it = lc >= 10;
+        // المنشور الخاص أو منشور صديق — يظهر دائماً
+        if(im || ifR) vp.push({p:p, it:it});
+        // منشور رائج — يظهر إذا لا أصدقاء أو كل 10 منشورات
+        else if(it) tr.push({p:p, it:true});
+    });
+
+    // إضافة المنشورات الرائجة بين منشورات الأصدقاء
+    let t_i = 0;
+    let final = [...vp];
+    if(!iN) {
+        for(let i=0; i<vp.length; i++) {
+            if((i+1)%10===0 && t_i<tr.length) { final.splice(i+1, 0, tr[t_i]); t_i++; }
+        }
+    } else {
+        // لا أصدقاء — أضف الرائجة
+        final = [...vp, ...tr];
+    }
+
+    final.sort((a,b) => (b.p.timestamp||0) - (a.p.timestamp||0));
+    final.slice(0, window.feedLim || 5).forEach((v,i) => {
+        h += createPostHTML(v.p, 'feed', v.it, false);
+        if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget();
+        if(window.currentUser && i>0 && i%5===0) h += window.generateReelsWidgetHTML();
+    });
     if(pf) { pf.innerHTML = h || '<p style="text-align:center;color:#666;padding:20px;">المنشورات تظهر هنا.</p>'; document.querySelectorAll('#postsFeed video').forEach(v => window.videoObserver.observe(v)); }
 }
 
