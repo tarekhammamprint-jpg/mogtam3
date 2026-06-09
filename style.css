@@ -42,14 +42,26 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 .bottom-nav{display:none;position:fixed;bottom:0;left:0;width:100%;background:rgba(255,255,255,.95);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--border-color);box-shadow:0 -4px 20px rgba(0,0,0,0.08);z-index:3000;justify-content:space-around;align-items:center;height:65px;padding-bottom:env(safe-area-inset-bottom,0);transform:translateZ(0)}
 .b-nav-item{position:relative;font-size:22px;color:var(--text-muted);cursor:pointer;padding:10px;transition:.2s;display:flex;align-items:center;justify-content:center;width:100%}
 .b-nav-item:hover{color:var(--primary)}
-.main-container{display:flex;flex-direction:row;align-items:flex-start;margin:90px auto 0;width:100%;max-width:100%;gap:20px;padding:0 15px;box-sizing:border-box}
-.feed-area{flex:1;min-width:0;display:flex;flex-direction:column;gap:25px;width:100%;order:2;margin-right:280px;margin-left:320px;}
-.sidebar-placeholder{flex:0 0 0px;position:relative;order:3;width:0;}
-.sidebar{position:fixed;top:95px;left:15px;width:300px;height:calc(100vh - 110px);overflow-y:auto;background:var(--card-bg);padding:20px;border-radius:var(--radius-md);box-shadow:var(--shadow-md);border:1px solid var(--border-color);direction:rtl;box-sizing:border-box}
+.main-container{display:flex;flex-direction:row;align-items:flex-start;margin:90px auto 0;width:100%;max-width:1100px;gap:25px;padding:0 15px;box-sizing:border-box}
+.feed-area{flex:1;min-width:0;display:flex;flex-direction:column;gap:25px;width:100%}
+.sidebar-placeholder{flex:0 0 320px;position:relative}
+.sidebar{position:fixed;width:320px;top:90px;height:calc(100vh - 110px);overflow-y:auto;background:var(--card-bg);padding:20px;border-radius:var(--radius-md);box-shadow:var(--shadow-md);border:1px solid var(--border-color);direction:rtl;box-sizing:border-box}
 .sidebar::-webkit-scrollbar{width:6px}
 .sidebar::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px}
-.new-posts-btn{background:var(--primary);color:#fff;text-align:center;padding:12px;border-radius:var(--radius-pill);font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(37,99,235,.3);transition:transform .2s;font-size:15px;display:none;margin-bottom:5px}
-.new-posts-btn:hover{transform:translateY(-3px);box-shadow:0 6px 20px rgba(37,99,235,.4)}
+.new-posts-btn{
+    position:fixed; top:72px; left:50%; transform:translateX(-50%);
+    background:var(--primary); color:#fff;
+    padding:10px 28px; border-radius:30px;
+    font-weight:800; font-size:14px; cursor:pointer;
+    box-shadow:0 4px 20px rgba(37,99,235,.45);
+    display:none; z-index:2000;
+    align-items:center; gap:8px;
+    border:2px solid #fff;
+    white-space:nowrap;
+    animation:npb-in .3s cubic-bezier(.34,1.56,.64,1);
+}
+.new-posts-btn:hover{background:#1d4ed8;box-shadow:0 6px 25px rgba(37,99,235,.5);}
+@keyframes npb-in{from{opacity:0;transform:translateX(-50%) translateY(-20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}
 .composer-box,.post,.suggested-widget{background:var(--card-bg);padding:25px;border-radius:var(--radius-md);box-shadow:var(--shadow-md);border:1px solid var(--border-color);text-align:right}
 .composer-input{width:100%;border:0;outline:0;font-size:17px;resize:none;margin-bottom:10px;box-sizing:border-box;background:0 0;font-family:inherit;font-weight:600;color:var(--text-main)}
 .composer-input::placeholder{color:#94a3b8;font-weight:600}
@@ -244,9 +256,6 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 @media (max-width:768px){
     .main-container{flex-direction:column;margin-top:80px;padding-bottom:110px;gap:15px}
     .sidebar-placeholder{flex:none;width:0;height:0;margin:0;padding:0;border:0;overflow:visible}
-    .feed-area{margin-right:0 !important;margin-left:0 !important;}
-    .sidebar{display:none;}
-    .right-col-placeholder{display:none !important;}
     .sidebar{width:100%;height:calc(100vh - 135px);position:fixed;top:70px;left:0;right:unset;z-index:900;border-radius:0;border:0;border-right:1px solid var(--border-color);display:none}
     .sidebar.mobile-show{display:block!important}
     #sidebarTopSection{display:none!important}
@@ -332,105 +341,4 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 
     }
 
-}
-
-/* ════ العمود الأيمن ════ */
-.right-col-placeholder { flex: 0 0 0px; position: relative; order: 1; width:0; }
-.right-col {
-    position: fixed; top: 95px; right: 15px;
-    width: 260px;
-    height: calc(100vh - 110px);
-    overflow-y: auto;
-    overflow-x: hidden;
-    background: var(--card-bg);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md);
-    border: 1px solid var(--border-color);
-    padding: 16px;
-    box-sizing: border-box;
-    direction: rtl;
-    scrollbar-width: thin;
-}
-.right-col::-webkit-scrollbar { width: 4px; }
-.right-col::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-
-/* بطاقة المستخدم */
-.rs-user-card {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px; border-radius: 12px;
-    background: linear-gradient(135deg,#eef2ff,#f8fafc);
-    border: 1px solid var(--border-color);
-    margin-bottom: 14px; transition: all .2s;
-}
-.rs-user-card:hover { background: #e0e7ff; border-color: var(--primary); }
-.rs-user-pic { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid var(--primary); flex-shrink:0; }
-.rs-user-name { font-size: 14px; font-weight: 800; color: var(--text-main); }
-.rs-user-handle { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
-
-/* عناوين الأقسام */
-.rs-section-title {
-    font-size: 12px; font-weight: 800; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: .5px;
-    display: flex; align-items: center; gap: 6px;
-    margin: 14px 0 8px; padding-top: 14px;
-    border-top: 1px solid var(--border-color);
-}
-.rs-section-title i { color: var(--primary); font-size: 13px; }
-
-/* قنوات الأخبار */
-.rs-channel-row {
-    display: flex; align-items: center; gap: 9px;
-    padding: 7px 8px; border-radius: 10px;
-    cursor: pointer; transition: background .15s; margin-bottom: 3px;
-}
-.rs-channel-row:hover { background: #f1f5f9; }
-.rs-channel-pic { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border-color); flex-shrink:0; }
-.rs-channel-name { font-size: 13px; font-weight: 700; color: var(--text-main); flex: 1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.rs-channel-btn {
-    font-size: 11px; font-weight: 700; border: none;
-    border-radius: 20px; padding: 3px 10px;
-    cursor: pointer; font-family: inherit; transition: all .2s; flex-shrink:0;
-}
-
-/* المجتمعات */
-.rs-comm-row {
-    display: flex; align-items: center; gap: 9px;
-    padding: 7px 8px; border-radius: 10px;
-    cursor: pointer; transition: background .15s; margin-bottom: 3px;
-}
-.rs-comm-row:hover { background: #f1f5f9; }
-.rs-comm-icon {
-    width: 34px; height: 34px; border-radius: 9px; flex-shrink:0;
-    background: linear-gradient(135deg,var(--primary),#7c3aed);
-    display: flex; align-items: center; justify-content: center;
-    color: #fff; font-size: 15px;
-}
-.rs-comm-name { font-size: 13px; font-weight: 700; color: var(--text-main); flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-
-/* عرض الكل */
-.rs-see-all {
-    display: block; text-align: center; font-size: 12px; font-weight: 700;
-    color: var(--primary); padding: 5px; border-radius: 8px;
-    margin-top: 4px; transition: background .15s;
-}
-.rs-see-all:hover { background: #eef2ff; }
-
-/* روابط سريعة */
-.rs-links { display: flex; flex-direction: column; gap: 3px; }
-.rs-link-item {
-    display: flex; align-items: center; gap: 9px;
-    padding: 8px 10px; border-radius: 10px;
-    font-size: 13px; font-weight: 700; color: var(--text-main);
-    text-decoration: none; transition: background .15s;
-}
-.rs-link-item:hover { background: #f1f5f9; color: var(--primary); }
-.rs-link-item i { width: 18px; text-align: center; color: var(--primary); }
-
-/* فوتر */
-.rs-footer { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border-color); }
-
-/* إخفاء على الشاشات الصغيرة */
-@media (max-width: 1100px) {
-    .right-col-placeholder { display: none !important; }
-    .main-container { max-width: 1100px; }
 }
