@@ -219,6 +219,43 @@
             <span onclick="window.closeReelsViewer()" class="close-reel-btn"><em class="fas fa-times"></em></span>
             <div class="reels-scroll-area" id="reelsScrollArea"></div>
         </div>
+        <!-- ══ العمود الأيمن ══ -->
+        <div class="right-col-placeholder" id="rightSidebarContainer" style="display:none;">
+            <div class="right-col" id="rightSidebar">
+
+                <a id="rsProfileLink" href="#" style="text-decoration:none;display:block;">
+                    <div class="rs-user-card">
+                        <img id="rsUserPic" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="rs-user-pic">
+                        <div>
+                            <div id="rsUserName" class="rs-user-name">مرحباً</div>
+                            <div id="rsUserHandle" class="rs-user-handle">@</div>
+                        </div>
+                    </div>
+                </a>
+
+                <div id="rsChannelsWrap" style="display:none;">
+                    <div class="rs-section-title"><i class="fas fa-satellite-dish"></i> قنوات الأخبار</div>
+                    <div id="rsChannelsList"></div>
+                    <span onclick="document.getElementById('newsChannelsArea')?.scrollIntoView({behavior:'smooth'})" class="rs-see-all">عرض الكل ←</span>
+                </div>
+
+                <div id="rsCommWrap" style="display:none;">
+                    <div class="rs-section-title"><i class="fas fa-users"></i> مجتمعاتي</div>
+                    <div id="rsCommunityList"></div>
+                    <span onclick="window.openCommunitiesModal()" class="rs-see-all">عرض الكل ←</span>
+                </div>
+
+                <div class="rs-section-title"><i class="fas fa-bolt"></i> روابط سريعة</div>
+                <div class="rs-links">
+                    <a href="#/requests" class="rs-link-item"><i class="fas fa-user-plus"></i> طلبات الصداقة</a>
+                    <span onclick="window.openCommunitiesModal()" class="rs-link-item"><i class="fas fa-globe"></i> اكتشف مجتمعات</span>
+                    <span onclick="window.location.hash='#/stats'" class="rs-link-item"><i class="fas fa-chart-bar"></i> الإحصائيات</span>
+                </div>
+
+                <div class="rs-footer">مجتمعنا © 2025</div>
+            </div>
+        </div>
+
     </div>
 
     <div class="navbar">
@@ -314,48 +351,6 @@
                 <div id="friendsList"></div>
             </div>
         </div>
-
-        <!-- ════ العمود الأيمن ════ -->
-        <div class="right-col-placeholder" id="rightSidebarContainer" style="display:none;">
-            <div class="right-col">
-
-                <!-- بطاقة المستخدم -->
-                <a id="rsProfileLink" href="#" style="text-decoration:none;display:block;">
-                    <div class="rs-user-card">
-                        <img id="rsUserPic" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="rs-user-pic">
-                        <div>
-                            <div id="rsUserName" class="rs-user-name">مرحباً</div>
-                            <div id="rsUserHandle" class="rs-user-handle">@</div>
-                        </div>
-                    </div>
-                </a>
-
-                <!-- قنوات الأخبار -->
-                <div id="rsChannelsWrap" style="display:none;">
-                    <div class="rs-section-title"><i class="fas fa-satellite-dish"></i> قنوات الأخبار</div>
-                    <div id="rsChannelsList"></div>
-                    <a onclick="document.getElementById('newsChannelsArea')?.scrollIntoView({behavior:'smooth'})" class="rs-see-all" style="cursor:pointer;">عرض الكل</a>
-                </div>
-
-                <!-- مجتمعاتي -->
-                <div id="rsCommWrap" style="display:none;">
-                    <div class="rs-section-title"><i class="fas fa-users"></i> مجتمعاتي</div>
-                    <div id="rsCommunityList"></div>
-                    <a onclick="window.openCommunitiesModal()" class="rs-see-all" style="cursor:pointer;">عرض الكل</a>
-                </div>
-
-                <!-- روابط سريعة -->
-                <div class="rs-section-title" style="margin-top:14px;"><i class="fas fa-bolt"></i> روابط سريعة</div>
-                <div class="rs-links">
-                    <a href="#/requests" class="rs-link-item"><i class="fas fa-user-plus"></i> طلبات الصداقة</a>
-                    <a onclick="window.openCommunitiesModal()" class="rs-link-item" style="cursor:pointer;"><i class="fas fa-globe"></i> اكتشف مجتمعات</a>
-                    <a onclick="window.location.hash='#/stats'" class="rs-link-item" style="cursor:pointer;"><i class="fas fa-chart-bar"></i> الإحصائيات</a>
-                </div>
-
-                <div class="rs-footer">مجتمعنا © 2025</div>
-            </div>
-        </div>
-
     </div>
 
     <div id="floatingChat" class="floating-chat" onclick="window.restoreChat()">
