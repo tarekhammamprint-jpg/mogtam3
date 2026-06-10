@@ -220,13 +220,22 @@ const dA = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
 // ════ العمود الأيمن ════
 window.initRightSidebar = async () => {
+    if (!window.currentUser) return;
     const container = document.getElementById('rightSidebarContainer');
-    if (!container || !window.currentUser) return;
+    if (!container) return;
+
+    // إظهار العمود
+    container.style.removeProperty('display');
     container.style.display = 'block';
 
-    // بيانات المستخدم
-    const d = window.allUsersData[window.currentUser] || {};
-    const pic = d.profilePic || dA;
+    // انتظر تحميل البيانات إذا لم تكن جاهزة
+    let d = window.allUsersData[window.currentUser];
+    if (!d) {
+        await new Promise(r => setTimeout(r, 800));
+        d = window.allUsersData[window.currentUser] || {};
+    }
+
+    const pic  = d.profilePic || dA;
     const name = d.displayName || window.currentUser;
     let el;
     el = document.getElementById('rsUserPic');    if(el) el.src = pic;
@@ -234,8 +243,8 @@ window.initRightSidebar = async () => {
     el = document.getElementById('rsUserHandle'); if(el) el.innerText = '@' + window.currentUser;
     el = document.getElementById('rsProfileLink');if(el) el.href = '#/@' + window.currentUser;
 
-    window.renderRSChannels();
-    window.renderRSCommunities();
+    window.renderRSChannels && window.renderRSChannels();
+    window.renderRSCommunities && window.renderRSCommunities();
 };
 
 window.renderRSChannels = async () => {
