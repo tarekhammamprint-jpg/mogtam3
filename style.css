@@ -427,3 +427,152 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
     .right-col { display: none !important; }
     .feed-area { margin-right: 0 !important; }
 }
+
+
+/* أضف هذه الأنماط في نهاية ملف style.css */
+
+/* =============== إصلاح تخطيط الأعمدة =============== */
+.main-container {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: center;
+    margin: 90px auto 0;
+    width: 100%;
+    max-width: 1400px;
+    gap: 20px;
+    padding: 0 15px;
+    box-sizing: border-box;
+}
+
+/* العمود الأيسر (المحادثات) */
+.sidebar-placeholder {
+    flex: 0 0 300px;
+    min-width: 0;
+    position: relative;
+    order: 2;
+}
+
+.sidebar {
+    position: fixed;
+    left: 15px;
+    top: 90px;
+    width: 300px;
+    height: calc(100vh - 110px);
+    overflow-y: auto;
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    direction: rtl;
+    box-sizing: border-box;
+    z-index: 100;
+}
+
+/* منطقة التغذية (الوسط) */
+.feed-area {
+    flex: 1;
+    min-width: 0;
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    width: 100%;
+    order: 1;
+}
+
+/* العمود الأيمن */
+.right-col-placeholder {
+    flex: 0 0 270px;
+    min-width: 0;
+    position: relative;
+    order: 3;
+}
+
+.right-col {
+    position: fixed;
+    right: 15px;
+    top: 90px;
+    width: 270px;
+    height: calc(100vh - 110px);
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--card-bg);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    padding: 16px;
+    box-sizing: border-box;
+    direction: rtl;
+    scrollbar-width: thin;
+    z-index: 100;
+}
+
+/* تحسين عرض المنشورات */
+.post {
+    background: var(--card-bg);
+    padding: 20px;
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    margin-bottom: 20px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* استجابة للشاشات المتوسطة */
+@media (max-width: 1100px) {
+    .sidebar-placeholder {
+        flex: 0 0 280px;
+    }
+    .sidebar {
+        width: 280px;
+    }
+    .right-col-placeholder {
+        flex: 0 0 250px;
+    }
+    .right-col {
+        width: 250px;
+    }
+}
+
+/* استجابة للشاشات الصغيرة */
+@media (max-width: 900px) {
+    .main-container {
+        flex-direction: column;
+        margin-top: 80px;
+        padding-bottom: 110px;
+        gap: 15px;
+    }
+    
+    .feed-area {
+        max-width: 100%;
+        order: 1;
+    }
+    
+    .sidebar-placeholder {
+        display: none !important;
+    }
+    
+    .sidebar {
+        display: none;
+    }
+    
+    .right-col-placeholder {
+        display: none !important;
+    }
+    
+    .right-col {
+        display: none !important;
+    }
+}
+
+/* إضافة مسافة بين المنشورات والجوانب */
+@media (min-width: 901px) and (max-width: 1300px) {
+    .feed-area {
+        margin-left: 10px;
+        margin-right: 10px;
+    }
+}
