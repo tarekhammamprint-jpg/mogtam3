@@ -1,16 +1,55 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8" />
+    <meta content="width=device-width,initial-scale=1.0" name="viewport" />
+    <title>مجتمعنا - منصة تواصل</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+    
+    <style>
+        .interests-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; max-height: 300px; overflow-y: auto; padding: 10px; }
+        .interest-chip { background: #f1f5f9; border: 2px solid #e2e8f0; color: #475569; padding: 10px 18px; border-radius: 999px; font-weight: 700; cursor: pointer; transition: 0.2s; user-select: none; }
+        .interest-chip.selected { background: var(--primary); border-color: var(--primary); color: #fff; transform: scale(1.05); }
+    </style>
+</head>
 <body>
 
-    <nav class="navbar">
+    <div id="loginWrapper" class="login-wrapper">
+        <div class="login-card" style="background:#fff; padding:35px; border-radius:24px; box-shadow:var(--shadow-lg); width:100%; max-width:400px; text-align:center;">
+            <h2 style="margin-bottom:25px; font-weight:800; color:var(--primary); font-size: 28px;">
+                <i class="fas fa-users"></i> مجتمعنا
+            </h2>
+            <div style="display:flex; flex-direction:column; gap:15px; margin-bottom:20px;">
+                <input type="text" id="usernameInput" placeholder="اسم المستخدم أو المعرف الخاص بك..." style="padding:14px; border-radius:12px; border:1px solid var(--border-color); font-family:'Cairo'; font-size:14px; width:100%; box-sizing:border-box; background:#f8fafc;">
+                <input type="password" id="passwordInput" placeholder="كلمة المرور..." style="padding:14px; border-radius:12px; border:1px solid var(--border-color); font-family:'Cairo'; font-size:14px; width:100%; box-sizing:border-box; background:#f8fafc;">
+            </div>
+            <button class="btn-primary" onclick="window.login()" style="width:100%; padding:14px; border-radius:12px; font-size:16px; font-weight:700; margin-bottom:15px; border:none; cursor:pointer;">
+                تسجيل الدخول <i class="fas fa-sign-in-alt"></i>
+            </button>
+            <p style="font-size:14px; color:var(--text-muted); margin:0;">
+                ليس لديك حساب؟ <a href="#" onclick="window.showRegisterModal()" style="color:var(--primary); font-weight:700; text-decoration:none;">قم بإنشاء حساب جديد</a>
+            </p>
+        </div>
+    </div>
+
+    <nav class="navbar" id="mainNavbar">
         <div class="nav-container">
-            <div class="nav-logo">
+            <div class="nav-logo" style="font-weight: 800; font-size: 20px; color: var(--primary);">
                 <i class="fas fa-users"></i> مجتمعنا
             </div>
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <button class="btn-secondary" onclick="window.logoutUser()" style="padding: 6px 12px; font-size: 13px; border-radius: 8px;">
+                    <i class="fas fa-sign-out-alt"></i> خروج
+                </button>
             </div>
+        </div>
     </nav>
 
     <div class="main-container">
         
-        <div class="right-col-placeholder" id="rightSidebarContainer">
+        <div class="right-col-placeholder" id="rightSidebarContainer" style="display:none;">
             <div class="right-col" id="rightSidebar">
                 
                 <a id="rsProfileLink" href="#" style="text-decoration: none; display: block;">
@@ -23,18 +62,18 @@
                     </div>
                 </a>
 
-                <div class="sidebar-section">
-                    <h3><i class="fas fa-bullhorn"></i> القنوات والمجتمعات</h3>
+                <div class="sidebar-section" style="margin-top: 15px;">
+                    <h3 style="font-size: 14px; color: var(--text-muted); margin-bottom: 10px;"><i class="fas fa-bullhorn"></i> القنوات والمجتمعات</h3>
                     <div id="rightSidebarChannels">
                         </div>
                 </div>
 
-                <div class="rs-links">
+                <div class="rs-links" style="margin-top: 15px;">
                     <a class="rs-link-item" onclick="window.openCommunitiesModal()">
-                        <i class="fas fa-users-cog"></i> <span>إدارة المجتمعات</span>
+                        <i class="fas fa-users-cog"></i> <span>إدارة واستكشاف المجتمعات</span>
                     </a>
                     <a class="rs-link-item" href="#reels">
-                        <i class="fas fa-film"></i> <span>الريلز الفيديوهات</span>
+                        <i class="fas fa-film"></i> <span>فيديوهات الريلز القصيرة</span>
                     </a>
                 </div>
 
@@ -44,18 +83,18 @@
         <div class="feed-area">
             
             <div onclick="window.showNewPosts()" class="new-posts-btn" id="newPostsBtn" style="display:none;">
-                عرض المنشورات الجديدة ⬆️
+                عرض المنشورات الجديدة المتوفرة ⬆️
             </div>
 
             <div class="composer-card">
-                <textarea id="postInput" class="composer-input" placeholder="ماذا يدور في ذهنك اليوم؟" rows="3"></textarea>
+                <textarea id="postInput" class="composer-input" placeholder="ما هي الأفكار أو النقاشات التي تود مشاركتها اليوم في مجتمعنا؟" rows="3"></textarea>
                 <div class="composer-actions">
                     <button class="btn-secondary" onclick="document.getElementById('fileInput').click()">
-                        <i class="fas fa-image"></i> صورة / فيديو
+                        <i class="fas fa-image"></i> إرفاق ميديا (صورة / فيديو)
                     </button>
                     <input type="file" id="fileInput" style="display:none;" accept="image/*,video/*">
                     <button id="publishBtn" class="btn-primary" onclick="window.publishPost()">
-                        <i class="fas fa-paper-plane"></i> نشر
+                        <i class="fas fa-paper-plane"></i> نشر الآن
                     </button>
                 </div>
             </div>
@@ -65,17 +104,17 @@
 
         </div>
         
-        <div class="sidebar-placeholder" id="sidebarAreaContainer">
+        <div class="sidebar-placeholder" id="sidebarAreaContainer" style="display:none;">
             <div id="sidebarArea" class="sidebar">
                 
                 <div class="sidebar-section">
-                    <h3><i class="fas fa-user-plus"></i> مقترحون لك</h3>
+                    <h3 style="font-size:14px; margin-bottom:12px;"><i class="fas fa-user-plus"></i> مستخدمون مقترحون لك</h3>
                     <div id="suggestionsContainer">
                         </div>
                 </div>
 
-                <div class="sidebar-section">
-                    <h3><i class="fas fa-comments"></i> المحادثات والدردشة</h3>
+                <div class="sidebar-section" style="margin-top: 20px;">
+                    <h3 style="font-size:14px; margin-bottom:12px;"><i class="fas fa-comments"></i> آخر المحادثات والدردشة</h3>
                     <div id="recentChatsContainer">
                         </div>
                 </div>
@@ -91,45 +130,61 @@
         </div>
     </div>
 
+    <div class="modal" id="registerModal">
+        <div class="modal-content" style="max-width:420px; padding:25px;">
+            <span onclick="document.getElementById('registerModal').classList.remove('show')" class="close-btn">&times;</span>
+            <h2 style="text-align:center; margin-bottom:20px; font-weight:800; color:var(--primary);">إنشاء حساب جديد</h2>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <input type="text" id="regDisplayName" placeholder="الاسم الكامل الافتراضي بالمنصة..." style="padding:12px; border-radius:10px; border:1px solid var(--border-color); font-family:'Cairo';">
+                <input type="text" id="regUsername" placeholder="المعرف الفريد باللاتينية (بدون فواصل)..." style="padding:12px; border-radius:10px; border:1px solid var(--border-color); font-family:'Cairo';">
+                <input type="date" id="regBirthdate" style="padding:12px; border-radius:10px; border:1px solid var(--border-color); font-family:'Cairo';">
+                <input type="password" id="regPassword" placeholder="اختر كلمة مرور قوية..." style="padding:12px; border-radius:10px; border:1px solid var(--border-color); font-family:'Cairo';">
+                <button class="btn-primary" id="registerBtn" onclick="window.registerUser()" style="padding:12px; border-radius:10px; font-weight:700; margin-top:5px;">
+                    إتمام إنشاء الحساب ومتابعة التجربة
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="modal" id="interestsModal">
         <div class="modal-content">
-            <h2>اختر اهتماماتك لتخصيص تجربتك</h2>
+            <h2>اختر اهتماماتك المفضلة لتخصيص محتواك</h2>
             <div class="interests-grid" id="interestsGrid"></div>
-            <button class="btn-primary" onclick="window.saveInterests()">حفظ والوصول للمنصة</button>
+            <button class="btn-primary" onclick="window.saveInterests()" style="width:100%; padding:12px; border-radius:10px;">حفظ التفضيلات والوصول للمنصة</button>
         </div>
     </div>
 
     <div class="modal" id="communitiesModal">
         <div class="modal-content">
             <span onclick="document.getElementById('communitiesModal').classList.remove('show')" class="close-btn">&times;</span>
-            <h2>المجتمعات المتاحة</h2>
-            <div style="display:flex; gap:10px; margin-bottom:15px;">
-                <input type="text" id="communityNameInput" placeholder="اسم المجتمع الجديد..." style="flex:1; padding:8px; border-radius:6px; border:1px solid var(--border-color);">
-                <input type="text" id="communityDescInput" placeholder="وصف قصير..." style="flex:1; padding:8px; border-radius:6px; border:1px solid var(--border-color);">
-                <button id="createCommunityBtn" class="btn-primary" onclick="window.createCommunity()">إنشاء</button>
+            <h2>المجتمعات المتاحة داخل المنصة</h2>
+            <div style="display:flex; gap:10px; margin-bottom:15px; margin-top:15px;">
+                <input type="text" id="communityNameInput" placeholder="اسم المجتمع الجديد المراد تأسيسه..." style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border-color); font-family:'Cairo';">
+                <input type="text" id="communityDescInput" placeholder="نبذة تعريفية سريعة..." style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--border-color); font-family:'Cairo';">
+                <button id="createCommunityBtn" class="btn-primary" onclick="window.createCommunity()" style="padding: 10px 20px; border-radius:8px;">إنشاء وتأسيس</button>
             </div>
             <div id="communitiesListContainer"></div>
         </div>
     </div>
 
     <div class="modal" id="communityViewModal">
-        <div class="modal-content" style="max-width:700px; height:80vh; display:flex; flex-direction:column;">
+        <div class="modal-content" style="max-width:700px; height:85vh; display:flex; flex-direction:column;">
             <span onclick="document.getElementById('communityViewModal').classList.remove('show'); document.body.style.overflow='auto';" class="close-btn">&times;</span>
             <div id="communityViewHeader" style="text-align:center; padding:15px; border-bottom:1px solid var(--border-color);">
-                <h2 id="communityViewName">اسم المجتمع</h2>
-                <p id="communityViewDesc" style="color:var(--text-muted);"></p>
+                <h2 id="communityViewName" style="margin: 0 0 5px 0;">اسم المجتمع المستعرض</h2>
+                <p id="communityViewDesc" style="color:var(--text-muted); margin: 0 0 15px 0; font-size:14px;"></p>
                 <div id="communityHeaderActions" style="display:flex; justify-content:center; gap:10px; margin-bottom:15px;"></div>
                 
-                <button class="btn-primary" style="background:#10b981; font-size:16px; padding:12px 30px; box-shadow:0 4px 15px rgba(16,185,129,0.4);" onclick="window.startCommunityCall()">
-                    <i class="fas fa-video"></i> بدء اجتماع فيديو/صوت 
+                <button class="btn-primary" style="background:#10b981; font-size:15px; padding:12px 25px; box-shadow:0 4px 15px rgba(16,185,129,0.3); border:none; border-radius:10px; cursor:pointer;" onclick="window.startCommunityCall()">
+                    <i class="fas fa-video"></i> بدء اجتماع فيديو أو صوت مباشر للمجتمع
                 </button>
             </div>
 
             <div style="flex:1; overflow-y:auto; padding:15px; background:#f8fafc;">
                 <div style="background:#fff; padding:15px; border-radius:12px; border:1px solid var(--border-color); margin-bottom:20px;">
-                    <textarea id="communityPostContent" class="composer-input" placeholder="شارك نقاشاً أو ملفاً مع أعضاء المجتمع..." rows="2" style="width:100%; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0;"></textarea>
+                    <textarea id="communityPostContent" class="composer-input" placeholder="شارك نقاشاً داخلياً، ملفاً، أو إعلاناً هاماً مع أعضاء هذا المجتمع فقط..." rows="2" style="width:100%; background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0; font-family:'Cairo'; resize: none;"></textarea>
                     <div style="text-align:left; margin-top:10px;">
-                        <button id="publishCommBtn" class="btn-primary" onclick="window.publishCommunityPost()"><i class="fas fa-paper-plane"></i> نشر</button>
+                        <button id="publishCommBtn" class="btn-primary" onclick="window.publishCommunityPost()" style="padding: 8px 18px; border-radius: 6px;"><i class="fas fa-paper-plane"></i> نشر في الساحة</button>
                     </div>
                 </div>
                 <div id="communityPostsContainer"></div>
@@ -140,21 +195,22 @@
     <div class="chat-box" id="chatBox">
         <div class="chat-header">
             <div style="display:flex; align-items:center; gap:10px;">
-                <img id="chatHeaderAvatar" src="" class="nav-avatar" alt="avatar">
-                <span id="chatTargetName" style="font-weight:700;">المستخدم</span>
+                <img id="chatHeaderAvatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="nav-avatar" alt="avatar" style="width:30px; height:30px; border-radius:50%;">
+                <span id="chatTargetName" style="font-weight:700; font-size:14px;">مستخدم دردشة</span>
             </div>
-            <span onclick="document.getElementById('chatBox').classList.remove('show')" style="cursor:pointer;"><i class="fas fa-times"></i></span>
+            <span onclick="document.getElementById('chatBox').classList.remove('show')" style="cursor:pointer; padding:5px;"><i class="fas fa-times"></i></span>
         </div>
         <div class="chat-messages" id="chatMessages">
             </div>
         <div class="chat-footer">
-            <input type="text" id="chatInput" placeholder="اكتب رسالتك هنا..." oninput="window.handleChatInput()">
+            <input type="text" id="chatInput" placeholder="اكتب رسالتك الخاصة هنا..." oninput="window.handleChatInput()" style="font-family:'Cairo';">
             <button onclick="window.sendMessage()"><i class="fas fa-paper-plane"></i></button>
         </div>
     </div>
 
 
     <script src="Dialog.js"></script>
+    
     <script type="module" src="app.js"></script>
 
 </body>
