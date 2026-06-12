@@ -548,3 +548,43 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
     background: var(--primary);
     transform: scale(1.1);
 }
+
+/* تحسينات للاجتماعات على الموبايل */
+@media (max-width: 768px) {
+    #jitsiMeetingModal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 99999;
+    }
+    
+    #jitsiMeetingModal button {
+        font-size: 12px;
+        padding: 6px 12px;
+    }
+    
+    #jitsiMeetingModal .toolbar-button {
+        min-width: 40px;
+    }
+    
+    /* تحسين عرض Jitsi على الموبايل */
+    #jitsi-container iframe {
+        height: calc(100% - 60px) !important;
+    }
+}
+
+/* أزرار التحكم في الاجتماع */
+#startCallBtn, #joinCallBtn {
+    transition: all 0.2s ease;
+}
+
+#startCallBtn:hover, #joinCallBtn:hover {
+    transform: translateY(-2px);
+    filter: brightness(1.05);
+}
+
+#startCallBtn i, #joinCallBtn i {
+    margin-left: 5px;
+}
