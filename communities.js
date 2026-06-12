@@ -58,8 +58,8 @@ window.openCommunityView = (commId) => {
     let actCont = $('communityHeaderActions'); if(actCont) actCont.innerHTML = actionsHtml;
     $('communitiesModal').classList.remove('show'); $('communityViewModal').classList.add('show');
     window.renderCommunityFeed(commId);
-    // تحديث أزرار المكالمة وبادج المكالمة النشطة
-    setTimeout(() => { if (typeof window.updateCommunityCallUI === 'function') window.updateCommunityCallUI(commId); }, 150);
+    // تحديث أزرار المكالمة وبادج المكالمة النشطة — نمرر بيانات المجتمع مباشرةً لتفادي مشكلة التوقيت
+    setTimeout(() => { if (typeof window.updateCommunityCallUI === 'function') window.updateCommunityCallUI(commId, comm); }, 150);
 };
 
 window.viewCommunityMembers = (commId) => {
