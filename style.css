@@ -427,3 +427,76 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
     .right-col { display: none !important; }
     .feed-area { margin-right: 0 !important; }
 }
+
+/* فقط قم بتعديل هذه الأقسام في ملف style.css */
+
+/* منطقة التغذية - المنشورات في المنتصف - زيادة العرض */
+.feed-area{
+    flex: 1;
+    min-width: 0;
+    max-width: 780px;  /* تم التغيير من 580px إلى 780px */
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    order: 1;
+}
+
+/* شاشات متوسطة */
+@media (min-width: 901px) and (max-width: 1100px) {
+    .sidebar-placeholder { flex: 0 0 280px; }
+    .sidebar { width: 280px; left: 15px; }
+    .right-col-placeholder { flex: 0 0 250px; }
+    .right-col { width: 250px; right: 15px; }
+    .feed-area { max-width: 650px; }  /* تم التغيير */
+}
+
+/* شاشات أكبر قليلاً */
+@media (min-width: 1101px) and (max-width: 1300px) {
+    .feed-area { max-width: 700px; }  /* تم التغيير */
+}
+
+/* شاشات كبيرة */
+@media (min-width: 1301px) and (max-width: 1500px) {
+    .feed-area { max-width: 750px; }  /* تم التغيير */
+}
+
+/* شاشات كبيرة جداً */
+@media (min-width: 1501px) {
+    .feed-area { max-width: 820px; }  /* تم التغيير */
+}
+
+/* زيادة عرض المنشور نفسه */
+.post {
+    background: var(--card-bg);
+    padding: 25px 30px;  /* تم زيادة padding الجانبي */
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--border-color);
+    margin-bottom: 20px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* زيادة حجم الصور والفيديوهات في المنشور */
+.post-media {
+    width: 100%;
+    max-height: 650px;  /* تم التغيير من 550px */
+    object-fit: contain;
+    background: #000;
+    border-radius: var(--radius-sm);
+    margin-bottom: 15px;
+    box-shadow: var(--shadow-sm);
+}
+
+/* زيادة حجم خط المنشور */
+.post-content {
+    font-size: 17px;  /* تم التغيير من 16px */
+    line-height: 1.8;  /* تم التغيير من 1.7 */
+    margin-bottom: 15px;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    font-weight: 500;
+    text-align: right;
+}
