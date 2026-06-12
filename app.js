@@ -735,3 +735,119 @@ if(window.currentUser){
 } else {
     window.rU();
 }
+
+// =============== نظام روابط المجتمعات الفرعية ===============
+
+// دالة لتوليد slug صالح للرابط من اسم المجتمع
+window.generateCommunitySlug = (name) => {
+    return name
+        .toLowerCase()
+        .replace(/[^\u0621-\u064A\u0660-\u0669a-zA-Z0-9\s]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .substring(0, 50);
+};
+
+// دالة للبحث عن مجتمع بواسطة الـ slug
+window.findCommunityBySlug = (slug) => {
+    for (let [id, comm] of Object.entries(window.allCommunities || {})) {
+        let commSlug = window.generateCommunitySlug(comm.name);
+        if (commSlug === slug) {
+            return { id, ...comm };
+        }
+    }
+    return null;
+};
+
+// دالة لمشاركة رابط المجتمع
+window.shareCommunityLink = (commId) => {
+    let comm = window.allCommunities[commId];
+    if (!comm) return;
+    let slug = window.generateCommunitySlug(comm.name);
+    let url = window.location.origin + window.location.pathname + '#/community/' + slug;
+    
+    navigator.clipboard.writeText(url).then(() => {
+        if (window.showToast) window.showToast('تم نسخ الرابط', 'يمكنك مشاركة رابط المجتمع الآن', '');
+    }).catch(() => {
+        if (window.dlgAlert) window.dlgAlert('رابط المجتمع: ' + url, 'info', 'شارك الرابط');
+    });
+};
+
+// حفظ الدوال الأصلية
+const originalOpenCommunityView = window.openCommunityView;
+const originalHandleRouting = window.handleRouting;
+const originalOpenCommunitiesModal = window.openCommunitiesModal;
+const originalCloseModal = window.closeModal;
+
+// تعديل دالة openCommunityView
+window.openCommunityView = (commId) => {
+    let comm = window.allCommunities[commId];
+    if (comm) {
+        let slug = window.generateCommunitySlug(comm.name);
+        window.location.hash = '#/community/' + slug;
+    }
+    if (originalOpenCommunityView) {
+        originalOpenCommunityView(commId);
+    }
+};
+
+// تعديل دالة openCommunitiesModal
+window.openCommunitiesModal = () => {
+    window.location.hash = '#/communities';
+    if (originalOpenCommunitiesModal) {
+        originalOpenCommunitiesModal();
+    }
+};
+
+// تعديل دالة closeModal
+window.closeModal = (id) => {
+    if (id === 'communityViewModal') {
+        window.location.hash = '#/communities';
+    } else if (id === 'communitiesModal') {
+        if (window.history.length > 2) {
+            window.history.back();
+        } else {
+            window.location.hash = '';
+        }
+    }
+    if (originalCloseModal) {
+        originalCloseModal(id);
+    }
+};
+
+// تعديل دالة routing
+window.handleRouting = () => {
+    let hash = window.location.hash;
+    
+    if (hash.startsWith('#/community/')) {
+        let slug = decodeURIComponent(hash.replace('#/community/', ''));
+        let community = window.findCommunityBySlug(slug);
+        if (community) {
+            document.querySelectorAll('.modal').forEach(m => {
+                if (m.id !== 'communityViewModal') {
+                    m.classList.remove('show');
+                }
+            });
+            window.currentCommunityId = community.id;
+            if (originalOpenCommunityView) {
+                originalOpenCommunityView(community.id);
+            }
+            return;
+        } else {
+            if (window.dlgAlert) window.dlgAlert('المجتمع غير موجود', 'warning', 'عذراً');
+            window.location.hash = '#/communities';
+            return;
+        }
+    }
+    
+    if (hash === '#/communities') {
+        if (originalOpenCommunitiesModal) {
+            originalOpenCommunitiesModal();
+        }
+        return;
+    }
+    
+    if (originalHandleRouting) {
+        originalHandleRouting();
+    }
+};
