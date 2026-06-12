@@ -58,6 +58,8 @@ window.openCommunityView = (commId) => {
     let actCont = $('communityHeaderActions'); if(actCont) actCont.innerHTML = actionsHtml;
     $('communitiesModal').classList.remove('show'); $('communityViewModal').classList.add('show');
     window.renderCommunityFeed(commId);
+    // تحديث أزرار المكالمة وبادج المكالمة النشطة
+    setTimeout(() => { if (typeof window.updateCommunityCallUI === 'function') window.updateCommunityCallUI(commId); }, 150);
 };
 
 window.viewCommunityMembers = (commId) => {
@@ -93,7 +95,7 @@ window.manageCommunityRequests = (commId) => {
 window.approveCommRequest = (commId, uid) => { let updates = {}; updates[`communities/${commId}/members/${uid}`] = true; updates[`communities/${commId}/requests/${uid}`] = null; update(ref(db), updates).then(() => window.manageCommunityRequests(commId)); };
 window.rejectCommRequest = (commId, uid) => { remove(ref(db, `communities/${commId}/requests/${uid}`)).then(() => window.manageCommunityRequests(commId)); };
 
-window.startCommunityCall = () => { if(!window.currentCommunityId) return; window.open(`https://meet.jit.si/Mogtam3_Community_${window.currentCommunityId}`, '_blank'); };
+// startCommunityCall مُعرَّفة بشكل كامل في jitsi-call.js
 
 window.publishCommunityPost = () => {
     let txt = $('communityPostContent').value.trim(); if(!txt || !window.currentCommunityId) return;
@@ -190,4 +192,15 @@ window.ensureUserData = async (uid) => {
 window.getSafeDisplayName = (uid) => {
     if (!uid) return 'مستخدم';
     return window.allUsersData[uid]?.displayName || uid;
+};
+
+// بدء الاستماع لإشعارات المكالمات بمجرد جاهزية البيانات
+// (يُستدعى من app.js بعد تحميل window.allCommunities وwindow.currentUser)
+window.initCallNotifications = () => {
+    if (typeof window.startListeningForCalls === 'function') {
+        window.startListeningForCalls();
+    }
+    if ("Notification" in window && Notification.permission === "default") {
+        Notification.requestPermission();
+    }
 };
