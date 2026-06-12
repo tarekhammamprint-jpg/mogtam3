@@ -345,8 +345,22 @@ window.startListeningForCalls = () => {
 window.startCommunityCall = async (commId, commName) => {
     if (!window.currentUser) return window.dlgAlert("يجب تسجيل الدخول أولاً", "warning");
 
-    const community = window.allCommunities?.[commId];
+    // جلب بيانات المجتمع — من الذاكرة أو Firebase مباشرة
+    let community = window.allCommunities?.[commId];
+    if (!community) {
+        try {
+            const snap = await get(ref(db, `communities/${commId}`));
+            if (snap.exists()) {
+                community = snap.val();
+                // حفظها في الذاكرة للمرات القادمة
+                if (window.allCommunities) window.allCommunities[commId] = community;
+            }
+        } catch(e) {}
+    }
     if (!community) return window.dlgAlert("المجتمع غير موجود", "danger");
+
+    // استخدم الاسم الممرر أو من البيانات المجلوبة
+    const resolvedName = commName || community.name || commId;
 
     const isMember = community.members?.[window.currentUser];
     if (!isMember && community.admin !== window.currentUser)
@@ -364,15 +378,15 @@ window.startCommunityCall = async (commId, commName) => {
                 `يوجد اجتماع نشط بدأه ${ex.startedByName || 'أحد الأعضاء'}، هل تريد الانضمام؟`,
                 "اجتماع نشط", "question", "انضمام"
             );
-            if (join) openJitsiMeeting(ex.roomId, commName, userName, commId);
+            if (join) openJitsiMeeting(ex.roomId, resolvedName, userName, commId);
             return;
         }
     }
 
-    // إنشاء غرفة جديدة بمعرّف ثابت لكل مجتمع (يتيح الانضمام في أي وقت)
+    // إنشاء غرفة جديدة
     const roomId = `Mogtam3_${commId}_${Date.now()}`;
 
-    // حفظ بيانات المكالمة في Firebase → سيُطلق الإشعار تلقائياً لباقي الأعضاء
+    // حفظ بيانات المكالمة في Firebase → يُطلق الإشعار تلقائياً لباقي الأعضاء
     await set(callRef, {
         roomId,
         startedBy: window.currentUser,
@@ -380,7 +394,7 @@ window.startCommunityCall = async (commId, commName) => {
         startTime: Date.now(),
         active: true,
         communityId: commId,
-        communityName: commName
+        communityName: resolvedName
     });
 
     // تنظيف تلقائي بعد ساعة
@@ -391,7 +405,7 @@ window.startCommunityCall = async (commId, commName) => {
     }, 3600000);
 
     // فتح الاجتماع مباشرة
-    openJitsiMeeting(roomId, commName, userName, commId);
+    openJitsiMeeting(roomId, resolvedName, userName, commId);
 };
 
 // ─────────────────────────────────────────────
@@ -573,7 +587,7 @@ window.closeMeeting = closeMeeting;
 // ─────────────────────────────────────────────
 // تحديث واجهة المجتمع — أزرار المكالمة + بادج نشط
 // ─────────────────────────────────────────────
-window.updateCommunityCallUI = (commId) => {
+window.updateCommunityCallUI = (commId, commData) => {
     const actionsDiv = document.getElementById('communityHeaderActions');
     if (!actionsDiv) return;
 
@@ -582,8 +596,9 @@ window.updateCommunityCallUI = (commId) => {
         document.getElementById(id)?.remove();
     });
 
-    const comm = window.allCommunities?.[commId];
-    if (!comm) return;
+    // استخدم البيانات الممررة مباشرةً أو ابحث عنها كاحتياط
+    const comm = commData || window.allCommunities?.[commId];
+    const commName = comm?.name || commId;
 
     // زر بدء مكالمة
     const callBtn = document.createElement('button');
@@ -591,7 +606,7 @@ window.updateCommunityCallUI = (commId) => {
     callBtn.className = 'btn-primary';
     callBtn.style.cssText = 'background:linear-gradient(135deg,#ef4444,#dc2626); border-color:#ef4444; color:#fff; margin-left:8px; display:flex; align-items:center; gap:6px;';
     callBtn.innerHTML = '<i class="fas fa-video"></i> مكالمة فيديو';
-    callBtn.onclick = () => window.startCommunityCall(commId, comm.name);
+    callBtn.onclick = () => window.startCommunityCall(commId, commName);
     actionsDiv.insertBefore(callBtn, actionsDiv.firstChild);
 
     // فحص مكالمة نشطة وعرض البادج
