@@ -126,3 +126,43 @@ window.renderCommunityFeed = (commId) => {
         feedArea.innerHTML = h || '<p style="text-align:center; color:#666;">لا توجد نقاشات بعد.</p>';
     });
 };
+
+
+
+// إضافة زر مشاركة في واجهة المجتمع
+const originalRenderCommunityFeed = window.renderCommunityFeed;
+window.renderCommunityFeed = (commId) => {
+    if (originalRenderCommunityFeed) {
+        originalRenderCommunityFeed(commId);
+    }
+    setTimeout(() => {
+        let actionsDiv = document.getElementById('communityHeaderActions');
+        if (actionsDiv && !document.getElementById('shareCommunityBtn')) {
+            let shareBtn = document.createElement('button');
+            shareBtn.id = 'shareCommunityBtn';
+            shareBtn.className = 'btn-secondary';
+            shareBtn.style.cssText = 'background:#10b981; color:#fff; margin-right:8px;';
+            shareBtn.innerHTML = '<i class="fas fa-share-alt"></i> مشاركة الرابط';
+            shareBtn.onclick = () => window.shareCommunityLink(commId);
+            actionsDiv.insertBefore(shareBtn, actionsDiv.firstChild);
+        }
+    }, 100);
+};
+
+// تحديث عرض قائمة المجتمعات
+const originalRenderCommunitiesList = window.renderCommunitiesList;
+window.renderCommunitiesList = () => {
+    if (originalRenderCommunitiesList) {
+        originalRenderCommunitiesList();
+    }
+    setTimeout(() => {
+        document.querySelectorAll('.community-card .community-link-item').forEach(el => {
+            let commId = el.getAttribute('data-comm-id');
+            let comm = window.allCommunities[commId];
+            if (comm) {
+                let slug = window.generateCommunitySlug(comm.name);
+                el.setAttribute('href', '#/community/' + slug);
+            }
+        });
+    }, 100);
+};
