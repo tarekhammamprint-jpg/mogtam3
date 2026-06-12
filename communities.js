@@ -166,3 +166,28 @@ window.renderCommunitiesList = () => {
         });
     }, 100);
 };
+
+
+// دالة لتحميل بيانات مستخدم معين إذا لم تكن موجودة
+window.ensureUserData = async (uid) => {
+    if (!uid) return null;
+    if (window.allUsersData[uid] && window.allUsersData[uid].displayName) {
+        return window.allUsersData[uid];
+    }
+    try {
+        const snapshot = await get(ref(db, `users/${uid}`));
+        if (snapshot.exists()) {
+            window.allUsersData[uid] = snapshot.val();
+            return window.allUsersData[uid];
+        }
+    } catch(e) {
+        console.error('Error loading user data:', e);
+    }
+    return { displayName: uid, profilePic: dA };
+};
+
+// دالة لعرض اسم المستخدم بشكل آمن
+window.getSafeDisplayName = (uid) => {
+    if (!uid) return 'مستخدم';
+    return window.allUsersData[uid]?.displayName || uid;
+};
