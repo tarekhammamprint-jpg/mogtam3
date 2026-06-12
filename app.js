@@ -224,11 +224,9 @@ window.initRightSidebar = async () => {
     const container = document.getElementById('rightSidebarContainer');
     if (!container) return;
 
-    // إظهار العمود
     container.style.removeProperty('display');
     container.style.display = 'block';
 
-    // انتظر تحميل البيانات إذا لم تكن جاهزة
     let d = window.allUsersData[window.currentUser];
     if (!d) {
         await new Promise(r => setTimeout(r, 800));
@@ -295,24 +293,281 @@ const $ = (id) => document.getElementById(id);
 window.addEventListener('load', () => { setTimeout(() => { let il = $('initialLoader'); if (il && il.style.display !== 'none') { il.classList.add('hidden'); setTimeout(() => il.style.display = 'none', 400); } }, 4000); });
 window.addEventListener('hashchange', handleRouting);
 
+// =============== نظام روابط المجتمعات الفرعية وإصلاح الرجوع ===============
+
+// متغير لتتبع آخر صفحة قبل المجتمع
+window.lastNonCommunityHash = '';
+
+// دالة لتوليد slug صالح للرابط من اسم المجتمع
+window.generateCommunitySlug = (name) => {
+    return name
+        .toLowerCase()
+        .replace(/[^\u0621-\u064A\u0660-\u0669a-zA-Z0-9\s]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .substring(0, 50);
+};
+
+// دالة للبحث عن مجتمع بواسطة الـ slug
+window.findCommunityBySlug = (slug) => {
+    for (let [id, comm] of Object.entries(window.allCommunities || {})) {
+        let commSlug = window.generateCommunitySlug(comm.name);
+        if (commSlug === slug) {
+            return { id, ...comm };
+        }
+    }
+    return null;
+};
+
+// دالة لمشاركة رابط المجتمع
+window.shareCommunityLink = (commId) => {
+    let comm = window.allCommunities[commId];
+    if (!comm) return;
+    let slug = window.generateCommunitySlug(comm.name);
+    let url = window.location.origin + window.location.pathname + '#/community/' + slug;
+    
+    navigator.clipboard.writeText(url).then(() => {
+        if (window.showToast) window.showToast('تم نسخ الرابط', 'يمكنك مشاركة رابط المجتمع الآن', '');
+    }).catch(() => {
+        if (window.dlgAlert) window.dlgAlert('رابط المجتمع: ' + url, 'info', 'شارك الرابط');
+    });
+};
+
+// دالة مخصصة لفتح مودال المجتمعات دون تغيير الرابط مرتين
+window.openCommunitiesModalDirect = () => {
+    let modal = document.getElementById('communitiesModal');
+    if (!modal) return;
+    
+    document.querySelectorAll('.modal').forEach(m => {
+        m.classList.remove('show');
+    });
+    
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    if (typeof window.renderCommunitiesList === 'function') {
+        window.renderCommunitiesList();
+    }
+};
+
+// دالة مخصصة لفتح عرض المجتمع
+window.openCommunityViewDirect = (commId) => {
+    let comm = window.allCommunities[commId];
+    if (!comm) return;
+    
+    let modal = document.getElementById('communityViewModal');
+    if (!modal) return;
+    
+    document.getElementById('communityViewTitle').innerText = comm.name;
+    document.getElementById('communityViewDesc').innerText = comm.description || '';
+    
+    let isAdmin = comm.admin === window.currentUser;
+    let actionsHtml = `<button class="btn-secondary" onclick="window.viewCommunityMembers('${commId}')" style="margin-left:8px;"><i class="fas fa-users"></i> الأعضاء</button>`;
+    if (isAdmin) {
+        actionsHtml += `<button class="btn-primary" onclick="window.manageCommunityRequests('${commId}')" style="background:#f59e0b; border-color:#f59e0b; margin-left:8px;"><i class="fas fa-user-plus"></i> الطلبات</button>`;
+    }
+    actionsHtml += `<button class="btn-secondary" style="background:#10b981; color:#fff;" onclick="window.shareCommunityLink('${commId}')"><i class="fas fa-share-alt"></i> مشاركة</button>`;
+    
+    let actCont = document.getElementById('communityHeaderActions');
+    if (actCont) actCont.innerHTML = actionsHtml;
+    
+    let communitiesModal = document.getElementById('communitiesModal');
+    if (communitiesModal) communitiesModal.classList.remove('show');
+    
+    modal.classList.add('show');
+    document.body.style.overflow = 'hidden';
+    
+    if (typeof window.renderCommunityFeed === 'function') {
+        window.renderCommunityFeed(commId);
+    }
+};
+
+// دالة routing الرئيسية
 function handleRouting() {
-    let hash = window.location.hash; document.querySelectorAll('.modal').forEach(m => { if(!['interestsModal', 'communitiesModal', 'communityViewModal'].includes(m.id)) m.classList.remove('show'); }); document.querySelectorAll('#reelsScrollArea video').forEach(v => { v.pause(); }); document.body.style.overflow = 'auto'; 
-    let lw = $('loginModal'), isPublicPage = hash.startsWith('#/post/') || hash.startsWith('#/@');
-    if (hash === '#/login' || (!window.currentUser && (hash === '' || hash === '#/'))) { if(lw) { let s = $('hideLoginStyle'); if(s) s.remove(); lw.style.display = 'flex'; setTimeout(() => { lw.style.opacity = '1'; lw.style.pointerEvents = 'auto'; }, 10); } let cb = $('loginModalCloseBtn'); if(cb) cb.style.display = 'none'; let gb = $('guestBrowseBtn'); if(gb) gb.style.display = 'none'; window.toggleLoginMode('login'); } 
-    else { if(lw) { lw.style.opacity = '0'; lw.style.pointerEvents = 'none'; if (isPublicPage) lw.style.display = 'none'; setTimeout(() => { if(window.location.hash !== '#/login' && window.location.hash !== '') lw.style.display = 'none'; }, 400); } }
-    if(hash === '' || hash === '#/') { if(!window.currentUser) return window.location.replace('#/login'); window.scrollTo({top:0, behavior:'smooth'}); } 
-    else if(hash.startsWith('#/@')) window.openProfileLogic(decodeURIComponent(hash.replace('#/@', '')));
-    else if(hash.startsWith('#/post/')) window.openPostLogic(decodeURIComponent(hash.replace('#/post/', '')));
-    else if(hash.startsWith('#/share/')) window.openShareLogic(decodeURIComponent(hash.replace('#/share/', ''))); // executeShare handles logic
-    else if(hash === '#/requests') window.openRequestsLogic();
-    else if(hash === '#/stats') window.openStatsLogic();
-    else if(hash === '#/edit-profile') window.openEditProfileLogic();
-    else if(hash === '#/reels') window.openReelsLogic(window.currentReelIdx || 0);
+    let hash = window.location.hash;
+    
+    // تتبع آخر صفحة ليست مجتمع
+    if (!hash.startsWith('#/community/') && hash !== '#/communities') {
+        window.lastNonCommunityHash = hash;
+    }
+    
+    // معالج صفحة المجتمع
+    if (hash.startsWith('#/community/')) {
+        let slug = decodeURIComponent(hash.replace('#/community/', ''));
+        let community = window.findCommunityBySlug(slug);
+        if (community) {
+            document.querySelectorAll('.modal').forEach(m => {
+                m.classList.remove('show');
+            });
+            document.body.style.overflow = 'hidden';
+            window.currentCommunityId = community.id;
+            window.openCommunityViewDirect(community.id);
+            return;
+        } else {
+            if (window.dlgAlert) window.dlgAlert('المجتمع غير موجود', 'warning', 'عذراً');
+            window.location.hash = '#/communities';
+            return;
+        }
+    }
+    
+    // معالج صفحة قائمة المجتمعات
+    if (hash === '#/communities') {
+        window.openCommunitiesModalDirect();
+        return;
+    }
+    
+    // معالج صفحة تسجيل الدخول
+    let lw = $('loginModal');
+    let isPublicPage = hash.startsWith('#/post/') || hash.startsWith('#/@');
+    if (hash === '#/login' || (!window.currentUser && (hash === '' || hash === '#'))) { 
+        if(lw) { 
+            let s = $('hideLoginStyle'); 
+            if(s) s.remove(); 
+            lw.style.display = 'flex'; 
+            setTimeout(() => { 
+                lw.style.opacity = '1'; 
+                lw.style.pointerEvents = 'auto'; 
+            }, 10); 
+        } 
+        let cb = $('loginModalCloseBtn'); 
+        if(cb) cb.style.display = 'none'; 
+        let gb = $('guestBrowseBtn'); 
+        if(gb) gb.style.display = 'none'; 
+        window.toggleLoginMode('login'); 
+    } else { 
+        if(lw) { 
+            lw.style.opacity = '0'; 
+            lw.style.pointerEvents = 'none'; 
+            if (isPublicPage) lw.style.display = 'none'; 
+            setTimeout(() => { 
+                if(window.location.hash !== '#/login' && window.location.hash !== '') 
+                    lw.style.display = 'none'; 
+            }, 400); 
+        } 
+    }
+    
+    if(hash === '' || hash === '#/') { 
+        if(!window.currentUser) return window.location.replace('#/login'); 
+        window.scrollTo({top:0, behavior:'smooth'}); 
+    } 
+    else if(hash.startsWith('#/@')) {
+        let user = decodeURIComponent(hash.replace('#/@', ''));
+        if (window.openProfileLogic) window.openProfileLogic(user);
+    }
+    else if(hash.startsWith('#/post/')) {
+        let postId = decodeURIComponent(hash.replace('#/post/', ''));
+        if (window.openPostLogic) window.openPostLogic(postId);
+    }
+    else if(hash.startsWith('#/share/')) {
+        let shareId = decodeURIComponent(hash.replace('#/share/', ''));
+        if (window.openShareLogic) window.openShareLogic(shareId);
+    }
+    else if(hash === '#/requests') {
+        if (window.openRequestsLogic) window.openRequestsLogic();
+    }
+    else if(hash === '#/stats') {
+        if (window.openStatsLogic) window.openStatsLogic();
+    }
+    else if(hash === '#/edit-profile') {
+        if (window.openEditProfileLogic) window.openEditProfileLogic();
+    }
+    else if(hash === '#/reels') {
+        if (window.openReelsLogic) window.openReelsLogic(window.currentReelIdx || 0);
+    }
 }
 
-window.openProfile = (u) => { window.location.hash = '#/@' + u; }; window.openPostModal = (id) => { window.location.hash = '#/post/' + id; }; window.openShareModal = (id) => { window.location.hash = '#/share/' + id; };
-window.openRequestsModal = () => { if(!window.currentUser) return window.showRegisterModal(); window.location.hash = '#/requests'; }; window.openAdminStats = () => { window.location.hash = '#/stats'; }; window.openEditProfileModal = () => { window.location.hash = '#/edit-profile'; }; window.openReelsViewer = (idx) => { if(!window.currentUser) return window.showRegisterModal(); window.currentReelIdx = idx; window.location.hash = '#/reels'; };
-window.closeModal = (id) => { if(window.history.length > 2 && !['communitiesModal','communityViewModal'].includes(id)) { window.history.back(); } else { window.location.hash = ''; let m = $(id); if(m) m.classList.remove('show'); document.body.style.overflow = 'auto'; } }; window.closeReelsViewer = window.closeModal;
+// تعديل دوال فتح وإغلاق المودالات
+window.openCommunityView = (commId) => {
+    let comm = window.allCommunities[commId];
+    if (comm) {
+        let slug = window.generateCommunitySlug(comm.name);
+        if (window.location.hash !== '#/community/' + slug) {
+            window.location.hash = '#/community/' + slug;
+        } else {
+            window.openCommunityViewDirect(commId);
+        }
+    }
+};
+
+window.openCommunitiesModal = () => {
+    if (window.location.hash !== '#/communities') {
+        window.location.hash = '#/communities';
+    } else {
+        window.openCommunitiesModalDirect();
+    }
+};
+
+// إصلاح دالة closeModal
+const originalCloseModal = window.closeModal;
+window.closeModal = (id) => {
+    let modal = document.getElementById(id);
+    if (!modal) return;
+    
+    if (id === 'communityViewModal') {
+        modal.classList.remove('show');
+        document.body.style.overflow = 'auto';
+        if (window.lastNonCommunityHash && window.lastNonCommunityHash !== '#/community/') {
+            window.location.hash = window.lastNonCommunityHash;
+            window.lastNonCommunityHash = '';
+        } else {
+            window.location.hash = '#/communities';
+        }
+    } 
+    else if (id === 'communitiesModal') {
+        modal.classList.remove('show');
+        document.body.style.overflow = 'auto';
+        if (window.lastNonCommunityHash && window.lastNonCommunityHash !== '#/communities') {
+            window.location.hash = window.lastNonCommunityHash;
+            window.lastNonCommunityHash = '';
+        } else if (window.currentUser) {
+            window.location.hash = '';
+        } else {
+            window.location.hash = '#/login';
+        }
+    }
+    else {
+        if (originalCloseModal) {
+            originalCloseModal(id);
+        } else {
+            modal.classList.remove('show');
+            document.body.style.overflow = 'auto';
+            if (window.history.length > 2 && window.location.hash !== '') {
+                window.history.back();
+            } else {
+                window.location.hash = '';
+            }
+        }
+    }
+};
+
+// إضافة مستمع لحدث popstate (الرجوع للخلف)
+window.addEventListener('popstate', () => {
+    let hash = window.location.hash;
+    
+    if (!hash || hash === '#/' || hash === '') {
+        document.querySelectorAll('.modal').forEach(m => {
+            m.classList.remove('show');
+        });
+        document.body.style.overflow = 'auto';
+        if (window.currentUser && window.goHome) {
+            window.goHome();
+        }
+    }
+    else if (hash.startsWith('#/community/') && !document.getElementById('communityViewModal')?.classList.contains('show')) {
+        handleRouting();
+    }
+    else if (hash === '#/communities' && !document.getElementById('communitiesModal')?.classList.contains('show')) {
+        handleRouting();
+    }
+});
+
+window.openProfile = (u) => { window.location.hash = '#/@' + u; }; 
+window.openPostModal = (id) => { window.location.hash = '#/post/' + id; }; 
+window.openShareModal = (id) => { window.location.hash = '#/share/' + id; };
+window.openRequestsModal = () => { if(!window.currentUser) return window.showRegisterModal(); window.location.hash = '#/requests'; }; 
+window.openAdminStats = () => { window.location.hash = '#/stats'; }; 
+window.openEditProfileModal = () => { window.location.hash = '#/edit-profile'; }; 
+window.openReelsViewer = (idx) => { if(!window.currentUser) return window.showRegisterModal(); window.currentReelIdx = idx; window.location.hash = '#/reels'; };
+window.closeReelsViewer = () => { window.location.hash = ''; let m = $('reelsViewerModal'); if(m) m.classList.remove('show'); document.body.style.overflow = 'auto'; };
 
 window.goHome = () => {
     if(!window.currentUser) { window.location.replace('#/login'); return; }
@@ -335,7 +590,7 @@ window.toastTimeout = null;
 window.showToast = (t, x, i) => { try { $('toastTitle').innerText = t; $('toastBody').innerText = x; $('toastImg').src = i || dA; let o = $('toastNotification'); o.classList.add('show'); if(window.toastTimeout) clearTimeout(window.toastTimeout); window.toastTimeout = setTimeout(() => o.classList.remove('show'), 5000); window.playNotifSound(); if("Notification" in window && Notification.permission === "granted") { try { let s = new Notification(t, {body:x, icon:i||dA}); setTimeout(() => s.close(), 5000); } catch(e) {} } } catch(err) {} };
 window.timeAgo = (ts) => { if(!ts) return "منذ فترة"; let s = Math.floor((Date.now()-ts)/1000); if(s<0) s = 0; if(s<60) return "الآن"; let m = Math.floor(s/60); if(m<60) return "منذ "+m+" دقيقة"; let h = Math.floor(m/60); if(h<24) return "منذ "+h+" ساعة"; let d = Math.floor(h/24); if(d<7) return "منذ "+d+" أيام"; let dt = new Date(ts); return isNaN(dt) ? "منذ فترة" : dt.toLocaleDateString('ar-EG'); };
 
-// باقي واجهة المستخدم والأدوات العامة (تم الحفاظ عليها بالكامل)
+// باقي دوال النظام
 window.isInitialNotifLoad = true; window.alertedNotifs = new Set();
 function listenToNotifications() { onValue(ref(db, `users/${window.currentUser}/notifications`), s => { let c = 0, h = ''; if(s.exists()) { let n = []; s.forEach(x => { let v = x.val(); if(v && typeof v === 'object' && v.type) n.push({...v, id: x.key}); }); n.sort((a,b) => (b.timestamp||0) - (a.timestamp||0)); n = n.slice(0,50); n.forEach(x => { try { if(x.read === false) c++; let d = window.getDisplayName(x.from), pic = window.allUsersData[x.from]?.profilePic || dA, tH = '', tP = '', icon = ''; if(x.type==='system'){tH=x.text; tP=x.text; icon='<i class="fas fa-bell" style="color:#64748b;"></i>'} else if(x.type==='comment'){tH=`<strong>${d}</strong> علق على منشورك`; tP=`علق ${d} على منشورك`; icon='<i class="fas fa-comment" style="color:#10b981;"></i>'} else if(x.type==='like'){tH=`<strong>${d}</strong> تفاعل مع منشورك`; tP=`تفاعل ${d} مع منشورك`; icon='<i class="fas fa-heart" style="color:#ef4444;"></i>'} else if(x.type==='friend_req'){tH=`<strong>${d}</strong> أرسل طلب صداقة`; tP=`أرسل ${d} طلب صداقة`; icon='<i class="fas fa-user-plus" style="color:#3b82f6;"></i>'} else if(x.type==='accept_req'){tH=`<strong>${d}</strong> وافق على طلب الصداقة`; tP=`وافق ${d} على طلب الصداقة`; icon='<i class="fas fa-user-check" style="color:#10b981;"></i>'} else if(x.type==='share'){tH=`<strong>${d}</strong> شارك منشورك`; tP=`شارك ${d} منشورك`; icon='<i class="fas fa-share" style="color:#8b5cf6;"></i>'} else if(x.type==='reply'){tH=`<strong>${d}</strong> رد على تعليقك`; tP=`رد ${d} على تعليقك`; icon='<i class="fas fa-reply" style="color:#64748b;"></i>'} else if(x.type==='mention'){tH=`<strong>${d}</strong> ذكرك في تعليق`; tP=`ذكرك ${d} في تعليق`; icon='<i class="fas fa-at" style="color:#d946ef;"></i>'} if(!window.isInitialNotifLoad && x.read===false && x.from!==window.currentUser && !window.alertedNotifs.has(x.id)){ window.showToast("إشعار جديد", tP||"تفاعل جديد", pic); } window.alertedNotifs.add(x.id); let uS = x.read === false ? 'background:#eef2ff;' : 'background:#fff;', uD = x.read === false ? `<div style="width:10px;height:10px;background:var(--primary);border-radius:50%;flex-shrink:0;box-shadow:0 0 5px rgba(37,99,235,0.4);"></div>` : '', tm = window.timeAgo(x.timestamp); h += `<div class="notif-item" onclick="window.handleNotifClick('${x.id}','${x.type}','${x.from}','${x.postId}')" style="display:flex; align-items:center; gap:12px; padding:12px 15px; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:all 0.2s; ${uS}"><div style="position:relative; flex-shrink:0;"><img src="${pic}" style="width:45px;height:45px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;"><div style="position:absolute; bottom:-4px; right:-4px; background:#fff; border-radius:50%; padding:3px; font-size:11px; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.15);">${icon}</div></div><div style="flex:1; line-height:1.4; text-align:right;"><div style="font-size:14px; color:var(--text-main);">${tH||"إشعار جديد"}</div><div style="font-size:12px; color:${x.read===false?'var(--primary)':'#64748b'}; font-weight:700; margin-top:4px;">${tm}</div></div>${uD}</div>`; } catch(err) {} }); } window.isInitialNotifLoad = false; let b = $('notifBadge'); if(c > 0) { b.style.display='inline-block'; b.innerText=c; } else b.style.display='none'; let head = `<div style="padding:15px; border-bottom:1px solid #e2e8f0; font-weight:800; font-size:16px; display:flex; justify-content:space-between; align-items:center;"><span>الإشعارات</span><span style="font-size:12px; color:var(--primary); cursor:pointer;" onclick="event.stopPropagation();window.markNotifsAsRead()">تحديد كـ مقروء</span></div>`; $('notifDropdown').innerHTML = head + (h ? `<div style="max-height:350px;overflow-y:auto;overscroll-behavior:contain;">${h}</div>` : '<div style="padding:20px;text-align:center;color:#64748b;font-weight:bold;">لا توجد إشعارات</div>'); }); }
 window.handleNotifClick = (id, t, f, p) => { update(ref(db, `users/${window.currentUser}/notifications/${id}`), {read:true}); $('notifDropdown').style.display='none'; if(t==='friend_req') window.openRequestsModal(); else if(t==='accept_req' || t==='system') window.openProfile(f); else if(['comment','like','share','reply','mention'].includes(t) && p && p!=='undefined') window.openPostModal(p); };
@@ -377,25 +632,17 @@ function createPostHTML(p, cp, it=false, im=false) {
 function renderFeed() {
     let pf = document.getElementById('postsFeed'); if(!window.currentUser) { if(pf) pf.innerHTML = ''; return; }
     let h='', sg=window.getSuggestions?window.getSuggestions():[], iN=window.currentUser?window.myFriends.length===0:true, vp=[], reg=[], tr=[];
-
-    // منشورات القنوات المتابَعة — تُضاف دائماً بغض النظر عن الأصدقاء
     let myFollowing = (window.allUsersData[window.currentUser]?.following) || {};
     (window.allNewsPosts || []).filter(p => myFollowing[p.author]).forEach(p => vp.push({p:p, it:false}));
-
-    // منشورات المستخدمين
     window.allPosts.forEach(p => {
         if(!window.renderedPostIds.has(p.id)) return;
         let im = p.author === window.currentUser;
         let ifR = window.myFriends.includes(p.author);
         let lc = p.likes ? Object.keys(p.likes).length : 0;
         let it = lc >= 10;
-        // المنشور الخاص أو منشور صديق — يظهر دائماً
         if(im || ifR) vp.push({p:p, it:it});
-        // منشور رائج — يظهر إذا لا أصدقاء أو كل 10 منشورات
         else if(it) tr.push({p:p, it:true});
     });
-
-    // إضافة المنشورات الرائجة بين منشورات الأصدقاء
     let t_i = 0;
     let final = [...vp];
     if(!iN) {
@@ -403,10 +650,8 @@ function renderFeed() {
             if((i+1)%10===0 && t_i<tr.length) { final.splice(i+1, 0, tr[t_i]); t_i++; }
         }
     } else {
-        // لا أصدقاء — أضف الرائجة
         final = [...vp, ...tr];
     }
-
     final.sort((a,b) => (b.p.timestamp||0) - (a.p.timestamp||0));
     final.slice(0, window.feedLim || 5).forEach((v,i) => {
         h += createPostHTML(v.p, 'feed', v.it, false);
@@ -449,7 +694,6 @@ window.previewCoverImage = async (e) => { let f = e.target.files[0]; if(!f) retu
 function renderProfilePosts(u) { 
     let pp = window.allUsersData[u]?.profilePic || dA; 
     $('profilePostsFeed').innerHTML = '<div style="text-align:center;padding:20px;color:var(--primary);"><i class="fas fa-spinner fa-spin fa-2x"></i><br>جاري جلب المنشورات...</div>';
-    // تحديد مصدر المنشورات — القنوات تنشر في newsPosts
     let isNewsBot = window.allUsersData[u]?.isNewsBot;
     let postsRef = isNewsBot ? ref(db, 'newsPosts') : ref(db, 'posts');
     get(postsRef).then(s => { let h = '', ph = ''; ph += `<a href="#/@${u}"><img src="${pp}" style="cursor:pointer;"></a>`; if(s.exists()) { let userPosts = []; s.forEach(c => { let p = c.val(); p.id = c.key; if(p.author === u) { userPosts.push(p); window.postCache[p.id] = p; } }); userPosts.sort((a,b) => b.timestamp - a.timestamp); userPosts.forEach(p => { if(!p.isReel) { let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10; h += createPostHTML(p, 'profile', it, false); if(p.image) ph += `<a href="#/post/${p.id}"><img src="${p.image}" style="cursor:pointer;"></a>`; if(p.video) ph += `<a href="#/post/${p.id}"><video src="${p.video}" style="cursor:pointer;"></video></a>`; } }); } $('profilePostsFeed').innerHTML = h || '<p style="text-align:center;color:#666;font-size:13px;">لا مقالات.</p>'; $('profilePhotosGrid').innerHTML = ph; document.querySelectorAll('#profilePostsFeed video').forEach(v => window.videoObserver.observe(v)); }).catch(e => { $('profilePostsFeed').innerHTML = '<p style="text-align:center;color:#ef4444;">حدث خطأ في جلب المنشورات.</p>'; }); let rh = ''; let userReels = window.allReels.filter(r => r.author === u); if(userReels.length > 0) { userReels.forEach(r => { let globalIdx = window.allReels.findIndex(x => x.id === r.id); let vc = r.views ? Object.keys(r.views).length : 0; rh += `<div class="reel-thumb" style="width:100%; height:180px;" onclick="window.openReelsViewer(${globalIdx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto" poster="${reelPoster}" style="pointer-events:none; background:#1e293b; object-fit:cover;"></video><span class="r-views"><i class="fas fa-play"></i> ${vc}</span></div>`; }); } $('profileReelsGrid').innerHTML = rh || '<p style="text-align:center;color:#666;grid-column:span 3;">لا يوجد ريلز لهذا الحساب.</p>'; get(ref(db, `friends/${u}`)).then(s => { let fh = ''; if(s.exists()) { Object.keys(s.val()).forEach(f => { let pic = window.allUsersData[f]?.profilePic || dA, dn = window.getDisplayName(f), mc = 0; if(f !== window.currentUser) { let tf = window.allFriendsData[f] ? Object.keys(window.allFriendsData[f]) : []; mc = tf.filter(x => window.myFriends.includes(x)).length; } let mt = f === window.currentUser ? '' : (mc > 0 ? `<span class="f-mutual"><i class="fas fa-user-friends"></i> ${mc} مشتركون</span>` : `<span class="f-mutual">لا مشتركون</span>`); fh += `<a href="#/@${f}" class="friend-card" style="color:inherit; text-decoration:none;"><img src="${pic}"><div style="display:flex;flex-direction:column;justify-content:center;"><span class="f-name">${dn}</span>${mt}</div></a>`; }); } $('profileFriendsList').innerHTML = fh || '<p style="text-align:center;color:#666;font-size:13px;grid-column:span 2;">لا أصدقاء.</p>'; }); }
@@ -473,8 +717,6 @@ function renderSidebarUsers() { let fh = '', fa = [], rh = '', ra = []; window.m
 window.getSuggestions = () => { let ml = window.currentUser ? (window.allUsersData[window.currentUser]?.location || "غير محدد") : "غير محدد", sg = []; for(let u in window.allUsersData) { if(u === window.currentUser || window.myFriends.includes(u)) continue; let d = window.allUsersData[u];  let tf = Object.keys(window.allFriendsData[u] || {}), mc = tf.filter(f => window.myFriends.includes(f)).length, isl = (d.location && d.location === ml && ml !== "غير محدد"); if(mc > 0 || isl) { sg.push({name:u, data:d, mutualCount:mc, isSameLocation:isl}); } } sg.sort((a,b) => { if(b.mutualCount !== a.mutualCount) return b.mutualCount - a.mutualCount; if(b.isSameLocation && !a.isSameLocation) return 1; if(!b.isSameLocation && a.isSameLocation) return -1; return 0; }); return sg; };
 function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;"><i class="fas ${x.mutualCount > 0 ? 'fa-user-friends' : 'fa-map-marker-alt'}"></i> ${x.mutualCount > 0 ? `مشتركون: ${x.mutualCount}` : 'من منطقتك'}</span></a>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
 
-
-// ── مستمع منشورات القنوات المستقل ───────────────────────────
 function listenToNewsBotPosts() {
     onValue(query(ref(db, 'newsPosts'), orderByChild('timestamp'), limitToLast(50)), s => {
         window.allNewsPosts = [];
@@ -486,7 +728,6 @@ function listenToNewsBotPosts() {
     });
 }
 
-// ── مستمع الريلز المستقل ─────────────────────────────────────
 function listenToReels() {
     onValue(query(ref(db, 'posts'), orderByChild('timestamp'), limitToLast(200)), s => {
         if (s.exists()) {
@@ -541,7 +782,6 @@ window.showBanScreen = function(d) {
                 </button>
             </div>
         </div>`;
-    // إضافة font-awesome إن لم تكن موجودة
     if (!document.querySelector('link[href*="font-awesome"]')) {
         let fa = document.createElement('link');
         fa.rel = 'stylesheet';
@@ -551,7 +791,6 @@ window.showBanScreen = function(d) {
 };
 
 window.fL = function(u, d) {
-    // فحص الإيقاف أولاً
     if (d.banned) {
         let now = Date.now();
         let perm = !d.banUntil || d.banUntil === 0;
@@ -561,7 +800,6 @@ window.fL = function(u, d) {
             window.showBanScreen(d);
             return;
         } else {
-            // انتهت مدة الإيقاف — ارفعه تلقائياً
             import("https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js").then(({update, ref}) => {
                 update(ref(db, `users/${u}`), { banned: false, banUntil: null, banReason: null });
             });
@@ -577,7 +815,6 @@ window.fL = function(u, d) {
     ['myNavAvatar','composerAvatar','myShareAvatar','mobileNavAvatar','modalMyPic'].forEach(x=>{ if($(x)) $(x).src=p; }); 
     let ab = $('adminBtn'); if(ab){ ab.style.display = (u.toLowerCase()==='admin21') ? 'flex' : 'none'; } 
     let oRef = ref(db, `users/${u}/online`); set(oRef, true); onDisconnect(oRef).set(false);
-    // مراقبة حالة الإيقاف في الوقت الفعلي
     onValue(ref(db, `users/${u}/banned`), (snap) => {
         if (snap.val() === true) {
             get(ref(db, `users/${u}`)).then(s => {
@@ -618,8 +855,7 @@ window.rU = function() {
     if(!window.usersListenerActive) { window.usersListenerActive = true; listenToUsers(); }
 };
 
-// --- دوال الريلز والمشاركة والإدارة (مفقودة بعد التقسيم) ---
-
+// دوال الريلز والمشاركة والإدارة
 window.generateReelsWidgetHTML = () => {
     if(!window.allReels || window.allReels.length === 0) return '';
     let h = '<div class="reels-widget" style="background:#fff;border:1px solid var(--border-color);border-radius:16px;padding:15px;margin-bottom:20px;overflow:hidden;"><div style="font-weight:800;font-size:15px;color:var(--primary);margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="fas fa-film"></i> ريلز</div><div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:5px;">';
@@ -727,127 +963,10 @@ window.adminDeletePost = (id) => {
     window.dlgDanger('حذف هذا المنشور إدارياً؟', 'حذف إداري').then(ok => { if(ok) remove(ref(db, `posts/${id}`)); });
 };
 
-// --- نهاية الدوال المضافة ---
-
+// بدء التشغيل
 if(window.currentUser){ 
     let b=$('loginBtn'); if(b){ b.innerText="جاري..."; b.disabled=true; } 
     get(ref(db, `users/${window.currentUser}`)).then(s => { if(s.exists()){ window.fL(window.currentUser, s.val()); } else window.rU(); }).catch(window.rU); 
 } else {
     window.rU();
 }
-
-// =============== نظام روابط المجتمعات الفرعية ===============
-
-// دالة لتوليد slug صالح للرابط من اسم المجتمع
-window.generateCommunitySlug = (name) => {
-    return name
-        .toLowerCase()
-        .replace(/[^\u0621-\u064A\u0660-\u0669a-zA-Z0-9\s]/g, '')
-        .replace(/\s+/g, '-')
-        .replace(/-+/g, '-')
-        .substring(0, 50);
-};
-
-// دالة للبحث عن مجتمع بواسطة الـ slug
-window.findCommunityBySlug = (slug) => {
-    for (let [id, comm] of Object.entries(window.allCommunities || {})) {
-        let commSlug = window.generateCommunitySlug(comm.name);
-        if (commSlug === slug) {
-            return { id, ...comm };
-        }
-    }
-    return null;
-};
-
-// دالة لمشاركة رابط المجتمع
-window.shareCommunityLink = (commId) => {
-    let comm = window.allCommunities[commId];
-    if (!comm) return;
-    let slug = window.generateCommunitySlug(comm.name);
-    let url = window.location.origin + window.location.pathname + '#/community/' + slug;
-    
-    navigator.clipboard.writeText(url).then(() => {
-        if (window.showToast) window.showToast('تم نسخ الرابط', 'يمكنك مشاركة رابط المجتمع الآن', '');
-    }).catch(() => {
-        if (window.dlgAlert) window.dlgAlert('رابط المجتمع: ' + url, 'info', 'شارك الرابط');
-    });
-};
-
-// حفظ الدوال الأصلية
-const originalOpenCommunityView = window.openCommunityView;
-const originalHandleRouting = window.handleRouting;
-const originalOpenCommunitiesModal = window.openCommunitiesModal;
-const originalCloseModal = window.closeModal;
-
-// تعديل دالة openCommunityView
-window.openCommunityView = (commId) => {
-    let comm = window.allCommunities[commId];
-    if (comm) {
-        let slug = window.generateCommunitySlug(comm.name);
-        window.location.hash = '#/community/' + slug;
-    }
-    if (originalOpenCommunityView) {
-        originalOpenCommunityView(commId);
-    }
-};
-
-// تعديل دالة openCommunitiesModal
-window.openCommunitiesModal = () => {
-    window.location.hash = '#/communities';
-    if (originalOpenCommunitiesModal) {
-        originalOpenCommunitiesModal();
-    }
-};
-
-// تعديل دالة closeModal
-window.closeModal = (id) => {
-    if (id === 'communityViewModal') {
-        window.location.hash = '#/communities';
-    } else if (id === 'communitiesModal') {
-        if (window.history.length > 2) {
-            window.history.back();
-        } else {
-            window.location.hash = '';
-        }
-    }
-    if (originalCloseModal) {
-        originalCloseModal(id);
-    }
-};
-
-// تعديل دالة routing
-window.handleRouting = () => {
-    let hash = window.location.hash;
-    
-    if (hash.startsWith('#/community/')) {
-        let slug = decodeURIComponent(hash.replace('#/community/', ''));
-        let community = window.findCommunityBySlug(slug);
-        if (community) {
-            document.querySelectorAll('.modal').forEach(m => {
-                if (m.id !== 'communityViewModal') {
-                    m.classList.remove('show');
-                }
-            });
-            window.currentCommunityId = community.id;
-            if (originalOpenCommunityView) {
-                originalOpenCommunityView(community.id);
-            }
-            return;
-        } else {
-            if (window.dlgAlert) window.dlgAlert('المجتمع غير موجود', 'warning', 'عذراً');
-            window.location.hash = '#/communities';
-            return;
-        }
-    }
-    
-    if (hash === '#/communities') {
-        if (originalOpenCommunitiesModal) {
-            originalOpenCommunitiesModal();
-        }
-        return;
-    }
-    
-    if (originalHandleRouting) {
-        originalHandleRouting();
-    }
-};
