@@ -381,3 +381,56 @@ if (typeof window.renderCommunityFeed === 'function') {
 
 // تصدير الدوال للاستخدام العام
 window.closeMeeting = closeMeeting;
+
+
+// أضف في نهاية ملف communities.js
+
+// دالة لعرض حالة الاجتماعات النشطة
+window.showActiveCalls = async () => {
+    if (!window.currentUser) return;
+    
+    const callsRef = ref(db, 'communityCalls');
+    const snapshot = await get(callsRef);
+    
+    if (!snapshot.exists()) return;
+    
+    const calls = snapshot.val();
+    const activeCalls = [];
+    const now = Date.now();
+    
+    for (const [commId, data] of Object.entries(calls)) {
+        if (data.active && data.roomId && (now - data.startTime < 3600000)) {
+            const community = window.allCommunities[commId];
+            if (community && community.members && community.members[window.currentUser]) {
+                activeCalls.push({
+                    commId: commId,
+                    commName: community.name,
+                    startedBy: data.startedByName || data.startedBy,
+                    startTime: data.startTime
+                });
+            }
+        }
+    }
+    
+    if (activeCalls.length > 0) {
+        let msg = 'هناك اجتماعات نشطة حالياً:\n';
+        activeCalls.forEach(call => {
+            msg += `\n📹 ${call.commName} (بدأ بواسطة ${call.startedBy})`;
+        });
+        msg += '\n\nهل تريد الانضمام؟';
+        
+        const join = await window.dlgConfirm(msg, "اجتماعات نشطة", "info", "انضمام");
+        if (join && activeCalls[0]) {
+            await window.joinActiveCommunityCall(activeCalls[0].commId);
+        }
+    }
+};
+
+// فحص الاجتماعات النشطة كل دقيقة
+if (window.currentUser) {
+    setInterval(() => {
+        if (document.visibilityState === 'visible') {
+            window.showActiveCalls();
+        }
+    }, 60000);
+}
