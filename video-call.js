@@ -414,24 +414,49 @@ const joinCall = async (commId, roomName, commName) => {
 
     // الانضمام
     try {
-        // طلب الكاميرا والميكروفون أولاً
-        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-            .catch(() => navigator.mediaDevices.getUserMedia({ video: false, audio: true }));
+        // محاولة الحصول على الكاميرا والميكروفون بالتدريج
+        let videoOk = false, audioOk = false;
+
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            videoOk = true; audioOk = true;
+        } catch(e1) {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
+                audioOk = true;
+            } catch(e2) {
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+                    videoOk = true;
+                } catch(e3) {
+                    // لا كاميرا ولا ميكروفون — ندخل كمشاهد
+                    localStream = new MediaStream();
+                }
+            }
+        }
 
         addLocalTile(localStream, userName);
         updateGridLayout();
 
-        // الانضمام للغرفة بالطريقة الصحيحة لـ Metered SDK
+        // الانضمام للغرفة
         await meeting.join({
             roomURL: `${METERED_DOMAIN}/${roomName}`,
             name: userName
         });
 
-        // مشاركة الستريم
-        const videoTrack = localStream.getVideoTracks()[0];
-        const audioTrack = localStream.getAudioTracks()[0];
-        if (videoTrack) await meeting.publishTracks([videoTrack]);
-        if (audioTrack) await meeting.publishTracks([audioTrack]);
+        // مشاركة المسارات المتاحة فقط
+        const tracks = localStream.getTracks();
+        for (const track of tracks) {
+            try {
+                if (track.kind === 'video') await meeting.startVideo({ videoTrack: track });
+                if (track.kind === 'audio') await meeting.startAudio({ audioTrack: track });
+            } catch(te) {
+                // جرب publishTracks كبديل
+                try { await meeting.publishTracks([track]); } catch(te2) {
+                    console.warn('Could not publish track:', track.kind, te2);
+                }
+            }
+        }
 
     } catch(err) {
         console.error('Join error:', err);
