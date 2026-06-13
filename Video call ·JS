@@ -1,24 +1,16 @@
 import { ref, get, set, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
 
-// =============== نظام مكالمات الفيديو — Daily.co ===============
-// video-call.js
-//
-// خطوة واحدة فقط:
-//   1. سجّل مجاناً على https://dashboard.daily.co
-//   2. من Dashboard → Developers → API Keys → انسخ المفتاح
-//   3. ضعه أدناه مكان DAILY_API_KEY
-// ──────────────────────────────────────────────────────────────
-
-const DAILY_API_KEY = 'ضع_مفتاح_API_هنا'; // 👈 غيّر هذا فقط
+// =============== نظام مكالمات الفيديو — بدون API بدون إعداد ===============
+// يستخدم whereby.com — يعمل فوراً على الهاتف والحاسوب بدون تطبيق
 
 let currentCallModal = null;
 
-// ─── بدء مكالمة في المجتمع ────────────────────────────────────
+// ─── بدء مكالمة في المجتمع ───────────────────────────────────
 window.startCommunityCall = async (commId, commName) => {
     if (!window.currentUser) return window.dlgAlert("يجب تسجيل الدخول أولاً", "warning");
 
-    // جلب بيانات المجتمع من الذاكرة أو Firebase مباشرة
+    // جلب بيانات المجتمع
     let community = window.allCommunities?.[commId];
     if (!community) {
         try {
@@ -40,6 +32,10 @@ window.startCommunityCall = async (commId, commName) => {
     const userName     = window.allUsersData?.[window.currentUser]?.displayName || window.currentUser;
     const callRef      = ref(db, `communityCalls/${commId}`);
 
+    // رابط الغرفة ثابت لكل مجتمع — لا يحتاج API
+    // whereby يتيح غرف مجانية دائمة بمجرد فتح الرابط
+    const roomUrl = `https://whereby.com/mogtam3-${commId}`;
+
     // هل يوجد اجتماع نشط؟
     const snap = await get(callRef);
     if (snap.exists()) {
@@ -54,60 +50,25 @@ window.startCommunityCall = async (commId, commName) => {
         }
     }
 
-    // إنشاء غرفة Daily.co جديدة
-    const btn = document.getElementById('startCallBtn');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري...'; }
+    // حفظ المكالمة في Firebase لإشعار الأعضاء
+    await set(callRef, {
+        roomUrl,
+        startedBy: window.currentUser,
+        startedByName: userName,
+        startTime: Date.now(),
+        communityId: commId,
+        communityName: resolvedName
+    }).catch(e => console.error(e));
 
-    try {
-        const roomName = `mogtam3-${commId}-${Date.now()}`.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-        const res = await fetch('https://api.daily.co/v1/rooms', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${DAILY_API_KEY}` },
-            body: JSON.stringify({
-                name: roomName,
-                privacy: 'public',
-                properties: {
-                    exp: Math.floor(Date.now() / 1000) + 3600,
-                    enable_chat: true,
-                    enable_screenshare: true,
-                    max_participants: 50
-                }
-            })
-        });
+    // تنظيف بعد ساعة
+    setTimeout(() => {
+        get(callRef).then(s => { if (s.exists() && s.val().roomUrl === roomUrl) remove(callRef); });
+    }, 3600000);
 
-        if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || `HTTP ${res.status}`);
-        }
-
-        const room = await res.json();
-
-        // حفظ الغرفة في Firebase لإشعار الأعضاء
-        await set(callRef, {
-            roomUrl: room.url,
-            startedBy: window.currentUser,
-            startedByName: userName,
-            startTime: Date.now(),
-            communityId: commId,
-            communityName: resolvedName
-        });
-
-        // تنظيف تلقائي بعد ساعة
-        setTimeout(() => {
-            get(callRef).then(s => { if (s.exists() && s.val().roomUrl === room.url) remove(callRef); });
-        }, 3600000);
-
-        openCallModal(room.url, resolvedName, userName);
-
-    } catch(err) {
-        console.error('Daily.co error:', err);
-        window.dlgAlert(`فشل إنشاء الغرفة: ${err.message}`, "danger", "خطأ");
-    } finally {
-        if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-video"></i> بدء اجتماع'; }
-    }
+    openCallModal(roomUrl, resolvedName, userName);
 };
 
-// ─── الانضمام لمكالمة موجودة ──────────────────────────────────
+// ─── الانضمام لمكالمة موجودة ─────────────────────────────────
 window.joinActiveCommunityCall = async (commId) => {
     if (!window.currentUser) return window.dlgAlert("يجب تسجيل الدخول أولاً", "warning");
     try {
@@ -125,12 +86,12 @@ window.joinActiveCommunityCall = async (commId) => {
     } catch(e) { console.error(e); }
 };
 
-// ─── نافذة المكالمة — iframe يعمل على الهاتف والحاسوب بدون تطبيق ──
+// ─── نافذة المكالمة ───────────────────────────────────────────
 const openCallModal = (roomUrl, commName, userName) => {
     document.getElementById('dailyCallModal')?.remove();
 
-    // Daily.co يقبل اسم المستخدم كـ query param ويعرضه تلقائياً للجميع
-    const urlWithName = `${roomUrl}?userName=${encodeURIComponent(userName)}`;
+    // whereby يقبل displayName كـ query param
+    const urlWithName = `${roomUrl}?displayName=${encodeURIComponent(userName)}`;
 
     const modal = document.createElement('div');
     modal.id = 'dailyCallModal';
@@ -182,7 +143,7 @@ const openCallModal = (roomUrl, commName, userName) => {
     };
 };
 
-// ─── إضافة أزرار المكالمة في واجهة المجتمع ───────────────────
+// ─── أزرار المكالمة في واجهة المجتمع ────────────────────────
 const enhanceCommunityView = (commId) => {
     setTimeout(() => {
         const actionsDiv = document.getElementById('communityHeaderActions');
@@ -191,7 +152,6 @@ const enhanceCommunityView = (commId) => {
         const comm     = window.allCommunities?.[commId] || {};
         const commName = comm.name || window.currentCommunityName || commId;
 
-        // زر بدء اجتماع
         const callBtn = document.createElement('button');
         callBtn.id = 'startCallBtn';
         callBtn.className = 'btn-primary';
@@ -199,7 +159,6 @@ const enhanceCommunityView = (commId) => {
         callBtn.innerHTML = '<i class="fas fa-video"></i> بدء اجتماع';
         callBtn.onclick = () => window.startCommunityCall(commId, commName);
 
-        // زر انضمام
         const joinBtn = document.createElement('button');
         joinBtn.id = 'joinCallBtn';
         joinBtn.className = 'btn-secondary';
@@ -210,14 +169,14 @@ const enhanceCommunityView = (commId) => {
         actionsDiv.insertBefore(joinBtn, actionsDiv.firstChild);
         actionsDiv.insertBefore(callBtn, actionsDiv.firstChild);
 
-        // بادج مكالمة نشطة إن وجدت
+        // بادج مكالمة نشطة
         get(ref(db, `communityCalls/${commId}`)).then(snap => {
             if (!snap.exists()) return;
             const call = snap.val();
             if (!call.roomUrl || Date.now() - call.startTime > 3600000) return;
             const badge = document.createElement('span');
             badge.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#ef4444;color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:8px;cursor:pointer;';
-            badge.innerHTML = '<i class="fas fa-circle" style="font-size:8px;animation:pulse 1.5s infinite;"></i> مكالمة نشطة — انضم';
+            badge.innerHTML = '<i class="fas fa-circle" style="font-size:8px;"></i> مكالمة نشطة — انضم';
             badge.onclick = () => window.joinActiveCommunityCall(commId);
             const title = document.getElementById('communityViewTitle');
             if (title) title.insertAdjacentElement('afterend', badge);
@@ -225,8 +184,7 @@ const enhanceCommunityView = (commId) => {
     }, 200);
 };
 
-// ─── ربط enhanceCommunityView مع renderCommunityFeed ──────────
-// ننتظر حتى يتم تعريف renderCommunityFeed في communities.js
+// ─── ربط مع renderCommunityFeed ──────────────────────────────
 const _hookEnhance = () => {
     if (typeof window.renderCommunityFeed === 'function') {
         const _orig = window.renderCommunityFeed;
