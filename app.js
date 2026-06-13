@@ -3,7 +3,10 @@ import { db } from "./firebase-config.js";
 import "./auth.js";
 import "./communities.js";
 import "./chat.js";
+import "./video-call.js";
 
+// =============== ربط الدوال الداخلية بالنافذة لاستدعائها من auth.js ===============
+// يجب أن تكون هذه الربط في بداية الملف قبل تعريف الدوال
 
 // ── قنوات الأخبار والمتابعة ──────────────────────────────────
 window.followChannel = async (channelId, btn) => {
@@ -48,8 +51,6 @@ window.renderNewsChannels = async () => {
         area.style.display = 'block';
     } catch(e) { console.log('renderNewsChannels error:', e); }
 };
-
-
 
 // ============================================================
 //  نظام النوافذ المخصص — مدمج في app.js
@@ -199,7 +200,6 @@ if (document.readyState === 'loading') {
 } else {
   initDialogSystem();
 }
-
 
 // -- المتغيرات والإعدادات العامة --
 window.CLOUDINARY_CLOUD_NAME = "diwaqfsap"; window.CLOUDINARY_UPLOAD_PRESET = "ml_default";
@@ -1437,58 +1437,192 @@ window.fL = function(u, d) {
             });
         }
     }
-    window.isInitialNotifLoad = true; window.alertedNotifs = new Set(); window.currentUser = u; localStorage.setItem('savedUser', u); 
-    let il = $('initialLoader'); if(il){ il.classList.add('hidden'); setTimeout(()=>il.style.display='none', 400); } 
-    let lw = $('loginModal'); if(lw){ lw.style.opacity='0'; lw.style.pointerEvents='none'; setTimeout(()=>lw.style.display='none', 400); } 
-    let guestNav = $('guestNav'); if(guestNav) guestNav.style.display = 'none'; let loggedInNav = $('loggedInNav'); if(loggedInNav) loggedInNav.style.display = 'flex';
-    let cb = $('composerBox'); if(cb) cb.style.display = 'block'; let sidebarAreaContainer = $('sidebarAreaContainer'); if(sidebarAreaContainer) sidebarAreaContainer.style.display = 'block';
-    let bottomNav = $('bottomNav'); if(bottomNav) bottomNav.style.display = '';
-    let n = d.displayName || u; $('currentUserDisplay').innerText = n; let p = d.profilePic || dA; 
-    ['myNavAvatar','composerAvatar','myShareAvatar','mobileNavAvatar','modalMyPic'].forEach(x=>{ if($(x)) $(x).src=p; }); 
-    let ab = $('adminBtn'); if(ab){ ab.style.display = (u.toLowerCase()==='admin21') ? 'flex' : 'none'; } 
-    let oRef = ref(db, `users/${u}/online`); set(oRef, true); onDisconnect(oRef).set(false);
-    onValue(ref(db, `users/${u}/banned`), (snap) => {
-        if (snap.val() === true) {
-            get(ref(db, `users/${u}`)).then(s => {
-                if (!s.exists()) return;
-                let ud = s.val();
-                let now = Date.now();
-                let perm = !ud.banUntil || ud.banUntil === 0;
-                let expired = !perm && ud.banUntil < now;
-                if (!expired) {
-                    set(ref(db, `users/${u}/online`), false);
-                    localStorage.removeItem('savedUser');
-                    window.showBanScreen(ud);
-                }
-            });
-        }
+    
+    window.isInitialNotifLoad = true;
+    window.alertedNotifs = new Set();
+    window.currentUser = u;
+    localStorage.setItem('savedUser', u);
+    
+    let il = $('initialLoader'); 
+    if(il){ 
+        il.classList.add('hidden'); 
+        setTimeout(() => il.style.display = 'none', 400); 
+    } 
+    
+    let lw = $('loginModal'); 
+    if(lw){ 
+        lw.style.opacity = '0'; 
+        lw.style.pointerEvents = 'none'; 
+        setTimeout(() => lw.style.display = 'none', 400); 
+    } 
+    
+    let guestNav = $('guestNav'); 
+    if(guestNav) guestNav.style.display = 'none'; 
+    
+    let loggedInNav = $('loggedInNav'); 
+    if(loggedInNav) loggedInNav.style.display = 'flex';
+    
+    let cb = $('composerBox'); 
+    if(cb) cb.style.display = 'block'; 
+    
+    let sidebarAreaContainer = $('sidebarAreaContainer'); 
+    if(sidebarAreaContainer) sidebarAreaContainer.style.display = 'block';
+    
+    let bottomNav = $('bottomNav'); 
+    if(bottomNav) bottomNav.style.display = '';
+    
+    let n = d.displayName || u; 
+    $('currentUserDisplay').innerText = n; 
+    let p = d.profilePic || dA; 
+    
+    ['myNavAvatar','composerAvatar','myShareAvatar','mobileNavAvatar','modalMyPic'].forEach(x => { 
+        let el = $(x); 
+        if(el) el.src = p; 
     }); 
-    if(!d.interests || d.interests.length === 0) { setTimeout(window.renderInterestsModal, 1000); }
-    if(!window.usersListenerActive) { window.usersListenerActive = true; listenToUsers(); }
-    window.startPrivateListeners();
-    listenToReels();
-    listenToNewsBotPosts();
-    setTimeout(() => window.initRightSidebar(), 1500);
-    setTimeout(() => { let nca = document.getElementById('newsChannelsArea'); if(nca) window.renderNewsChannels(); }, 1500);
-    setTimeout(() => { if (typeof window.initCallNotifications === 'function') window.initCallNotifications(); }, 2000);
-    if(!window.isInitialLoad) { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim = 5; renderFeed(); handleRouting(); }
+    
+    let ab = $('adminBtn'); 
+    if(ab){ 
+        ab.style.display = (u.toLowerCase() === 'admin21') ? 'flex' : 'none'; 
+    } 
+    
+    try {
+        let oRef = ref(db, `users/${u}/online`); 
+        set(oRef, true); 
+        onDisconnect(oRef).set(false);
+        
+        onValue(ref(db, `users/${u}/banned`), (snap) => {
+            if (snap.val() === true) {
+                get(ref(db, `users/${u}`)).then(s => {
+                    if (!s.exists()) return;
+                    let ud = s.val();
+                    let now = Date.now();
+                    let perm = !ud.banUntil || ud.banUntil === 0;
+                    let expired = !perm && ud.banUntil < now;
+                    if (!expired) {
+                        set(ref(db, `users/${u}/online`), false);
+                        localStorage.removeItem('savedUser');
+                        window.showBanScreen(ud);
+                    }
+                });
+            }
+        });
+    } catch(e) {
+        console.error("Error setting online status:", e);
+    }
+    
+    if(!d.interests || d.interests.length === 0) { 
+        setTimeout(() => {
+            if(window.renderInterestsModal) window.renderInterestsModal();
+        }, 1000); 
+    }
+    
+    if(!window.usersListenerActive) { 
+        window.usersListenerActive = true; 
+        if(typeof listenToUsers === 'function') listenToUsers();
+    }
+    
+    if(typeof window.startPrivateListeners === 'function') {
+        window.startPrivateListeners();
+    }
+    
+    if(typeof listenToReels === 'function') listenToReels();
+    if(typeof listenToNewsBotPosts === 'function') listenToNewsBotPosts();
+    
+    setTimeout(() => { 
+        if(typeof window.initRightSidebar === 'function') window.initRightSidebar();
+    }, 1500);
+    
+    setTimeout(() => { 
+        let nca = document.getElementById('newsChannelsArea'); 
+        if(nca && typeof window.renderNewsChannels === 'function') window.renderNewsChannels(); 
+    }, 1500);
+    
+    setTimeout(() => { 
+        if (typeof window.initCallNotifications === 'function') window.initCallNotifications(); 
+    }, 2000);
+    
+    if(!window.isInitialLoad) { 
+        window.renderedPostIds = new Set((window.allPosts || []).map(p => p.id)); 
+        window.feedLim = 5; 
+        if(typeof renderFeed === 'function') renderFeed(); 
+        if(typeof handleRouting === 'function') handleRouting();
+    }
+    
+    setTimeout(() => {
+        const errorOverlay = document.getElementById('dlg-overlay');
+        if(errorOverlay && errorOverlay.classList.contains('dlg-show')) {
+            const errorTitle = document.getElementById('dlg-title');
+            if(errorTitle && errorTitle.innerText === 'خطأ في الاتصال') {
+                errorOverlay.classList.remove('dlg-show');
+            }
+        }
+    }, 500);
 };
 
 window.rU = function() { 
-    window.isInitialNotifLoad=true; window.alertedNotifs=new Set(); localStorage.removeItem('savedUser'); window.currentUser=null; 
-    let b=$('loginBtn'); if(b){ b.innerText="دخول"; b.disabled=false; } 
-    let hash = window.location.hash; let isPublicPage = hash.startsWith('#/post/') || hash.startsWith('#/@');
-    if(!isPublicPage) { let s=$('hideLoginStyle'); if(s) s.remove(); }
-    let l=$('initialLoader'); if(l) l.style.display='none'; let ab=$('adminBtn'); if(ab) ab.style.display='none'; 
-    let lw = $('loginModal'); if(lw && isPublicPage) { lw.style.opacity = '0'; lw.style.pointerEvents = 'none'; lw.style.display = 'none'; }
-    let guestNav = $('guestNav'); if(guestNav) guestNav.style.display = 'flex'; let loggedInNav = $('loggedInNav'); if(loggedInNav) loggedInNav.style.display = 'none';
-    let cb = $('composerBox'); if(cb) cb.style.display = 'none'; let sidebarAreaContainer = $('sidebarAreaContainer'); if(sidebarAreaContainer) sidebarAreaContainer.style.display = 'none';
-    let bottomNav = $('bottomNav'); if(bottomNav) bottomNav.style.display = 'none';
-    if(hash === '' || hash === '#/') { window.location.replace('#/login'); }
-    if(!window.usersListenerActive) { window.usersListenerActive = true; listenToUsers(); }
+    window.isInitialNotifLoad = true; 
+    window.alertedNotifs = new Set(); 
+    localStorage.removeItem('savedUser'); 
+    window.currentUser = null; 
+    
+    let b = $('loginBtn'); 
+    if(b){ 
+        b.innerText = "دخول"; 
+        b.disabled = false; 
+    } 
+    
+    let hash = window.location.hash; 
+    let isPublicPage = hash.startsWith('#/post/') || hash.startsWith('#/@');
+    
+    if(!isPublicPage) { 
+        let s = $('hideLoginStyle'); 
+        if(s) s.remove(); 
+    }
+    
+    let l = $('initialLoader'); 
+    if(l) l.style.display = 'none'; 
+    
+    let ab = $('adminBtn'); 
+    if(ab) ab.style.display = 'none'; 
+    
+    let lw = $('loginModal'); 
+    if(lw && isPublicPage) { 
+        lw.style.opacity = '0'; 
+        lw.style.pointerEvents = 'none'; 
+        lw.style.display = 'none'; 
+    } else if(lw) {
+        lw.style.display = 'flex';
+        lw.style.opacity = '1';
+        lw.style.pointerEvents = 'auto';
+    }
+    
+    let guestNav = $('guestNav'); 
+    if(guestNav) guestNav.style.display = 'flex'; 
+    
+    let loggedInNav = $('loggedInNav'); 
+    if(loggedInNav) loggedInNav.style.display = 'none';
+    
+    let cb = $('composerBox'); 
+    if(cb) cb.style.display = 'none'; 
+    
+    let sidebarAreaContainer = $('sidebarAreaContainer'); 
+    if(sidebarAreaContainer) sidebarAreaContainer.style.display = 'none';
+    
+    let bottomNav = $('bottomNav'); 
+    if(bottomNav) bottomNav.style.display = 'none';
+    
+    if(hash === '' || hash === '#/') { 
+        window.location.replace('#/login'); 
+    }
+    
+    if(!window.usersListenerActive) { 
+        window.usersListenerActive = true; 
+        if(typeof listenToUsers === 'function') listenToUsers();
+    }
 };
 
-// دوال الريلز والمشاركة والإدارة
+// =============== دوال الريلز والمشاركة والإدارة ===============
+
 window.generateReelsWidgetHTML = () => {
     if(!window.allReels || window.allReels.length === 0) return '';
     let h = '<div class="reels-widget" style="background:#fff;border:1px solid var(--border-color);border-radius:16px;padding:15px;margin-bottom:20px;overflow:hidden;"><div style="font-weight:800;font-size:15px;color:var(--primary);margin-bottom:12px;display:flex;align-items:center;gap:8px;"><i class="fas fa-film"></i> ريلز</div><div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:5px;">';
@@ -1596,10 +1730,30 @@ window.adminDeletePost = (id) => {
     window.dlgDanger('حذف هذا المنشور إدارياً؟', 'حذف إداري').then(ok => { if(ok) remove(ref(db, `posts/${id}`)); });
 };
 
-// بدء التشغيل
+// =============== ربط الدوال الداخلية للنافذة لاستدعائها من auth.js ===============
+window._listenToUsers = listenToUsers;
+window._listenToReels = listenToReels;
+window._listenToNewsBotPosts = listenToNewsBotPosts;
+window._renderFeed = renderFeed;
+window._handleRouting = handleRouting;
+
+// =============== بدء التشغيل ===============
 if(window.currentUser){ 
-    let b=$('loginBtn'); if(b){ b.innerText="جاري..."; b.disabled=true; } 
-    get(ref(db, `users/${window.currentUser}`)).then(s => { if(s.exists()){ window.fL(window.currentUser, s.val()); } else window.rU(); }).catch(window.rU); 
+    let b = $('loginBtn'); 
+    if(b){ 
+        b.innerText = "جاري..."; 
+        b.disabled = true; 
+    } 
+    get(ref(db, `users/${window.currentUser}`)).then(s => { 
+        if(s.exists()){ 
+            window.fL(window.currentUser, s.val()); 
+        } else { 
+            window.rU(); 
+        } 
+    }).catch((err) => { 
+        console.error("Startup error:", err);
+        window.rU(); 
+    }); 
 } else {
     window.rU();
 }
