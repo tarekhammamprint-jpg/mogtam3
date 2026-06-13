@@ -1,8 +1,8 @@
 import { ref, get, set, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
 
-// =============== نظام مكالمات الفيديو — بدون API بدون إعداد ===============
-// يستخدم whereby.com — يعمل فوراً على الهاتف والحاسوب بدون تطبيق
+// =============== نظام مكالمات الفيديو — Google Meet ===============
+// لا يحتاج أي إعداد — يفتح في تبويب جديد على الهاتف والحاسوب
 
 let currentCallModal = null;
 
@@ -32,9 +32,9 @@ window.startCommunityCall = async (commId, commName) => {
     const userName     = window.allUsersData?.[window.currentUser]?.displayName || window.currentUser;
     const callRef      = ref(db, `communityCalls/${commId}`);
 
-    // رابط الغرفة ثابت لكل مجتمع — لا يحتاج API
-    // whereby يتيح غرف مجانية دائمة بمجرد فتح الرابط
-    const roomUrl = `https://whereby.com/mogtam3-${commId}`;
+    // رابط Google Meet ثابت لكل مجتمع
+    const meetCode = `mogtam3-${commId}`.toLowerCase().replace(/[^a-z0-9-]/g, '-').substring(0, 60);
+    const roomUrl  = `https://meet.google.com/lookup/${meetCode}`;
 
     // هل يوجد اجتماع نشط؟
     const snap = await get(callRef);
@@ -86,60 +86,69 @@ window.joinActiveCommunityCall = async (commId) => {
     } catch(e) { console.error(e); }
 };
 
-// ─── نافذة المكالمة ───────────────────────────────────────────
+// ─── نافذة المكالمة — تفتح Google Meet في تبويب جديد ────────
 const openCallModal = (roomUrl, commName, userName) => {
-    document.getElementById('dailyCallModal')?.remove();
-
-    // whereby يقبل displayName كـ query param
-    const urlWithName = `${roomUrl}?displayName=${encodeURIComponent(userName)}`;
+    document.getElementById('videoCallModal')?.remove();
 
     const modal = document.createElement('div');
-    modal.id = 'dailyCallModal';
-    modal.style.cssText = 'position:fixed;inset:0;z-index:10000;display:flex;flex-direction:column;background:#0f172a;';
+    modal.id = 'videoCallModal';
+    modal.style.cssText = `
+        position:fixed;inset:0;z-index:10000;
+        display:flex;align-items:center;justify-content:center;
+        background:rgba(10,20,40,0.85);backdrop-filter:blur(8px);
+        font-family:'Cairo',sans-serif;direction:rtl;
+    `;
 
     modal.innerHTML = `
-        <div style="background:#0f172a;padding:10px 16px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;border-bottom:1px solid rgba(255,255,255,0.08);">
-            <div style="display:flex;align-items:center;gap:10px;">
-                <div style="width:34px;height:34px;background:#ef4444;border-radius:50%;display:flex;align-items:center;justify-content:center;">
-                    <i class="fas fa-video" style="color:#fff;font-size:14px;"></i>
-                </div>
-                <div>
-                    <div style="color:#fff;font-weight:800;font-size:14px;font-family:'Cairo',sans-serif;">${commName || 'مكالمة المجتمع'}</div>
-                    <div id="dailyCallTimer" style="color:#64748b;font-size:11px;font-family:'Cairo',sans-serif;">00:00</div>
+        <div style="background:linear-gradient(145deg,#0f1f3e,#1a3a5c);border:1px solid rgba(99,179,237,0.2);border-radius:24px;padding:36px 32px;width:90%;max-width:400px;text-align:center;box-shadow:0 30px 80px rgba(0,0,0,0.5);">
+            <div style="width:72px;height:72px;background:linear-gradient(135deg,#10b981,#059669);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;">
+                <i class="fas fa-video" style="color:#fff;font-size:28px;"></i>
+            </div>
+            <div style="color:#fff;font-size:20px;font-weight:800;margin-bottom:8px;">${commName || 'مكالمة المجتمع'}</div>
+            <div style="color:#94a3b8;font-size:13px;margin-bottom:24px;">سيتم فتح المكالمة في تبويب جديد</div>
+            <div style="background:rgba(255,255,255,0.06);border-radius:12px;padding:12px 16px;margin-bottom:24px;display:flex;align-items:center;gap:10px;">
+                <i class="fas fa-user-circle" style="color:#60a5fa;font-size:20px;"></i>
+                <div style="text-align:right;">
+                    <div style="color:#e2e8f0;font-weight:700;font-size:14px;">${userName}</div>
+                    <div style="color:#64748b;font-size:12px;">اسمك في المكالمة</div>
                 </div>
             </div>
-            <button id="endDailyCallBtn" style="background:#ef4444;color:#fff;border:none;padding:9px 18px;border-radius:10px;cursor:pointer;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px;">
-                <i class="fas fa-phone-slash"></i> إنهاء
+            <button id="openMeetBtn" style="width:100%;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;padding:14px;border-radius:14px;font-family:'Cairo',sans-serif;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:12px;box-shadow:0 4px 20px rgba(16,185,129,0.4);">
+                <i class="fas fa-video"></i> فتح المكالمة
+            </button>
+            <button id="copyLinkBtn" style="width:100%;background:rgba(255,255,255,0.08);color:#94a3b8;border:1px solid rgba(255,255,255,0.1);padding:12px;border-radius:14px;font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px;">
+                <i class="fas fa-copy"></i> نسخ الرابط لمشاركته
+            </button>
+            <button id="closeVideoModalBtn" style="width:100%;background:transparent;color:#64748b;border:none;padding:10px;font-family:'Cairo',sans-serif;font-size:13px;cursor:pointer;">
+                إغلاق
             </button>
         </div>
-        <iframe
-            src="${urlWithName}"
-            allow="camera;microphone;fullscreen;display-capture;autoplay;clipboard-write"
-            allowfullscreen
-            style="flex:1;width:100%;border:none;background:#000;"
-        ></iframe>
     `;
 
     document.body.appendChild(modal);
-    document.body.style.overflow = 'hidden';
     currentCallModal = modal;
 
-    // عداد زمن المكالمة
-    let secs = 0;
-    const timer = setInterval(() => {
-        secs++;
-        const el = document.getElementById('dailyCallTimer');
-        if (el) el.innerText = `${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
-    }, 1000);
+    document.getElementById('openMeetBtn').onclick = () => {
+        window.open(roomUrl, '_blank');
+    };
 
-    document.getElementById('endDailyCallBtn').onclick = () => {
-        window.dlgConfirm("هل تريد إنهاء المكالمة؟", "إنهاء", "question", "نعم").then(ok => {
-            if (!ok) return;
-            clearInterval(timer);
-            modal.remove();
-            document.body.style.overflow = 'auto';
-            currentCallModal = null;
+    document.getElementById('copyLinkBtn').onclick = () => {
+        navigator.clipboard.writeText(roomUrl).then(() => {
+            const btn = document.getElementById('copyLinkBtn');
+            if (btn) { btn.innerHTML = '<i class="fas fa-check"></i> تم النسخ!'; btn.style.color = '#10b981'; }
+            setTimeout(() => {
+                if (btn) { btn.innerHTML = '<i class="fas fa-copy"></i> نسخ الرابط لمشاركته'; btn.style.color = '#94a3b8'; }
+            }, 2000);
         });
+    };
+
+    document.getElementById('closeVideoModalBtn').onclick = () => {
+        modal.remove();
+        currentCallModal = null;
+    };
+
+    modal.onclick = (e) => {
+        if (e.target === modal) { modal.remove(); currentCallModal = null; }
     };
 };
 
@@ -155,7 +164,7 @@ const enhanceCommunityView = (commId) => {
         const callBtn = document.createElement('button');
         callBtn.id = 'startCallBtn';
         callBtn.className = 'btn-primary';
-        callBtn.style.cssText = 'background:#ef4444;border-color:#ef4444;color:#fff;margin-left:8px;';
+        callBtn.style.cssText = 'background:#10b981;border-color:#10b981;color:#fff;margin-left:8px;';
         callBtn.innerHTML = '<i class="fas fa-video"></i> بدء اجتماع';
         callBtn.onclick = () => window.startCommunityCall(commId, commName);
 
@@ -175,7 +184,7 @@ const enhanceCommunityView = (commId) => {
             const call = snap.val();
             if (!call.roomUrl || Date.now() - call.startTime > 3600000) return;
             const badge = document.createElement('span');
-            badge.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#ef4444;color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:8px;cursor:pointer;';
+            badge.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#10b981;color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:8px;cursor:pointer;';
             badge.innerHTML = '<i class="fas fa-circle" style="font-size:8px;"></i> مكالمة نشطة — انضم';
             badge.onclick = () => window.joinActiveCommunityCall(commId);
             const title = document.getElementById('communityViewTitle');
