@@ -372,43 +372,70 @@ const joinCall = async (commId, roomName, commName) => {
     meeting = new Metered.Meeting();
 
     // ── أحداث المشاركين ──
-    meeting.on('remoteTrackStarted', ({ track, participant, stream }) => {
-        addRemoteTile(participant.participantSessionId, participant.name || 'عضو', stream);
+    // أحداث Metered SDK الصحيحة
+    meeting.on('remoteTrackStarted', (trackItem) => {
+        const p = trackItem.participant;
+        const track = trackItem.track;
+        if (!p || !track) return;
+        const id = p.participantSessionId || p.id;
+        let tile = document.getElementById(`tile-${id}`);
+        if (!tile) {
+            const stream = new MediaStream([track]);
+            addRemoteTile(id, p.name || p.displayName || 'عضو', stream);
+        } else {
+            const video = tile.querySelector('video');
+            if (video && video.srcObject) video.srcObject.addTrack(track);
+        }
         updatePartCount();
     });
-    meeting.on('remoteTrackStopped', ({ participant }) => {
-        document.getElementById(`tile-${participant.participantSessionId}`)?.remove();
-        updateGridLayout();
-        updatePartCount();
+
+    meeting.on('remoteTrackStopped', (trackItem) => {
+        const p = trackItem?.participant;
+        if (!p) return;
+        const id = p.participantSessionId || p.id;
+        document.getElementById(`tile-${id}`)?.remove();
+        updateGridLayout(); updatePartCount();
     });
-    meeting.on('participantLeft', ({ participantSessionId }) => {
-        document.getElementById(`tile-${participantSessionId}`)?.remove();
-        updateGridLayout();
-        updatePartCount();
+
+    meeting.on('participantLeft', (p) => {
+        const id = p?.participantSessionId || p?.id;
+        if (id) document.getElementById(`tile-${id}`)?.remove();
+        updateGridLayout(); updatePartCount();
     });
+
     meeting.on('onlineParticipants', (list) => {
         const el = document.getElementById('vcPartNum');
-        if (el) el.innerText = list.length;
+        if (el) el.innerText = Array.isArray(list) ? list.length : 0;
+    });
+
+    meeting.on('error', (err) => {
+        console.error('Metered meeting error:', err);
     });
 
     // الانضمام
     try {
-        const { localTracks } = await meeting.join({
-            roomURL: `${METERED_DOMAIN}/${roomName}`,
-            name: userName,
-            audio: true,
-            video: true
-        });
+        // طلب الكاميرا والميكروفون أولاً
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .catch(() => navigator.mediaDevices.getUserMedia({ video: false, audio: true }));
 
-        // إضافة الفيديو المحلي
-        localStream = new MediaStream();
-        localTracks.forEach(t => localStream.addTrack(t));
         addLocalTile(localStream, userName);
         updateGridLayout();
 
+        // الانضمام للغرفة بالطريقة الصحيحة لـ Metered SDK
+        await meeting.join({
+            roomURL: `${METERED_DOMAIN}/${roomName}`,
+            name: userName
+        });
+
+        // مشاركة الستريم
+        const videoTrack = localStream.getVideoTracks()[0];
+        const audioTrack = localStream.getAudioTracks()[0];
+        if (videoTrack) await meeting.publishTracks([videoTrack]);
+        if (audioTrack) await meeting.publishTracks([audioTrack]);
+
     } catch(err) {
         console.error('Join error:', err);
-        window.dlgAlert('فشل الانضمام للمكالمة، تحقق من إذن الكاميرا والميكروفون.', 'danger', 'خطأ');
+        window.dlgAlert('فشل الانضمام: ' + (err.message || err.name || err), 'danger', 'خطأ');
         clearInterval(vcTimerInterval);
         modal.remove();
         document.body.style.overflow = 'auto';
