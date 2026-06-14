@@ -1757,3 +1757,1046 @@ if(window.currentUser){
 } else {
     window.rU();
 }
+
+
+// =============== نظام التعليقات المتكامل ===============
+
+// دالة إضافة تعليق جديد
+window.addComment = async (postId, postAuthor, source) => {
+    if(!window.currentUser) return window.showRegisterModal();
+    
+    const inputId = source === 'feed' ? `commentInp_feed_${postId}` : `commentInp_modal_${postId}`;
+    const input = document.getElementById(inputId);
+    if(!input) return;
+    
+    const text = input.value.trim();
+    if(!text) return;
+    
+    try {
+        const commentRef = push(ref(db, `posts/${postId}/comments`));
+        await set(commentRef, {
+            author: window.currentUser,
+            text: text,
+            timestamp: Date.now(),
+            likes: {}
+        });
+        
+        // إضافة الإشعار لصاحب المنشور
+        if(postAuthor !== window.currentUser) {
+            await push(ref(db, `users/${postAuthor}/notifications`), {
+                type: 'comment',
+                from: window.currentUser,
+                postId: postId,
+                timestamp: Date.now(),
+                read: false
+            });
+        }
+        
+        // إشعارات للمذكورين
+        const mentions = text.match(/@([a-zA-Z0-9_]+)/g);
+        if(mentions) {
+            mentions.forEach(mention => {
+                const mentionedUser = mention.substring(1);
+                if(mentionedUser !== window.currentUser && mentionedUser !== postAuthor) {
+                    push(ref(db, `users/${mentionedUser}/notifications`), {
+                        type: 'mention',
+                        from: window.currentUser,
+                        postId: postId,
+                        timestamp: Date.now(),
+                        read: false
+                    });
+                }
+            });
+        }
+        
+        input.value = '';
+        
+        // تحديث عرض المنشور إذا كان مفتوحاً
+        if(window.currentOpenPostId === postId) {
+            await window.refreshPostComments(postId);
+        }
+        
+        window.showToast('تم إضافة التعليق', '', '');
+        
+    } catch(error) {
+        console.error('Error adding comment:', error);
+        window.dlgAlert('حدث خطأ أثناء إضافة التعليق', 'danger', 'خطأ');
+    }
+};
+
+// دالة إضافة رد على تعليق
+window.addReply = async (postId, commentId, commentAuthor) => {
+    if(!window.currentUser) return window.showRegisterModal();
+    
+    const inputId = `replyInput_${commentId}`;
+    const input = document.getElementById(inputId);
+    if(!input) return;
+    
+    const text = input.value.trim();
+    if(!text) return;
+    
+    try {
+        const replyRef = push(ref(db, `posts/${postId}/comments/${commentId}/replies`));
+        await set(replyRef, {
+            author: window.currentUser,
+            text: text,
+            timestamp: Date.now(),
+            likes: {}
+        });
+        
+        // إشعار لصاحب التعليق الأصلي
+        if(commentAuthor !== window.currentUser) {
+            await push(ref(db, `users/${commentAuthor}/notifications`), {
+                type: 'reply',
+                from: window.currentUser,
+                postId: postId,
+                commentId: commentId,
+                timestamp: Date.now(),
+                read: false
+            });
+        }
+        
+        input.value = '';
+        input.style.display = 'none';
+        
+        if(window.currentOpenPostId === postId) {
+            await window.refreshPostComments(postId);
+        }
+        
+        window.showToast('تم إضافة الرد', '', '');
+        
+    } catch(error) {
+        console.error('Error adding reply:', error);
+    }
+};
+
+// دالة إظهار حقل الرد
+window.showReplyInput = (commentId) => {
+    const input = document.getElementById(`replyInput_${commentId}`);
+    if(input) {
+        input.style.display = input.style.display === 'none' ? 'flex' : 'none';
+        if(input.style.display === 'flex') {
+            input.querySelector('input')?.focus();
+        }
+    }
+};
+
+// دالة إعجاب بتعليق
+window.toggleCommentLike = async (postId, commentId, isReply = false, replyId = null) => {
+    if(!window.currentUser) return;
+    
+    let likePath;
+    if(isReply && replyId) {
+        likePath = `posts/${postId}/comments/${commentId}/replies/${replyId}/likes/${window.currentUser}`;
+    } else {
+        likePath = `posts/${postId}/comments/${commentId}/likes/${window.currentUser}`;
+    }
+    
+    const likeRef = ref(db, likePath);
+    const snapshot = await get(likeRef);
+    
+    if(snapshot.exists()) {
+        await remove(likeRef);
+    } else {
+        await set(likeRef, true);
+    }
+    
+    // تحديث العرض
+    if(window.currentOpenPostId === postId) {
+        await window.refreshPostComments(postId);
+    }
+};
+
+// دالة تحديث التعليقات
+window.refreshPostComments = async (postId) => {
+    const commentsContainer = document.getElementById('postCommentsContainer');
+    if(!commentsContainer) return;
+    
+    const snapshot = await get(ref(db, `posts/${postId}/comments`));
+    const comments = [];
+    
+    if(snapshot.exists()) {
+        snapshot.forEach(child => {
+            const comment = child.val();
+            comment.id = child.key;
+            comments.push(comment);
+        });
+        comments.sort((a, b) => a.timestamp - b.timestamp);
+    }
+    
+    commentsContainer.innerHTML = window.renderCommentsHTML(postId, comments);
+    
+    // إعادة ربط الأحداث
+    commentsContainer.querySelectorAll('.comment-like-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const commentId = btn.dataset.commentId;
+            window.toggleCommentLike(postId, commentId);
+        });
+    });
+    
+    commentsContainer.querySelectorAll('.reply-like-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const commentId = btn.dataset.commentId;
+            const replyId = btn.dataset.replyId;
+            window.toggleCommentLike(postId, commentId, true, replyId);
+        });
+    });
+};
+
+// دالة عرض التعليقات
+window.renderCommentsHTML = (postId, comments) => {
+    if(!comments || comments.length === 0) {
+        return `<div class="no-comments">لا توجد تعليقات بعد. كن أول من يعلق!</div>`;
+    }
+    
+    let html = '';
+    for(const comment of comments) {
+        const commentAuthorData = window.allUsersData[comment.author] || {};
+        const commentAuthorName = commentAuthorData.displayName || comment.author;
+        const commentAuthorPic = commentAuthorData.profilePic || dA;
+        const commentLikesCount = comment.likes ? Object.keys(comment.likes).length : 0;
+        const isCommentLiked = comment.likes && comment.likes[window.currentUser];
+        
+        html += `
+            <div class="comment-item" data-comment-id="${comment.id}">
+                <div class="comment-avatar">
+                    <img src="${commentAuthorPic}" onclick="window.openProfile('${comment.author}')">
+                </div>
+                <div class="comment-content">
+                    <div class="comment-header">
+                        <span class="comment-author" onclick="window.openProfile('${comment.author}')">${commentAuthorName}</span>
+                        <span class="comment-time">${window.timeAgo(comment.timestamp)}</span>
+                    </div>
+                    <div class="comment-text">${window.formatMentions(comment.text)}</div>
+                    <div class="comment-actions">
+                        <button class="comment-like-btn ${isCommentLiked ? 'liked' : ''}" data-comment-id="${comment.id}">
+                            <i class="fas fa-heart"></i> <span>${commentLikesCount || 'إعجاب'}</span>
+                        </button>
+                        <button class="comment-reply-btn" onclick="window.showReplyInput('${comment.id}')">
+                            <i class="fas fa-reply"></i> رد
+                        </button>
+                    </div>
+                    <div class="reply-input-container" id="replyInput_${comment.id}" style="display: none;">
+                        <input type="text" placeholder="اكتب رداً..." id="replyText_${comment.id}" class="reply-input">
+                        <button onclick="window.addReply('${postId}', '${comment.id}', '${comment.author}')" class="btn-primary btn-sm">إرسال</button>
+                    </div>
+        `;
+        
+        // عرض الردود
+        if(comment.replies) {
+            const replies = Object.entries(comment.replies).map(([id, val]) => ({ id, ...val }));
+            replies.sort((a, b) => a.timestamp - b.timestamp);
+            
+            html += `<div class="replies-container">`;
+            for(const reply of replies) {
+                const replyAuthorData = window.allUsersData[reply.author] || {};
+                const replyAuthorName = replyAuthorData.displayName || reply.author;
+                const replyAuthorPic = replyAuthorData.profilePic || dA;
+                const replyLikesCount = reply.likes ? Object.keys(reply.likes).length : 0;
+                const isReplyLiked = reply.likes && reply.likes[window.currentUser];
+                
+                html += `
+                    <div class="reply-item">
+                        <div class="reply-avatar">
+                            <img src="${replyAuthorPic}" onclick="window.openProfile('${reply.author}')">
+                        </div>
+                        <div class="reply-content">
+                            <div class="reply-header">
+                                <span class="reply-author" onclick="window.openProfile('${reply.author}')">${replyAuthorName}</span>
+                                <span class="reply-time">${window.timeAgo(reply.timestamp)}</span>
+                            </div>
+                            <div class="reply-text">${window.formatMentions(reply.text)}</div>
+                            <button class="reply-like-btn ${isReplyLiked ? 'liked' : ''}" data-comment-id="${comment.id}" data-reply-id="${reply.id}">
+                                <i class="fas fa-heart"></i> <span>${replyLikesCount || 'إعجاب'}</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+            html += `</div>`;
+        }
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    return html;
+};
+
+// =============== نظام مشاركة المنشورات المتكامل ===============
+
+// دالة مشاركة منشور
+window.sharePost = async (postId) => {
+    if(!window.currentUser) return window.showRegisterModal();
+    
+    const post = window.postCache[postId] || window.allPosts.find(p => p.id === postId);
+    if(!post) {
+        window.dlgAlert('المنشور غير موجود', 'warning', 'خطأ');
+        return;
+    }
+    
+    // فتح نافذة المشاركة
+    const shareCaption = await window.dlgPrompt('أضف تعليقاً على المشاركة (اختياري):', '', 'اكتب شيئاً...');
+    if(shareCaption === null) return; // المستخدم ألغى
+    
+    const shareBtn = document.getElementById('sharePostBtn');
+    if(shareBtn) {
+        shareBtn.disabled = true;
+        shareBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري...';
+    }
+    
+    try {
+        const sharedPostData = {
+            originalPostId: post.id,
+            author: post.author,
+            text: post.text,
+            image: post.image || null,
+            video: post.video || null,
+            timestamp: post.timestamp
+        };
+        
+        const newPostRef = push(ref(db, 'posts'));
+        await set(newPostRef, {
+            author: window.currentUser,
+            text: shareCaption || '',
+            timestamp: Date.now(),
+            isShare: true,
+            sharedData: sharedPostData
+        });
+        
+        window.showToast('تمت المشاركة', 'تم نشر المنشور في صفحتك', '');
+        
+        // إشعار لصاحب المنشور الأصلي
+        if(post.author !== window.currentUser) {
+            await push(ref(db, `users/${post.author}/notifications`), {
+                type: 'share',
+                from: window.currentUser,
+                postId: post.id,
+                timestamp: Date.now(),
+                read: false
+            });
+        }
+        
+        // تحديث الخلاصة
+        window.renderedPostIds = new Set(window.allPosts.map(p => p.id));
+        window.feedLim = 5;
+        window.renderFeed();
+        
+    } catch(error) {
+        console.error('Error sharing post:', error);
+        window.dlgAlert('حدث خطأ أثناء المشاركة', 'danger', 'خطأ');
+    } finally {
+        if(shareBtn) {
+            shareBtn.disabled = false;
+            shareBtn.innerHTML = '<i class="fas fa-share-alt"></i> مشاركة';
+        }
+    }
+};
+
+// =============== تطوير دالة عرض المنشورات ===============
+
+// دالة عرض منشور واحد بتصميم محسن
+window.renderPostEnhanced = (post, isModal = false) => {
+    const authorData = window.allUsersData[post.author] || {};
+    const authorName = authorData.displayName || post.author;
+    const authorPic = authorData.profilePic || dA;
+    const isOwnPost = post.author === window.currentUser;
+    const isLiked = post.likes && post.likes[window.currentUser];
+    const likesCount = post.likes ? Object.keys(post.likes).length : 0;
+    const commentsCount = post.comments ? Object.keys(post.comments).length : 0;
+    
+    let postContent = '';
+    
+    if(post.isShare && post.sharedData) {
+        const originalAuthorData = window.allUsersData[post.sharedData.author] || {};
+        const originalAuthorName = originalAuthorData.displayName || post.sharedData.author;
+        const originalAuthorPic = originalAuthorData.profilePic || dA;
+        
+        postContent = `
+            <div class="shared-post-container">
+                <div class="shared-post-header" onclick="window.openProfile('${post.sharedData.author}')">
+                    <img src="${originalAuthorPic}" class="shared-post-avatar">
+                    <div class="shared-post-info">
+                        <span class="shared-post-author">${originalAuthorName}</span>
+                        <span class="shared-post-time">${window.timeAgo(post.sharedData.timestamp)}</span>
+                    </div>
+                </div>
+                <div class="shared-post-content">${window.formatMentions(post.sharedData.text || '')}</div>
+                ${post.sharedData.image ? `<img src="${post.sharedData.image}" class="shared-post-media">` : ''}
+                ${post.sharedData.video ? `<video src="${post.sharedData.video}" class="shared-post-media" controls></video>` : ''}
+            </div>
+        `;
+    } else {
+        postContent = `
+            <div class="post-text">${window.formatMentions(post.text || '')}</div>
+            ${post.image ? `<img src="${post.image}" class="post-image" onclick="window.openImageModal('${post.image}')">` : ''}
+            ${post.video ? `<video src="${post.video}" class="post-video" controls></video>` : ''}
+        `;
+    }
+    
+    return `
+        <div class="post-card" data-post-id="${post.id}">
+            <div class="post-header">
+                <div class="post-author-info" onclick="window.openProfile('${post.author}')">
+                    <img src="${authorPic}" class="post-author-avatar">
+                    <div class="post-author-details">
+                        <span class="post-author-name">${authorName}</span>
+                        <span class="post-author-handle">@${post.author}</span>
+                    </div>
+                </div>
+                <div class="post-header-actions">
+                    ${isOwnPost ? `
+                        <button class="post-edit-btn" onclick="window.editPost('${post.id}')">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="post-delete-btn" onclick="window.deletePost('${post.id}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    ` : ''}
+                    <button class="post-report-btn" onclick="window.reportPost('${post.id}')">
+                        <i class="fas fa-ellipsis-h"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="post-body">
+                ${postContent}
+            </div>
+            <div class="post-stats">
+                <div class="post-likes">
+                    <i class="fas fa-heart"></i>
+                    <span>${likesCount} ${likesCount === 1 ? 'إعجاب' : 'إعجابات'}</span>
+                </div>
+                <div class="post-comments-count">
+                    <i class="fas fa-comment"></i>
+                    <span>${commentsCount} ${commentsCount === 1 ? 'تعليق' : 'تعليقات'}</span>
+                </div>
+            </div>
+            <div class="post-actions">
+                <button class="post-like-btn ${isLiked ? 'liked' : ''}" onclick="window.toggleLike('${post.id}', '${post.author}', this)">
+                    <i class="fas fa-heart"></i>
+                    <span>${isLiked ? 'أعجبني' : 'إعجاب'}</span>
+                </button>
+                <button class="post-comment-btn" onclick="window.openPostModal('${post.id}')">
+                    <i class="fas fa-comment"></i>
+                    <span>تعليق</span>
+                </button>
+                <button class="post-share-btn" onclick="window.sharePost('${post.id}')">
+                    <i class="fas fa-share-alt"></i>
+                    <span>مشاركة</span>
+                </button>
+            </div>
+            ${!isModal ? `
+                <div class="post-comment-input">
+                    <img src="${window.allUsersData[window.currentUser]?.profilePic || dA}" class="comment-input-avatar">
+                    <input type="text" id="commentInp_feed_${post.id}" placeholder="اكتب تعليقاً..." class="comment-input-field">
+                    <button onclick="window.addComment('${post.id}', '${post.author}', 'feed')" class="comment-send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+                <div class="post-comments-preview" id="commentsPreview_${post.id}">
+                    ${window.getCommentsPreview(post.id, post.comments)}
+                </div>
+            ` : `
+                <div class="post-comments-section" id="postCommentsContainer">
+                    ${window.getCommentsFull(post.id, post.comments)}
+                </div>
+                <div class="post-comment-input">
+                    <img src="${window.allUsersData[window.currentUser]?.profilePic || dA}" class="comment-input-avatar">
+                    <input type="text" id="commentInp_modal_${post.id}" placeholder="اكتب تعليقاً..." class="comment-input-field">
+                    <button onclick="window.addComment('${post.id}', '${post.author}', 'modal')" class="comment-send-btn">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            `}
+        </div>
+    `;
+};
+
+// دالة عرض معاينة التعليقات
+window.getCommentsPreview = (postId, comments) => {
+    if(!comments) return '';
+    
+    const commentsList = Object.entries(comments).map(([id, val]) => ({ id, ...val }));
+    commentsList.sort((a, b) => b.timestamp - a.timestamp);
+    
+    if(commentsList.length === 0) return '';
+    
+    const latestComments = commentsList.slice(0, 2);
+    let html = '';
+    
+    for(const comment of latestComments) {
+        const commentAuthor = window.allUsersData[comment.author] || {};
+        const commentName = commentAuthor.displayName || comment.author;
+        
+        html += `
+            <div class="comment-preview" onclick="window.openPostModal('${postId}')">
+                <strong>${commentName}</strong>
+                <span>${comment.text.substring(0, 60)}${comment.text.length > 60 ? '...' : ''}</span>
+            </div>
+        `;
+    }
+    
+    if(commentsList.length > 2) {
+        html += `<div class="view-all-comments" onclick="window.openPostModal('${postId}')">عرض جميع التعليقات (${commentsList.length})</div>`;
+    }
+    
+    return html;
+};
+
+// دالة عرض جميع التعليقات
+window.getCommentsFull = (postId, comments) => {
+    if(!comments) {
+        return '<div class="no-comments">لا توجد تعليقات بعد. كن أول من يعلق!</div>';
+    }
+    
+    const commentsList = Object.entries(comments).map(([id, val]) => ({ id, ...val }));
+    commentsList.sort((a, b) => a.timestamp - b.timestamp);
+    
+    let html = '';
+    
+    for(const comment of commentsList) {
+        const commentAuthor = window.allUsersData[comment.author] || {};
+        const commentName = commentAuthor.displayName || comment.author;
+        const commentPic = commentAuthor.profilePic || dA;
+        const commentLikes = comment.likes ? Object.keys(comment.likes).length : 0;
+        const isCommentLiked = comment.likes && comment.likes[window.currentUser];
+        
+        html += `
+            <div class="comment-full" id="comment_${comment.id}">
+                <div class="comment-avatar">
+                    <img src="${commentPic}" onclick="window.openProfile('${comment.author}')">
+                </div>
+                <div class="comment-content-full">
+                    <div class="comment-header-full">
+                        <span class="comment-author-full" onclick="window.openProfile('${comment.author}')">${commentName}</span>
+                        <span class="comment-time-full">${window.timeAgo(comment.timestamp)}</span>
+                    </div>
+                    <div class="comment-text-full">${window.formatMentions(comment.text)}</div>
+                    <div class="comment-actions-full">
+                        <button class="comment-like-btn-full ${isCommentLiked ? 'liked' : ''}" onclick="window.toggleCommentLike('${postId}', '${comment.id}')">
+                            <i class="fas fa-heart"></i> ${commentLikes || 'إعجاب'}
+                        </button>
+                        <button class="comment-reply-btn-full" onclick="window.showReplyInput('${comment.id}')">
+                            <i class="fas fa-reply"></i> رد
+                        </button>
+                    </div>
+                    <div class="reply-input-container" id="replyInput_${comment.id}" style="display: none;">
+                        <input type="text" placeholder="اكتب رداً..." id="replyText_${comment.id}" class="reply-input">
+                        <button onclick="window.addReply('${postId}', '${comment.id}', '${comment.author}')" class="btn-primary btn-sm">إرسال</button>
+                    </div>
+        `;
+        
+        // عرض الردود
+        if(comment.replies) {
+            const replies = Object.entries(comment.replies).map(([id, val]) => ({ id, ...val }));
+            replies.sort((a, b) => a.timestamp - b.timestamp);
+            
+            for(const reply of replies) {
+                const replyAuthor = window.allUsersData[reply.author] || {};
+                const replyName = replyAuthor.displayName || reply.author;
+                const replyPic = replyAuthor.profilePic || dA;
+                const replyLikes = reply.likes ? Object.keys(reply.likes).length : 0;
+                const isReplyLiked = reply.likes && reply.likes[window.currentUser];
+                
+                html += `
+                    <div class="reply-full">
+                        <div class="reply-avatar">
+                            <img src="${replyPic}" onclick="window.openProfile('${reply.author}')">
+                        </div>
+                        <div class="reply-content-full">
+                            <div class="reply-header-full">
+                                <span class="reply-author-full" onclick="window.openProfile('${reply.author}')">${replyName}</span>
+                                <span class="reply-time-full">${window.timeAgo(reply.timestamp)}</span>
+                            </div>
+                            <div class="reply-text-full">${window.formatMentions(reply.text)}</div>
+                            <button class="reply-like-btn-full ${isReplyLiked ? 'liked' : ''}" onclick="window.toggleCommentLike('${postId}', '${comment.id}', true, '${reply.id}')">
+                                <i class="fas fa-heart"></i> ${replyLikes || 'إعجاب'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        html += `
+                </div>
+            </div>
+        `;
+    }
+    
+    return html;
+};
+
+// تحديث دالة openPostModal
+window.openPostModal = (postId) => {
+    window.currentOpenPostId = postId;
+    window.location.hash = '#/post/' + postId;
+};
+
+window.openPostLogic = async (postId) => {
+    let post = window.postCache[postId];
+    
+    if(!post) {
+        const snapshot = await get(ref(db, `posts/${postId}`));
+        if(snapshot.exists()) {
+            post = snapshot.val();
+            post.id = postId;
+            window.postCache[postId] = post;
+        }
+    }
+    
+    if(!post) {
+        window.dlgAlert('المنشور غير موجود', 'warning', 'خطأ');
+        window.goHome();
+        return;
+    }
+    
+    const modal = document.getElementById('postModal');
+    const content = document.getElementById('postModalBody');
+    
+    if(modal && content) {
+        content.innerHTML = window.renderPostEnhanced(post, true);
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+    }
+};
+
+// تحديث دالة renderFeed لاستخدام التصميم الجديد
+const originalRenderFeed = window.renderFeed;
+window.renderFeed = () => {
+    if(!window.currentUser) return;
+    
+    const feedContainer = document.getElementById('postsFeed');
+    if(!feedContainer) return;
+    
+    let postsToShow = window.allPosts.filter(p => !window.renderedPostIds.has(p.id));
+    postsToShow.sort((a, b) => b.timestamp - a.timestamp);
+    postsToShow = postsToShow.slice(0, window.feedLim);
+    
+    if(postsToShow.length === 0 && window.renderedPostIds.size === 0) {
+        feedContainer.innerHTML = '<div class="empty-feed">لا توجد منشورات حالياً. ابدأ بمشاركة شيء جديد!</div>';
+        return;
+    }
+    
+    let html = '';
+    for(const post of postsToShow) {
+        html += window.renderPostEnhanced(post, false);
+    }
+    
+    feedContainer.innerHTML = html;
+    
+    // إضافة أنماط CSS جديدة
+    window.addPostStyles();
+};
+
+// إضافة الأنماط الجديدة
+window.addPostStyles = () => {
+    if(document.getElementById('post-enhanced-styles')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'post-enhanced-styles';
+    style.textContent = `
+        /* أنماط المنشورات المحسنة */
+        .post-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+        
+        .post-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .post-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .post-author-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+        
+        .post-author-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        .post-author-details {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .post-author-name {
+            font-weight: 700;
+            font-size: 15px;
+            color: var(--text-main);
+        }
+        
+        .post-author-handle {
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        
+        .post-header-actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .post-edit-btn, .post-delete-btn, .post-report-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 50%;
+            transition: all 0.2s;
+            color: var(--text-muted);
+        }
+        
+        .post-edit-btn:hover, .post-delete-btn:hover, .post-report-btn:hover {
+            background: var(--bg-color);
+        }
+        
+        .post-delete-btn:hover {
+            color: #ef4444;
+        }
+        
+        .post-body {
+            padding: 20px;
+        }
+        
+        .post-text {
+            font-size: 16px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .post-image {
+            width: 100%;
+            max-height: 500px;
+            object-fit: contain;
+            border-radius: 12px;
+            cursor: pointer;
+        }
+        
+        .post-video {
+            width: 100%;
+            max-height: 500px;
+            border-radius: 12px;
+        }
+        
+        .shared-post-container {
+            background: var(--bg-color);
+            border-radius: 12px;
+            padding: 15px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .shared-post-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+        
+        .shared-post-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        .shared-post-info {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .shared-post-author {
+            font-weight: 600;
+            font-size: 13px;
+        }
+        
+        .shared-post-time {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        .shared-post-content {
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .shared-post-media {
+            width: 100%;
+            max-height: 300px;
+            object-fit: contain;
+            border-radius: 8px;
+        }
+        
+        .post-stats {
+            display: flex;
+            gap: 20px;
+            padding: 12px 20px;
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        
+        .post-stats i {
+            margin-left: 5px;
+        }
+        
+        .post-actions {
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .post-like-btn, .post-comment-btn, .post-share-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            background: none;
+            border: none;
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all 0.2s;
+        }
+        
+        .post-like-btn:hover, .post-comment-btn:hover, .post-share-btn:hover {
+            background: var(--bg-color);
+        }
+        
+        .post-like-btn.liked {
+            color: #ef4444;
+        }
+        
+        .post-like-btn.liked i {
+            animation: heartBeat 0.3s ease;
+        }
+        
+        @keyframes heartBeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+        
+        .post-comment-input {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px 20px;
+            background: var(--bg-color);
+        }
+        
+        .comment-input-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+        
+        .comment-input-field {
+            flex: 1;
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            background: var(--card-bg);
+            font-size: 14px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        
+        .comment-input-field:focus {
+            border-color: var(--primary);
+        }
+        
+        .comment-send-btn {
+            background: var(--primary);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .comment-send-btn:hover {
+            background: var(--primary-hover);
+            transform: scale(1.05);
+        }
+        
+        .post-comments-preview {
+            padding: 0 20px 15px 20px;
+        }
+        
+        .comment-preview {
+            padding: 8px 0;
+            font-size: 13px;
+            cursor: pointer;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .comment-preview strong {
+            color: var(--primary);
+            margin-left: 8px;
+        }
+        
+        .view-all-comments {
+            padding: 8px 0;
+            font-size: 13px;
+            color: var(--primary);
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        /* أنماط التعليقات */
+        .comment-item, .reply-item {
+            display: flex;
+            gap: 12px;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .comment-avatar img, .reply-avatar img {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            cursor: pointer;
+        }
+        
+        .comment-content, .reply-content {
+            flex: 1;
+        }
+        
+        .comment-header, .reply-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 5px;
+        }
+        
+        .comment-author, .reply-author {
+            font-weight: 700;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        
+        .comment-time, .reply-time {
+            font-size: 11px;
+            color: var(--text-muted);
+        }
+        
+        .comment-text, .reply-text {
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+        
+        .comment-actions {
+            display: flex;
+            gap: 15px;
+        }
+        
+        .comment-like-btn, .comment-reply-btn, .reply-like-btn {
+            background: none;
+            border: none;
+            font-size: 12px;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+        
+        .comment-like-btn:hover, .comment-reply-btn:hover, .reply-like-btn:hover {
+            background: var(--bg-color);
+        }
+        
+        .comment-like-btn.liked, .reply-like-btn.liked {
+            color: #ef4444;
+        }
+        
+        .reply-input-container {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .reply-input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            font-size: 13px;
+            outline: none;
+        }
+        
+        .btn-sm {
+            padding: 6px 15px;
+            font-size: 12px;
+        }
+        
+        .replies-container {
+            margin-top: 12px;
+            margin-right: 20px;
+            padding-right: 15px;
+            border-right: 2px solid var(--border-color);
+        }
+        
+        .reply-full, .comment-full {
+            display: flex;
+            gap: 12px;
+            padding: 15px;
+            background: var(--bg-color);
+            border-radius: 12px;
+            margin-bottom: 12px;
+        }
+        
+        .comment-content-full, .reply-content-full {
+            flex: 1;
+        }
+        
+        .empty-feed {
+            text-align: center;
+            padding: 50px;
+            color: var(--text-muted);
+            background: var(--card-bg);
+            border-radius: 16px;
+        }
+        
+        .no-comments {
+            text-align: center;
+            padding: 30px;
+            color: var(--text-muted);
+        }
+    `;
+    
+    document.head.appendChild(style);
+};
