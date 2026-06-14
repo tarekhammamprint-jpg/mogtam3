@@ -207,7 +207,18 @@
             <button onclick="window.executeShare()" class="btn-primary" style="width:100%;padding:12px;font-size:16px;"><em class="fas fa-share"></em> نشر المشاركة</button>
         </div>
     </div>
-
+<!-- تحديث مودال المنشور -->
+<div class="modal" id="postModal">
+    <div class="modal-content" style="max-width: 700px; padding: 0;">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 15px 20px; border-bottom: 1px solid var(--border-color);">
+            <h3 style="margin: 0;">المنشور</h3>
+            <span onclick="window.closeModal('postModal')" class="close-btn" style="position: relative; top: 0; right: 0; width: 35px; height: 35px;">
+                <i class="fas fa-times"></i>
+            </span>
+        </div>
+        <div id="postModalBody" style="max-height: 70vh; overflow-y: auto;"></div>
+    </div>
+</div>
     <div class="modal" id="postModal">
         <div class="modal-content">
             <div class="chat-header" style="border-radius:16px 16px 0 0;background:#fff;color:#050505;border-bottom:1px solid var(--border-color);box-shadow:none;">
