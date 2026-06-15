@@ -66,7 +66,7 @@ window.viewCommunityMembers = (commId) => {
     let isAdmin = comm.admin === window.currentUser;
     let h = '<div style="padding:10px; background:#fff; border-radius:8px;"><h4 style="margin-bottom:15px; color:var(--primary);">أعضاء المجتمع</h4>';
     Object.keys(comm.members || {}).forEach(uid => {
-        let d = window.allUsersData[uid], name = d ? d.displayName : uid, pic = d ? (d.profilePic || dA) : dA;
+        let d = window.allUsersData[uid], name = (d && d.displayName) ? d.displayName : uid, pic = d ? (d.profilePic || dA) : dA;
         h += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9;"><div style="display:flex; align-items:center; gap:8px;"><img src="${pic}" class="avatar-small" style="width:30px; height:30px;"><span style="font-size:14px; font-weight:bold;">${name} ${comm.admin === uid ? '<span style="color:#10b981; font-size:11px;">(مسئول)</span>' : ''}</span></div>`;
         if (isAdmin && uid !== window.currentUser) h += `<button class="btn-secondary" style="background:#ef4444; color:#fff; padding:4px 8px; font-size:12px; border:none; border-radius:6px;" onclick="window.removeCommunityMember('${commId}', '${uid}')">إزالة</button>`;
         h += `</div>`;
@@ -83,7 +83,7 @@ window.manageCommunityRequests = (commId) => {
     if (!comm.requests || Object.keys(comm.requests).length === 0) h += '<p style="text-align:center; color:#64748b; font-size:14px;">لا توجد طلبات معلقة.</p>';
     else {
         Object.keys(comm.requests).forEach(uid => {
-            let d = window.allUsersData[uid], name = d ? d.displayName : uid, pic = d ? (d.profilePic || dA) : dA;
+            let d = window.allUsersData[uid], name = (d && d.displayName) ? d.displayName : uid, pic = d ? (d.profilePic || dA) : dA;
             h += `<div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f1f5f9;"><div style="display:flex; align-items:center; gap:8px;"><img src="${pic}" class="avatar-small" style="width:30px; height:30px;"><span style="font-size:14px; font-weight:bold;">${name}</span></div><div style="display:flex; gap:5px;"><button class="btn-primary" style="background:#10b981; border-color:#10b981; padding:4px 8px; font-size:12px;" onclick="window.approveCommRequest('${commId}', '${uid}')">قبول</button><button class="btn-secondary" style="padding:4px 8px; font-size:12px;" onclick="window.rejectCommRequest('${commId}', '${uid}')">رفض</button></div></div>`;
         });
     }
