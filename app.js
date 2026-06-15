@@ -1119,13 +1119,20 @@ window.renderProfileFriendsEnhanced = async (userId, container) => {
     const friends = [];
     
     if (snapshot.exists()) {
-        Object.keys(snapshot.val()).forEach(friendId => {
-            if (window.allUsersData[friendId]) {
-                friends.push({
-                    id: friendId,
-                    data: window.allUsersData[friendId]
-                });
-            }
+        const friendIds = Object.keys(snapshot.val());
+        // جلب بيانات الأصدقاء الغير موجودة في allUsersData
+        const missingIds = friendIds.filter(id => !window.allUsersData[id]);
+        if (missingIds.length > 0) {
+            await Promise.all(missingIds.map(async id => {
+                try {
+                    const s = await get(ref(db, `users/${id}`));
+                    if (s.exists()) window.allUsersData[id] = s.val();
+                } catch(e) {}
+            }));
+        }
+        friendIds.forEach(friendId => {
+            const data = window.allUsersData[friendId] || {};
+            friends.push({ id: friendId, data });
         });
     }
     
@@ -1143,10 +1150,12 @@ window.renderProfileFriendsEnhanced = async (userId, container) => {
     let html = '<div class="friends-grid-enhanced">';
     friends.forEach(friend => {
         const mutualCount = window.calculateMutualFriends(userId, friend.id);
+        const name = (friend.data && friend.data.displayName) ? friend.data.displayName : friend.id;
+        const pic = (friend.data && friend.data.profilePic) ? friend.data.profilePic : dA;
         html += `
             <div class="friend-card-enhanced" onclick="window.openProfile('${friend.id}')">
-                <img src="${friend.data.profilePic || dA}" loading="lazy">
-                <div class="friend-name-enhanced">${friend.data.displayName}</div>
+                <img src="${pic}" loading="lazy">
+                <div class="friend-name-enhanced">${name}</div>
                 <div class="friend-handle-enhanced">@${friend.id}</div>
                 ${mutualCount > 0 ? `<div class="friend-mutual-enhanced"><i class="fas fa-user-friends"></i> ${mutualCount} مشترك</div>` : ''}
             </div>
