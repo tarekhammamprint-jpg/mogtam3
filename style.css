@@ -920,6 +920,14 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
     gap: 20px;
 }
 
+/* قائمة منشورات البروفايل المطور - تستخدم createPostHTML الكاملة */
+.profile-posts-list {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 5px 0;
+}
+
 /* شبكة الأصدقاء المطورة */
 .friends-grid-enhanced {
     display: grid;
@@ -1149,3 +1157,121 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
         font-size: 14px;
     }
 }
+
+/* ===== تحسينات البروفايل المطور - التعليقات والمنشورات ===== */
+
+/* منشورات البروفايل المطور - تجربة كاملة */
+.profile-posts-list .post {
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-color);
+    background: var(--card-bg);
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s;
+    margin-bottom: 0;
+}
+
+.profile-posts-list .post:hover {
+    box-shadow: var(--shadow-md);
+}
+
+/* تحسين التعليق في البروفايل */
+.profile-posts-list .comment-input-area {
+    background: var(--bg-color);
+    padding: 10px;
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+    margin: 0 -25px -25px;
+    border-top: 1px solid var(--border-color);
+}
+
+/* تمييز قسم التعليقات في البروفايل */
+.profile-posts-list .comments-section {
+    background: var(--bg-color);
+    margin: 0 -25px -25px;
+    padding: 15px 25px 15px;
+    border-top: 1px solid var(--border-color);
+    border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+/* رابط "عرض كل التعليقات" */
+.profile-posts-list .comments-section > div[onclick*="openPostModal"] {
+    background: #f1f5f9;
+    border-radius: 8px;
+    padding: 8px;
+    text-align: center;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text-muted);
+    font-weight: 700;
+    margin-top: 8px;
+    transition: background 0.2s;
+}
+
+.profile-posts-list .comments-section > div[onclick*="openPostModal"]:hover {
+    background: #e2e8f0;
+    color: var(--primary);
+}
+
+/* زر الإعجاب نشط في البروفايل */
+.profile-posts-list .action-btn .fa-heart.fas {
+    color: #ef4444 !important;
+}
+
+/* شريط الأكشن في البروفايل */
+.profile-posts-list .post-actions-bar {
+    border-top: 1px solid var(--border-color);
+    border-bottom: 1px solid var(--border-color);
+    padding: 4px 0;
+    margin: 10px 0 0 0;
+}
+
+/* تحسين مظهر المشاركات في البروفايل */
+.profile-posts-list .shared-post-box {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-sm);
+    padding: 15px;
+    background: var(--bg-color);
+    cursor: pointer;
+    transition: background 0.2s;
+    margin-top: 10px;
+}
+
+.profile-posts-list .shared-post-box:hover {
+    background: #f8fafc;
+}
+
+/* تحسين حقل التعليق */
+.profile-posts-list .comment-input {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+}
+
+.profile-posts-list .comment-input:focus {
+    border-color: var(--primary);
+    background: #fff;
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.08);
+}
+
+/* شارة "رائج" بشكل أجمل */
+.profile-posts-list .post-header .fa-fire {
+    color: #ff9800;
+}
+
+/* تحسين زر الرد */
+.profile-posts-list .reply-btn {
+    display: inline-block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--primary);
+    cursor: pointer;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #eef2ff;
+    transition: background 0.2s;
+}
+
+.profile-posts-list .reply-btn:hover {
+    background: #e0e7ff;
+}
+
+/* ===== نهاية تحسينات البروفايل ===== */
