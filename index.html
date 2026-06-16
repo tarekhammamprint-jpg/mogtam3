@@ -194,19 +194,32 @@
         </div>
     </div>
 
-    <div class="modal" id="shareModal">
-        <div class="modal-content" style="padding:20px;">
-            <span onclick="window.closeModal('shareModal')" class="close-btn"><em class="fas fa-times"></em></span>
-            <h3 style="margin-top:0;border-bottom:1px solid var(--border-color);padding-bottom:15px;color:#1c1e21;text-align:center;">مشاركة المنشور</h3>
-            <div style="display:flex;gap:12px;margin-bottom:15px;">
-                <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="myShareAvatar" class="avatar-small" />
-                <textarea oninput="window.handleMentionInput(this)" id="shareCaption" class="composer-input" placeholder="قل شيئاً عن هذا..." rows="3" style="flex:1;border:none;outline:0;background:#f0f2f5;padding:12px;border-radius:12px;"></textarea>
+    <!-- Share Popup - مستقل عن نظام modal -->
+    <div id="shareOverlay" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this) window.closeSharePopup()">
+        <div id="sharePopupBox" style="background:#fff;border-radius:20px;width:100%;max-width:480px;box-shadow:0 24px 80px rgba(0,0,0,0.25);overflow:hidden;transform:scale(0.9) translateY(20px);transition:transform .25s cubic-bezier(.34,1.56,.64,1);font-family:'Cairo',sans-serif;direction:rtl;">
+            <!-- Header -->
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid #e2e8f0;">
+                <h3 style="margin:0;font-size:17px;font-weight:800;color:#0f172a;"><i class="fas fa-share" style="color:var(--primary);margin-left:8px;"></i>مشاركة المنشور</h3>
+                <button onclick="window.closeSharePopup()" style="background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'"><i class="fas fa-times"></i></button>
             </div>
-            <div id="sharePreview" class="shared-post-box" style="margin-bottom:20px;"></div>
-            <input type="hidden" id="sharePostId" />
-            <button onclick="window.publishShare()" class="btn-primary" style="width:100%;padding:12px;font-size:16px;"><i class="fas fa-share"></i> نشر المشاركة</button>
+            <!-- Body -->
+            <div style="padding:18px 20px;">
+                <div style="display:flex;gap:12px;margin-bottom:14px;align-items:flex-start;">
+                    <img id="myShareAvatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" style="width:40px;height:40px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                    <textarea oninput="window.handleMentionInput(this)" id="shareCaption" placeholder="قل شيئاً عن هذا..." rows="3" style="flex:1;border:1px solid #e2e8f0;outline:none;background:#f8fafc;padding:11px 14px;border-radius:12px;font-family:'Cairo',sans-serif;font-size:14px;resize:none;transition:.2s;" onfocus="this.style.borderColor='var(--primary)';this.style.background='#fff'" onblur="this.style.borderColor='#e2e8f0';this.style.background='#f8fafc'"></textarea>
+                </div>
+                <!-- معاينة المنشور -->
+                <div id="sharePreview" style="border:1px solid #e2e8f0;border-radius:12px;padding:14px;background:#f8fafc;margin-bottom:16px;max-height:220px;overflow-y:auto;"></div>
+                <input type="hidden" id="sharePostId">
+            </div>
+            <!-- Footer -->
+            <div style="padding:0 20px 18px;display:flex;gap:10px;">
+                <button onclick="window.closeSharePopup()" style="flex:1;padding:11px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;color:#64748b;font-family:'Cairo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;transition:.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='#fff'">إلغاء</button>
+                <button onclick="window.publishShare()" id="publishShareBtn" style="flex:2;padding:11px;border:none;border-radius:12px;background:var(--primary);color:#fff;font-family:'Cairo',sans-serif;font-size:14px;font-weight:800;cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;gap:8px;" onmouseover="this.style.filter='brightness(0.93)'" onmouseout="this.style.filter='none'"><i class="fas fa-share"></i> نشر المشاركة</button>
+            </div>
         </div>
     </div>
+    <!-- نهاية Share Popup -->
 
     <div class="modal" id="postModal">
         <div class="modal-content">
