@@ -457,10 +457,7 @@ function handleRouting() {
         let postId = decodeURIComponent(hash.replace('#/post/', ''));
         if (window.openPostLogic) window.openPostLogic(postId);
     }
-    else if(hash.startsWith('#/share/')) {
-        let shareId = decodeURIComponent(hash.replace('#/share/', ''));
-        if (window.openShareLogic) window.openShareLogic(shareId);
-    }
+    // share يُعالج الآن مباشرة بدون hash
     else if(hash === '#/requests') {
         if (window.openRequestsLogic) window.openRequestsLogic();
     }
@@ -573,7 +570,59 @@ window.addEventListener('popstate', () => {
 
 window.openProfile = (u) => { window.location.hash = '#/@' + u; }; 
 window.openPostModal = (id) => { window.location.hash = '#/post/' + id; }; 
-window.openShareModal = (id) => { window.location.hash = '#/share/' + id; };
+window.openShareModal = (id) => {
+    if(!window.currentUser) return window.showRegisterModal();
+    let p = window.postCache[id] || window.allPosts.find(x => x.id === id);
+    if(p) {
+        window._showSharePopup(id, p);
+    } else {
+        get(ref(db, `posts/${id}`)).then(s => {
+            if(s.exists()) { let post=s.val(); post.id=id; window.postCache[id]=post; window.allPosts.push(post); window._showSharePopup(id, post); }
+        });
+    }
+};
+
+window._showSharePopup = (id, p) => {
+    const dA = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+    // تحديث avatar
+    let av = document.getElementById('myShareAvatar');
+    if(av) av.src = window.allUsersData[window.currentUser]?.profilePic || dA;
+    // تحديث hidden input
+    let pi = document.getElementById('sharePostId');
+    if(pi) pi.value = id;
+    // تفريغ caption
+    let cap = document.getElementById('shareCaption');
+    if(cap) cap.value = '';
+    // بناء المعاينة
+    let oa = p.isShare ? p.sharedData?.author : p.author;
+    let ot = p.isShare ? p.sharedData?.text : p.text;
+    let oi = p.isShare ? p.sharedData?.image : p.image;
+    let ov = p.isShare ? p.sharedData?.video : p.video;
+    let ap = window.allUsersData[oa]?.profilePic || dA;
+    let dn = window.getDisplayName(oa);
+    let prev = document.getElementById('sharePreview');
+    if(prev) prev.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+            <img src="${ap}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;">
+            <strong style="font-size:13px;color:#0f172a;">${dn}</strong>
+        </div>
+        ${ot ? `<div style="font-size:14px;color:#374151;margin-bottom:8px;line-height:1.6;">${window.formatMentions(ot)}</div>` : ''}
+        ${oi ? `<img src="${oi}" style="width:100%;max-height:160px;object-fit:cover;border-radius:8px;">` : ''}
+        ${ov ? `<video src="${ov}" style="width:100%;max-height:160px;border-radius:8px;background:#000;" controls></video>` : ''}`;
+    // إظهار الـ overlay
+    let overlay = document.getElementById('shareOverlay');
+    let box = document.getElementById('sharePopupBox');
+    if(overlay) { overlay.style.display = 'flex'; setTimeout(() => { if(box) box.style.transform = 'scale(1) translateY(0)'; }, 10); }
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => { if(cap) cap.focus(); }, 300);
+};
+
+window.closeSharePopup = () => {
+    let overlay = document.getElementById('shareOverlay');
+    let box = document.getElementById('sharePopupBox');
+    if(box) box.style.transform = 'scale(0.9) translateY(20px)';
+    setTimeout(() => { if(overlay) overlay.style.display = 'none'; document.body.style.overflow = 'auto'; }, 220);
+};
 window.openRequestsModal = () => { if(!window.currentUser) return window.showRegisterModal(); window.location.hash = '#/requests'; }; 
 window.openAdminStats = () => { window.location.hash = '#/stats'; }; 
 window.openEditProfileModal = () => { window.location.hash = '#/edit-profile'; }; 
@@ -723,8 +772,7 @@ window.publishShare = () => {
     .then(nr => {
         window.myFriends.forEach(f => { if(c.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); });
         if(oa !== window.currentUser) push(ref(db, `users/${oa}/notifications`), {type:'share', from:window.currentUser, postId:id, timestamp:Date.now(), read:false});
-        $('shareModal').classList.remove('show');
-        document.body.style.overflow = 'auto';
+        window.closeSharePopup();
         $('shareCaption').value = '';
         window.location.hash = '';
         if(btn) { btn.innerHTML = ot; btn.disabled = false; }
