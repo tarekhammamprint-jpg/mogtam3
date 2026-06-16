@@ -1006,6 +1006,7 @@ window.renderProfilePostsEnhanced = async (userId, container) => {
             const post = child.val();
             post.id = child.key;
             window.postCache[post.id] = post;
+            // إظهار المنشورات العادية والمشتركة معاً، بدون الريلز
             if (post.author === userId && !post.isReel) posts.push(post);
         });
         posts.sort((a, b) => b.timestamp - a.timestamp);
@@ -1023,6 +1024,7 @@ window.renderProfilePostsEnhanced = async (userId, container) => {
 
     const dA = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
     let html = '<div class="posts-grid">';
+
     posts.forEach(post => {
         const isLiked = post.likes && post.likes[window.currentUser];
         const likesCount = post.likes ? Object.keys(post.likes).length : 0;
@@ -1032,21 +1034,40 @@ window.renderProfilePostsEnhanced = async (userId, container) => {
         const authorPic = authorData.profilePic || dA;
         const authorName = window.getDisplayName(post.author);
 
+        // بناء محتوى المنشور المشترك إن وجد
+        let sharedBox = '';
+        if (post.isShare && post.sharedData) {
+            const sd = post.sharedData;
+            const sdPic = window.allUsersData[sd.author]?.profilePic || dA;
+            const sdName = window.getDisplayName(sd.author);
+            sharedBox = `
+                <div class="shared-post-box" onclick="event.stopPropagation()" style="border:1px solid var(--border-color);border-radius:12px;padding:12px;margin:10px 0;background:var(--bg-color);cursor:default;">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <img src="${sdPic}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">
+                        <strong style="font-size:13px;">${sdName}</strong>
+                    </div>
+                    ${sd.text ? `<div style="font-size:14px;margin-bottom:8px;color:var(--text-color);">${window.formatMentions(sd.text)}</div>` : ''}
+                    ${sd.image ? `<img src="${sd.image}" style="width:100%;max-height:200px;object-fit:cover;border-radius:8px;">` : ''}
+                    ${sd.video ? `<video src="${sd.video}" controls style="width:100%;max-height:200px;border-radius:8px;background:#000;"></video>` : ''}
+                </div>`;
+        }
+
         html += `
             <div class="post" style="cursor:pointer;" onclick="window.openPostModal('${post.id}')">
-                <div class="post-header" style="margin-bottom:12px;" onclick="event.stopPropagation()">
-                    <a href="#/@${post.author}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                    <a href="#/@${post.author}" onclick="event.stopPropagation()">
                         <img src="${authorPic}" class="avatar-small" style="width:38px;height:38px;">
-                        <div>
-                            <div style="font-weight:700;font-size:14px;">${authorName}</div>
-                            <div style="font-size:11px;color:var(--text-muted);">${window.timeAgo(post.timestamp)}</div>
-                        </div>
                     </a>
+                    <div style="flex:1;">
+                        <div style="font-weight:700;font-size:14px;">${authorName}</div>
+                        <div style="font-size:11px;color:var(--text-muted);">${window.timeAgo(post.timestamp)}${post.isShare ? ' · <i class="fas fa-share" style="color:var(--primary);font-size:10px;"></i> شارك منشوراً' : ''}</div>
+                    </div>
                 </div>
-                ${post.text ? `<div class="post-content" style="margin-bottom:12px;">${window.formatMentions(post.text)}</div>` : ''}
-                ${post.image ? `<img src="${post.image}" class="post-media" style="max-height:400px;" onclick="event.stopPropagation(); window.openPostModal('${post.id}')">` : ''}
-                ${post.video ? `<video src="${post.video}" class="post-media" controls playsinline style="max-height:400px;background:#1e293b;" onclick="event.stopPropagation()"></video>` : ''}
-                <div class="post-actions-bar" style="margin-top:12px;" onclick="event.stopPropagation()">
+                ${post.text ? `<div class="post-content" style="margin-bottom:10px;">${window.formatMentions(post.text)}</div>` : ''}
+                ${!post.isShare && post.image ? `<img src="${post.image}" class="post-media" style="max-height:400px;" onclick="event.stopPropagation(); window.openPostModal('${post.id}')">` : ''}
+                ${!post.isShare && post.video ? `<video src="${post.video}" class="post-media" controls playsinline style="max-height:400px;background:#1e293b;" onclick="event.stopPropagation()"></video>` : ''}
+                ${sharedBox}
+                <div class="post-actions-bar" style="margin-top:10px;" onclick="event.stopPropagation()">
                     <button class="action-btn" onclick="window.toggleLike('${post.id}','${post.author}',this)">
                         <i class="${isLiked ? 'fas' : 'far'} fa-heart" style="${isLiked ? 'color:#ef4444;' : ''}"></i>
                         <span class="lc-count">${likesCount || 'إعجاب'}</span>
@@ -1060,6 +1081,7 @@ window.renderProfilePostsEnhanced = async (userId, container) => {
                 </div>
             </div>`;
     });
+
     html += '</div>';
     container.innerHTML = html;
     container.querySelectorAll('video').forEach(v => window.videoObserver?.observe(v));
