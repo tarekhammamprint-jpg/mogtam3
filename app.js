@@ -626,19 +626,18 @@ window.showNewPosts = () => { window.renderedPostIds = new Set(window.allPosts.m
 window.addEventListener('scroll', () => { if((window.innerHeight+window.scrollY) >= document.body.offsetHeight-800){ if(window.feedLim < window.allPosts.length){ window.feedLim += 5; renderFeed(); } } });
 
 function createPostHTML(p, cp, it=false, im=false) {
-    let isProfileCtx = cp && cp.startsWith('prof');
     let dt = new Date(p.timestamp).toLocaleString('ar-EG'), ap = window.allUsersData[p.author]?.profilePic || dA, ism = p.author === window.currentUser, ad = window.getDisplayName(p.author), ah = `<span style="font-size:12px;color:var(--text-muted);font-weight:normal;">@${p.author}</span>`, af = '';
     let abg = p.author.toLowerCase() === 'admin21' ? '<span style="background:#7c3aed;color:#fff;padding:2px 6px;border-radius:6px;font-size:10px;margin-right:5px;font-weight:bold;">إدارة</span>' : '';
     if(window.currentUser && !ism && !window.myFriends.includes(p.author)) { let rr = window.currentRequests && window.currentRequests[p.author]; if(window.sentRequests && window.sentRequests[p.author]) af = `<button class="btn-primary" style="padding:2px 10px;font-size:11px;border-radius:6px;margin-right:10px;background:#e2e8f0;color:#0f172a;" disabled><i class="fas fa-clock"></i> تم</button>`; else if(rr) af = `<button class="btn-primary" style="padding:2px 10px;font-size:11px;border-radius:6px;margin-right:10px;background:#10b981;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${p.author}')"><i class="fas fa-check"></i> قبول</button>`; else af = `<button class="btn-primary" data-action="add" data-target="${p.author}" style="padding:2px 10px;font-size:11px;border-radius:6px;margin-right:10px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${p.author}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; }
     let tbg = it ? `<span style="background:#ff9800;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;margin-right:10px;font-weight:bold;"><i class="fas fa-fire"></i> رائج</span>` : '', ch = ism ? `<div class="post-controls"><button onclick="event.stopPropagation();window.editPost('${p.id}')"><i class="fas fa-edit"></i></button><button onclick="event.stopPropagation();window.deletePost('${p.id}')"><i class="fas fa-trash"></i></button></div>` : '';
     let hl = window.currentUser ? (p.likes && p.likes[window.currentUser]) : false, hi = hl ? '<i class="fas fa-heart" style="color:#ef4444;"></i>' : '<i class="far fa-heart" style="color:#64748b;"></i>', lc = p.likes ? Object.keys(p.likes).length : 0, lt = lc > 0 ? `<span style="font-size:14px;margin-right:5px;color:#64748b;">${lc}</span>` : `<span style="font-size:14px;margin-right:5px;color:#64748b;">إعجاب</span>`;
-    let st = window.formatMentions(p.text), pb = '', ca = im ? '' : `onclick="window.openPostModal('${p.id}')"`;   let isLongP = p.text && (p.text.length > 200 || p.text.split('\n').length > 3); let pTxt = `<div class="post-content ${isLongP && !im ? 'collapsed' : ''}" id="ptxt_${p.id}">${st}</div>`; if(isLongP && !im) pTxt += `<div class="show-more-btn" onclick="document.getElementById('ptxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`;
+    let st = window.formatMentions(p.text), pb = '', ca = im ? '' : `onclick="window.openPostModal('${p.id}')"`; let isLongP = p.text && (p.text.length > 200 || p.text.split('\n').length > 3); let pTxt = `<div class="post-content ${isLongP && !im ? 'collapsed' : ''}" id="ptxt_${p.id}">${st}</div>`; if(isLongP && !im) pTxt += `<div class="show-more-btn" onclick="document.getElementById('ptxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`;
     let headerLeft = `<div style="display:flex; gap:10px; align-items:center;"><a href="#/@${p.author}"><img src="${ap}" class="avatar-small"></a><div style="display:flex; flex-direction:column; line-height:1.2;"><div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px;"><a href="#/@${p.author}" class="post-author" style="color:inherit; text-decoration:none;">${ad}</a>${ah} ${abg} ${af} ${tbg}</div><a href="#/post/${p.id}" class="post-time" style="color:inherit; text-decoration:none; margin-top:3px;">${dt}</a></div></div>`;
     if(p.isShare && p.sharedData) { let sap = window.allUsersData[p.sharedData.author]?.profilePic || dA, sst = window.formatMentions(p.sharedData.text), sd = window.getDisplayName(p.sharedData.author); let isLongS = p.sharedData.text && (p.sharedData.text.length > 200 || p.sharedData.text.split('\n').length > 3); let sTxt = `<div class="post-content ${isLongS && !im ? 'collapsed' : ''}" id="stxt_${p.id}" style="font-size:14px;">${sst}</div>`; if(isLongS && !im) sTxt += `<div class="show-more-btn" onclick="document.getElementById('stxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`; pb = `<div class="post-clickable" ${ca}>${pTxt}<div class="shared-post-box" onclick="event.stopPropagation();window.openProfile('${p.sharedData.author}')"><div class="post-header" style="margin-bottom:8px;"><a href="#/@${p.sharedData.author}"><img src="${sap}" class="avatar-small"></a><div style="display:flex; flex-direction:column; line-height:1.2; margin-right:8px;"><a href="#/@${p.sharedData.author}" class="post-author" style="color:inherit; text-decoration:none;">${sd} <span style="font-size:11px;color:#64748b;">@${p.sharedData.author}</span></a><span class="post-time">${new Date(p.sharedData.timestamp).toLocaleString('ar-EG')}</span></div></div>${sTxt}${p.sharedData.image ? `<img src="${p.sharedData.image}" class="post-media">` : ''}${p.sharedData.video ? `<video src="${p.sharedData.video}" class="post-media" controls poster="${videoPoster}" style="background:#1e293b;"></video>` : ''}</div></div>`; } else { pb = `<div class="post-clickable" ${ca}>${pTxt}${p.image ? `<img src="${p.image}" class="post-media">` : ''}${p.video ? `<video src="${p.video}" class="post-media" controls playsinline poster="${videoPoster}" style="background:#1e293b;"></video>` : ''}</div>`; }
-    let cmh = ''; if(p.comments && typeof p.comments === 'object') { let ca = Object.entries(p.comments).map(([id,val]) => ({id,...val})).sort((a,b) => a.timestamp - b.timestamp), cs = (im || isProfileCtx) ? ca : ca.slice(-2); cs.forEach(c => { let cPic = window.allUsersData[c.author]?.profilePic || dA, cD = window.getDisplayName(c.author), sct = window.formatMentions(c.text), rh = ''; if(c.replies && typeof c.replies === 'object') { Object.values(c.replies).sort((a,b) => a.timestamp - b.timestamp).forEach(r => { let rPic = window.allUsersData[r.author]?.profilePic || dA, rD = window.getDisplayName(r.author), srt = window.formatMentions(r.text), srb = (im || isProfileCtx) ? `<span class="reply-btn" onclick="${im ? `window.prepareReply('${c.id}','${r.author}')` : `window.openPostModal('${p.id}')`}" style="margin-top:4px;display:inline-block;margin-right:5px;">رد</span>` : ''; rh += `<div class="comment reply-block" style="margin-bottom:8px;"><a href="#/@${r.author}"><img src="${rPic}" class="avatar-small" style="width:24px;height:24px;"></a><div style="flex:1;"><div class="comment-text-box" style="background:#fff;border:1px solid #e2e8f0;margin-bottom:2px;padding:8px 12px;"><a href="#/@${r.author}" class="comment-author" style="color:inherit; text-decoration:none; display:block;">${rD}</a><div>${srt}</div></div>${srb}</div></div>`; }); } let rb = im ? `<span class="reply-btn" onclick="window.prepareReply('${c.id}','${c.author}')">رد</span>` : (isProfileCtx ? `<span class="reply-btn" onclick="window.openPostModal('${p.id}')">رد</span>` : ''); cmh += `<div class="comment"><a href="#/@${c.author}"><img src="${cPic}" class="avatar-small" style="width:28px;height:28px;"></a><div style="flex:1;"><div class="comment-text-box"><a href="#/@${c.author}" class="comment-author" style="color:inherit; text-decoration:none; display:block;">${cD}</a><div>${sct}</div></div>${rb}<div id="replies_${c.id}">${rh}</div></div></div>`; }); if(!im && !isProfileCtx && ca.length > 2) cmh += `<div style="font-size:13px;color:#64748b;cursor:pointer;font-weight:700;margin-top:5px;text-align:center;padding:5px;background:#f1f5f9;border-radius:8px;" onclick="window.openPostModal('${p.id}')">عرض كل التعليقات (${ca.length})</div>`; else if(isProfileCtx && ca.length > 3) cmh += `<div style="font-size:13px;color:#64748b;cursor:pointer;font-weight:700;margin-top:5px;text-align:center;padding:5px;background:#f1f5f9;border-radius:8px;" onclick="window.openPostModal('${p.id}')">عرض كل التعليقات (${ca.length})</div>`; }
+    let cmh = ''; if(p.comments && typeof p.comments === 'object') { let ca = Object.entries(p.comments).map(([id,val]) => ({id,...val})).sort((a,b) => a.timestamp - b.timestamp), cs = im ? ca : ca.slice(-2); cs.forEach(c => { let cPic = window.allUsersData[c.author]?.profilePic || dA, cD = window.getDisplayName(c.author), sct = window.formatMentions(c.text), rh = ''; if(c.replies && typeof c.replies === 'object') { Object.values(c.replies).sort((a,b) => a.timestamp - b.timestamp).forEach(r => { let rPic = window.allUsersData[r.author]?.profilePic || dA, rD = window.getDisplayName(r.author), srt = window.formatMentions(r.text), srb = im ? `<span class="reply-btn" onclick="window.prepareReply('${c.id}','${r.author}')" style="margin-top:4px;display:inline-block;margin-right:5px;">رد</span>` : ''; rh += `<div class="comment reply-block" style="margin-bottom:8px;"><a href="#/@${r.author}"><img src="${rPic}" class="avatar-small" style="width:24px;height:24px;"></a><div style="flex:1;"><div class="comment-text-box" style="background:#fff;border:1px solid #e2e8f0;margin-bottom:2px;padding:8px 12px;"><a href="#/@${r.author}" class="comment-author" style="color:inherit; text-decoration:none; display:block;">${rD}</a><div>${srt}</div></div>${srb}</div></div>`; }); } let rb = im ? `<span class="reply-btn" onclick="window.prepareReply('${c.id}','${c.author}')">رد</span>` : ''; cmh += `<div class="comment"><a href="#/@${c.author}"><img src="${cPic}" class="avatar-small" style="width:28px;height:28px;"></a><div style="flex:1;"><div class="comment-text-box"><a href="#/@${c.author}" class="comment-author" style="color:inherit; text-decoration:none; display:block;">${cD}</a><div>${sct}</div></div>${rb}<div id="replies_${c.id}">${rh}</div></div></div>`; }); if(!im && ca.length > 2) cmh += `<div style="font-size:13px;color:#64748b;cursor:pointer;font-weight:700;margin-top:5px;text-align:center;padding:5px;background:#f1f5f9;border-radius:8px;" onclick="window.openPostModal('${p.id}')">عرض كل التعليقات (${ca.length})</div>`; }
     let cia = (!window.currentUser) ? '' : `<div class="comment-input-area"><img src="${window.allUsersData[window.currentUser]?.profilePic || dA}" class="avatar-small" style="width:32px;height:32px;"><input type="text" oninput="window.handleMentionInput(this)" id="commentInp_${cp}_${p.id}" class="comment-input" placeholder="اكتب تعليقاً..." onkeypress="if(event.key==='Enter') window.addComment('${p.id}','${p.author}','${cp}')"><button class="btn-primary" style="padding:8px 15px;border-radius:20px;" onclick="window.addComment('${p.id}','${p.author}','${cp}')"><i class="fas fa-paper-plane"></i></button></div>`;
     let admC = (window.currentUser && window.currentUser.toLowerCase() === 'admin21') ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #cbd5e1;display:flex;gap:10px;justify-content:flex-end;"><button onclick="window.warnUser('${p.author}')" style="background:#f59e0b;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-exclamation-triangle"></i> تحذير</button><button onclick="window.adminDeletePost('${p.id}')" style="background:#ef4444;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-trash"></i> حذف إداري</button></div>` : '';
-    return `<div class="post"><div class="post-header">${headerLeft}${ch}</div>${pb}<div class="post-actions-bar"><button class="action-btn" onclick="window.toggleLike('${p.id}','${p.author}',this)"><i class="${hl?'fas':'far'} fa-heart" style="${hl ? 'color:#ef4444;' : 'color:#64748b;'}"></i> <span class="lc-count">${lt}</span></button><button class="action-btn" onclick="${im ? `$('modalCommentInput').focus()` : (isProfileCtx ? `document.getElementById('commentInp_${cp}_${p.id}')?.focus()` : `window.openPostModal('${p.id}')`)}"><i class="far fa-comment-alt"></i> تعليق</button><button class="action-btn" onclick="window.openShareModal('${p.id}')"><i class="fas fa-share"></i> مشاركة</button></div><div class="comments-section" id="modalCommentsSection">${cmh}${cia}</div>${admC}</div>`;
+    return `<div class="post"><div class="post-header">${headerLeft}${ch}</div>${pb}<div class="post-actions-bar"><button class="action-btn" onclick="window.toggleLike('${p.id}','${p.author}',this)"><i class="${hl?'fas':'far'} fa-heart" style="${hl ? 'color:#ef4444;' : 'color:#64748b;'}"></i> <span class="lc-count">${lt}</span></button><button class="action-btn" onclick="${im ? `$('modalCommentInput').focus()` : `window.openPostModal('${p.id}')`}"><i class="far fa-comment-alt"></i> تعليق</button><button class="action-btn" onclick="window.openShareModal('${p.id}')"><i class="fas fa-share"></i> مشاركة</button></div><div class="comments-section" id="modalCommentsSection">${cmh}${cia}</div>${admC}</div>`;
 }
 
 function renderFeed() {
@@ -999,8 +998,7 @@ window.loadProfileTabContent = async (tab, userId) => {
 window.renderProfilePostsEnhanced = async (userId, container) => {
     container.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل المنشورات...</p></div>';
     
-    const postsRef = ref(db, 'posts');
-    const snapshot = await get(postsRef);
+    const snapshot = await get(ref(db, 'posts'));
     const posts = [];
     
     if (snapshot.exists()) {
@@ -1008,9 +1006,7 @@ window.renderProfilePostsEnhanced = async (userId, container) => {
             const post = child.val();
             post.id = child.key;
             window.postCache[post.id] = post;
-            if (post.author === userId && !post.isReel) {
-                posts.push(post);
-            }
+            if (post.author === userId && !post.isReel) posts.push(post);
         });
         posts.sort((a, b) => b.timestamp - a.timestamp);
     }
@@ -1021,36 +1017,52 @@ window.renderProfilePostsEnhanced = async (userId, container) => {
                 <i class="fas fa-newspaper" style="font-size:48px; color:var(--text-muted); margin-bottom:15px; display:block;"></i>
                 <p style="color:var(--text-muted);">لا توجد منشورات بعد</p>
                 ${userId === window.currentUser ? '<button class="btn-primary" onclick="document.getElementById(\'postContent\')?.focus(); window.closeModal(\'profileModalEnhanced\');"><i class="fas fa-plus"></i> أنشئ منشوراً الآن</button>' : ''}
-            </div>
-        `;
+            </div>`;
         return;
     }
-    
-    let html = '<div class="profile-posts-list">';
+
+    const dA = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+    let html = '<div class="posts-grid">';
     posts.forEach(post => {
-        const lc = post.likes ? Object.keys(post.likes).length : 0;
-        const isTrending = lc >= 10;
-        html += createPostHTML(post, 'prof_enhanced', isTrending, false);
+        const isLiked = post.likes && post.likes[window.currentUser];
+        const likesCount = post.likes ? Object.keys(post.likes).length : 0;
+        const commentsCount = post.comments ? Object.keys(post.comments).length : 0;
+        const sharesCount = post.shares || 0;
+        const authorData = window.allUsersData[post.author] || {};
+        const authorPic = authorData.profilePic || dA;
+        const authorName = window.getDisplayName(post.author);
+
+        html += `
+            <div class="post" style="cursor:pointer;" onclick="window.openPostModal('${post.id}')">
+                <div class="post-header" style="margin-bottom:12px;" onclick="event.stopPropagation()">
+                    <a href="#/@${post.author}" style="display:flex;align-items:center;gap:10px;text-decoration:none;color:inherit;">
+                        <img src="${authorPic}" class="avatar-small" style="width:38px;height:38px;">
+                        <div>
+                            <div style="font-weight:700;font-size:14px;">${authorName}</div>
+                            <div style="font-size:11px;color:var(--text-muted);">${window.timeAgo(post.timestamp)}</div>
+                        </div>
+                    </a>
+                </div>
+                ${post.text ? `<div class="post-content" style="margin-bottom:12px;">${window.formatMentions(post.text)}</div>` : ''}
+                ${post.image ? `<img src="${post.image}" class="post-media" style="max-height:400px;" onclick="event.stopPropagation(); window.openPostModal('${post.id}')">` : ''}
+                ${post.video ? `<video src="${post.video}" class="post-media" controls playsinline style="max-height:400px;background:#1e293b;" onclick="event.stopPropagation()"></video>` : ''}
+                <div class="post-actions-bar" style="margin-top:12px;" onclick="event.stopPropagation()">
+                    <button class="action-btn" onclick="window.toggleLike('${post.id}','${post.author}',this)">
+                        <i class="${isLiked ? 'fas' : 'far'} fa-heart" style="${isLiked ? 'color:#ef4444;' : ''}"></i>
+                        <span class="lc-count">${likesCount || 'إعجاب'}</span>
+                    </button>
+                    <button class="action-btn" onclick="window.openPostModal('${post.id}')">
+                        <i class="far fa-comment-alt"></i> ${commentsCount || 'تعليق'}
+                    </button>
+                    <button class="action-btn" onclick="window.openShareModal('${post.id}')">
+                        <i class="fas fa-share"></i> ${sharesCount || 'مشاركة'}
+                    </button>
+                </div>
+            </div>`;
     });
     html += '</div>';
     container.innerHTML = html;
-    
-    container.querySelectorAll('video').forEach(v => window.videoObserver.observe(v));
-    
-    // فتح المنشور عند الضغط على post-clickable في البروفايل
-    container.querySelectorAll('.post-clickable').forEach(el => {
-        el.style.cursor = 'pointer';
-        el.addEventListener('click', function(e) {
-            if (e.target.closest('video') || e.target.closest('button') || e.target.closest('a') || e.target.closest('.show-more-btn')) return;
-            const post = el.closest('.post');
-            if (!post) return;
-            // استخراج post id من زر الإعجاب
-            const likeBtn = post.querySelector('.action-btn');
-            if (!likeBtn) return;
-            const m = likeBtn.getAttribute('onclick')?.match(/toggleLike\('([^']+)'/);
-            if (m && m[1]) window.openPostModal(m[1]);
-        });
-    });
+    container.querySelectorAll('video').forEach(v => window.videoObserver?.observe(v));
 };
 
 window.renderProfileReelsEnhanced = async (userId, container) => {
