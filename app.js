@@ -569,7 +569,7 @@ window.addEventListener('popstate', () => {
 });
 
 window.openProfile = (u) => { window.location.hash = '#/@' + u; }; 
-window.openPostModal = (id) => { window.location.hash = '#/post/' + id; }; 
+window.openPostModal = (id) => { window.openPostLogic(id); window.history.pushState(null, '', '#/post/' + id); };
 window.openShareModal = (id) => {
     if(!window.currentUser) return window.showRegisterModal();
     let p = window.postCache[id] || window.allPosts.find(x => x.id === id);
