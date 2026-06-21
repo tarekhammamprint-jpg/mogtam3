@@ -1275,3 +1275,11 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 }
 
 /* ===== نهاية تحسينات البروفايل ===== */
+
+/* ===== إصلاح z-index: ضمان ظهور منشور المنشور فوق مودال البروفايل دائماً ===== */
+#postModal {
+    z-index: 3500 !important;
+}
+#postModal.show {
+    z-index: 3500 !important;
+}
