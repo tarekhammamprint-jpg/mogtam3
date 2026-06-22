@@ -384,6 +384,17 @@ window.openCommunityViewDirect = (commId) => {
 // دالة routing الرئيسية
 function handleRouting() {
     let hash = window.location.hash;
+
+    // إغلاق نافذة البروفايل المحسّنة قبل أي توجيه آخر لمنع تعارض الطبقات (z-index)
+    // هذا يحل مشكلة عدم عمل اللايك/التعليق/أزرار النافبار عند فتح صفحة أخرى من داخل البروفايل
+    if (!hash.startsWith('#/@')) {
+        let pme = document.getElementById('profileModalEnhanced');
+        if (pme) {
+            pme.classList.remove('show');
+            pme.remove();
+            if (!hash.startsWith('#/post/')) document.body.style.overflow = 'auto';
+        }
+    }
     
     // تتبع آخر صفحة ليست مجتمع
     if (!hash.startsWith('#/community/') && hash !== '#/communities') {
@@ -569,7 +580,7 @@ window.addEventListener('popstate', () => {
 });
 
 window.openProfile = (u) => { window.location.hash = '#/@' + u; }; 
-window.openPostModal = (id) => { window.openPostLogic(id); window.history.pushState(null, '', '#/post/' + id); };
+window.openPostModal = (id) => { window.location.hash = '#/post/' + id; }; 
 window.openShareModal = (id) => {
     if(!window.currentUser) return window.showRegisterModal();
     let p = window.postCache[id] || window.allPosts.find(x => x.id === id);
