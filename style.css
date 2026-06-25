@@ -73,6 +73,7 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 .shared-post-box:hover{background:#f1f5f9;border-color:#cbd5e1}
 .post-actions-bar{border-top:1px solid var(--border-color);border-bottom:1px solid var(--border-color);padding:8px 0;margin-bottom:15px;display:flex;justify-content:space-around;gap:8px;direction:rtl}
 .action-btn{flex:1;background:0 0;border:0;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text-muted);font-family:inherit;font-weight:700;padding:10px;border-radius:8px;transition:all .2s ease}
+@keyframes likePopAnim{0%{transform:scale(1)}30%{transform:scale(1.4)}55%{transform:scale(.9)}100%{transform:scale(1)}}
 .action-btn:hover{background:rgba(37,99,235,.08);color:var(--primary)}
 .action-icon{font-size:18px;transition:transform .2s}
 .action-btn:active .action-icon{transform:scale(1.2)}
