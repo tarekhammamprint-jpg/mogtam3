@@ -697,7 +697,7 @@ function createPostHTML(p, cp, it=false, im=false) {
     let cmh = ''; if(p.comments && typeof p.comments === 'object') { let ca = Object.entries(p.comments).map(([id,val]) => ({id,...val})).sort((a,b) => a.timestamp - b.timestamp), cs = im ? ca : ca.slice(-2); cs.forEach(c => { let cPic = window.allUsersData[c.author]?.profilePic || dA, cD = window.getDisplayName(c.author), sct = window.formatMentions(c.text), rh = ''; let cLikes = c.likes && typeof c.likes === 'object' ? c.likes : {}, cLc = Object.keys(cLikes).length, cLiked = window.currentUser && !!cLikes[window.currentUser]; let cLb = window.currentUser ? `<span class="reply-btn" onclick="window.toggleCommentLike('${p.id}','${c.id}',null,this)" style="margin-right:5px;color:${cLiked?'#ef4444':'inherit'};font-weight:${cLiked?'800':'inherit'};">إعجاب${cLc>0?` <span class="lc-count">${cLc}</span>`:''}</span>` : ''; if(c.replies && typeof c.replies === 'object') { Object.entries(c.replies).map(([rid,val]) => ({rid,...val})).sort((a,b) => a.timestamp - b.timestamp).forEach(r => { let rPic = window.allUsersData[r.author]?.profilePic || dA, rD = window.getDisplayName(r.author), srt = window.formatMentions(r.text), srb = im ? `<span class="reply-btn" onclick="window.prepareReply('${c.id}','${r.author}')" style="margin-top:4px;display:inline-block;margin-right:5px;">رد</span>` : ''; let rLikes = r.likes && typeof r.likes === 'object' ? r.likes : {}, rLc = Object.keys(rLikes).length, rLiked = window.currentUser && !!rLikes[window.currentUser]; let rLb = window.currentUser ? `<span class="reply-btn" onclick="window.toggleCommentLike('${p.id}','${c.id}','${r.rid}',this)" style="margin-top:4px;display:inline-block;margin-right:5px;color:${rLiked?'#ef4444':'inherit'};font-weight:${rLiked?'800':'inherit'};">إعجاب${rLc>0?` <span class="lc-count">${rLc}</span>`:''}</span>` : ''; rh += `<div class="comment reply-block" style="margin-bottom:8px;"><a href="#/@${r.author}"><img src="${rPic}" class="avatar-small" style="width:24px;height:24px;"></a><div style="flex:1;"><div class="comment-text-box" style="background:#fff;border:1px solid #e2e8f0;margin-bottom:2px;padding:8px 12px;"><a href="#/@${r.author}" class="comment-author" style="color:inherit; text-decoration:none; display:block;">${rD}</a><div>${srt}</div></div>${rLb}${srb}</div></div>`; }); } let rb = im ? `<span class="reply-btn" onclick="window.prepareReply('${c.id}','${c.author}')">رد</span>` : ''; cmh += `<div class="comment"><a href="#/@${c.author}"><img src="${cPic}" class="avatar-small" style="width:28px;height:28px;"></a><div style="flex:1;"><div class="comment-text-box"><a href="#/@${c.author}" class="comment-author" style="color:inherit; text-decoration:none; display:block;">${cD}</a><div>${sct}</div></div>${cLb}${rb}<div id="replies_${c.id}">${rh}</div></div></div>`; }); if(!im && ca.length > 2) cmh += `<div style="font-size:13px;color:#64748b;cursor:pointer;font-weight:700;margin-top:5px;text-align:center;padding:5px;background:#f1f5f9;border-radius:8px;" onclick="window.openPostModal('${p.id}')">عرض كل التعليقات (${ca.length})</div>`; }
     let cia = (!window.currentUser || cp === 'modal') ? '' : `<div class="comment-input-area"><img src="${window.allUsersData[window.currentUser]?.profilePic || dA}" class="avatar-small" style="width:32px;height:32px;"><input type="text" oninput="window.handleMentionInput(this)" id="commentInp_${cp}_${p.id}" class="comment-input" placeholder="اكتب تعليقاً..." onkeypress="if(event.key==='Enter') window.addComment('${p.id}','${p.author}','${cp}')"><button class="btn-primary" style="padding:8px 15px;border-radius:20px;" onclick="window.addComment('${p.id}','${p.author}','${cp}')"><i class="fas fa-paper-plane"></i></button></div>`;
     let admC = (window.currentUser && window.currentUser.toLowerCase() === 'admin21') ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #cbd5e1;display:flex;gap:10px;justify-content:flex-end;"><button onclick="window.warnUser('${p.author}')" style="background:#f59e0b;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-exclamation-triangle"></i> تحذير</button><button onclick="window.adminDeletePost('${p.id}')" style="background:#ef4444;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-trash"></i> حذف إداري</button></div>` : '';
-    return `<div class="post"><div class="post-header">${headerLeft}${ch}</div>${pb}<div class="post-actions-bar"><button class="action-btn" onclick="window.toggleLike('${p.id}','${p.author}',this)"><i class="${hl?'fas':'far'} fa-heart" style="${hl ? 'color:#ef4444;' : 'color:#64748b;'}"></i> <span class="lc-count">${lt}</span></button><button class="action-btn" onclick="${im ? `$('modalCommentInput').focus()` : `window.openPostModal('${p.id}')`}"><i class="far fa-comment-alt"></i> تعليق</button><button class="action-btn" onclick="window.openShareModal('${p.id}')"><i class="fas fa-share"></i> مشاركة</button></div><div class="comments-section" id="modalCommentsSection">${cmh}${cia}</div>${admC}</div>`;
+    return `<div class="post"><div class="post-header">${headerLeft}${ch}</div>${pb}<div class="post-actions-bar"><button class="action-btn" data-count="${lc}" onclick="window.toggleLike('${p.id}','${p.author}',this)"><i class="${hl?'fas':'far'} fa-heart" style="${hl ? 'color:#ef4444;' : 'color:#64748b;'}"></i> <span class="lc-count">${lt}</span></button><button class="action-btn" onclick="${im ? `$('modalCommentInput').focus()` : `window.openPostModal('${p.id}')`}"><i class="far fa-comment-alt"></i> تعليق</button><button class="action-btn" onclick="window.openShareModal('${p.id}')"><i class="fas fa-share"></i> مشاركة</button></div><div class="comments-section" id="modalCommentsSection">${cmh}${cia}</div>${admC}</div>`;
 }
 
 function renderFeed() {
@@ -734,8 +734,47 @@ function renderFeed() {
 
 window.toggleLike = (id, htmlAuthor, btn) => {
     if(!window.currentUser) return window.showRegisterModal();
-    let r = ref(db, `posts/${id}/likes/${window.currentUser}`); 
-    get(r).then(s => { if(s.exists()){ remove(r); if(btn){ let i=btn.querySelector('i'); if(i) { i.className='far fa-heart'; i.style.color='#64748b'; } let sp=btn.querySelector('.lc-count'); if(sp && !isNaN(parseInt(sp.innerText))) sp.innerText = parseInt(sp.innerText)-1; } } else { set(r, true).then(() => { if(btn){ let i=btn.querySelector('i'); if(i) { i.className='fas fa-heart'; i.style.color='#ef4444'; } let sp=btn.querySelector('.lc-count'); if(sp && !isNaN(parseInt(sp.innerText))) sp.innerText = parseInt(sp.innerText)+1; } let p = window.postCache[id] || window.allPosts.find(x => x.id === id), tg = p ? p.author : htmlAuthor; if(tg && tg !== window.currentUser) push(ref(db, `users/${tg}/notifications`), {type:'like', from:window.currentUser, postId:id, timestamp:Date.now(), read:false}); }); } });
+    let r = ref(db, `posts/${id}/likes/${window.currentUser}`);
+    let i = btn ? btn.querySelector('i') : null, sp = btn ? btn.querySelector('.lc-count') : null;
+    let wasLiked = i ? i.classList.contains('fas') : false;
+    // تحديث فوري للواجهة (متفائل) قبل تأكيد الخادم — يجعل التفاعل سريعًا وحيويًا
+    if (btn) {
+        let count = parseInt(btn.dataset.count, 10); if (isNaN(count)) count = 0;
+        if (wasLiked) {
+            i.className = 'far fa-heart'; i.style.color = '#64748b';
+            count = Math.max(0, count - 1);
+        } else {
+            i.className = 'fas fa-heart'; i.style.color = '#ef4444';
+            i.style.animation = 'likePopAnim .45s ease';
+            setTimeout(() => { if (i) i.style.animation = ''; }, 450);
+            count = count + 1;
+            window.playLikeSound();
+        }
+        btn.dataset.count = count;
+        if (sp) sp.innerText = count > 0 ? count : 'إعجاب';
+    }
+    get(r).then(s => {
+        if (s.exists()) { remove(r); }
+        else { set(r, true).then(() => { let p = window.postCache[id] || window.allPosts.find(x => x.id === id), tg = p ? p.author : htmlAuthor; if (tg && tg !== window.currentUser) push(ref(db, `users/${tg}/notifications`), {type:'like', from:window.currentUser, postId:id, timestamp:Date.now(), read:false}); }); }
+    });
+};
+
+// صوت إعجاب خفيف وهادئ (مولّد برمجيًا، بدون ملفات خارجية)
+window.playLikeSound = () => {
+    try {
+        const ctx = window._likeAudioCtx || (window._likeAudioCtx = new (window.AudioContext || window.webkitAudioContext)());
+        if (ctx.state === 'suspended') ctx.resume();
+        const now = ctx.currentTime;
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(740, now);
+        o.frequency.exponentialRampToValueAtTime(1180, now + 0.09);
+        g.gain.setValueAtTime(0.0001, now);
+        g.gain.exponentialRampToValueAtTime(0.16, now + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.32);
+        o.connect(g); g.connect(ctx.destination);
+        o.start(now); o.stop(now + 0.35);
+    } catch(e) {}
 };
 
 window.toggleCommentLike = (postId, commentId, replyId, btn) => {
@@ -749,6 +788,7 @@ window.toggleCommentLike = (postId, commentId, replyId, btn) => {
         } else {
             set(r, true).then(() => {
                 if(btn) { btn.style.color = '#ef4444'; btn.style.fontWeight = '800'; let sp = btn.querySelector('.lc-count'); if(sp) sp.innerText = parseInt(sp.innerText) + 1; else btn.insertAdjacentHTML('beforeend', ' <span class="lc-count">1</span>'); }
+                window.playLikeSound();
                 get(ref(db, base)).then(cs => {
                     if(cs.exists()) {
                         let cv = cs.val(), targetAuthor = cv.author;
@@ -1152,7 +1192,7 @@ window.renderProfilePostsEnhanced = async (userId, container) => {
                 ${!post.isShare && post.video ? `<video src="${post.video}" class="post-media" controls playsinline style="max-height:400px;background:#1e293b;" onclick="event.stopPropagation()"></video>` : ''}
                 ${sharedBox}
                 <div class="post-actions-bar" style="margin-top:10px;" onclick="event.stopPropagation()">
-                    <button class="action-btn" onclick="window.toggleLike('${post.id}','${post.author}',this)">
+                    <button class="action-btn" data-count="${likesCount || 0}" onclick="window.toggleLike('${post.id}','${post.author}',this)">
                         <i class="${isLiked ? 'fas' : 'far'} fa-heart" style="${isLiked ? 'color:#ef4444;' : ''}"></i>
                         <span class="lc-count">${likesCount || 'إعجاب'}</span>
                     </button>
@@ -1856,7 +1896,7 @@ window.toggleReelLike = (id, btn) => {
     let r = ref(db, `posts/${id}/likes/${window.currentUser}`);
     get(r).then(s => {
         if(s.exists()) { remove(r); if(btn){ let i=btn.querySelector('i'); if(i){i.className='far fa-heart';i.style.color='';} let sp=btn.querySelector('span'); if(sp&&!isNaN(parseInt(sp.innerText))) sp.innerText=parseInt(sp.innerText)-1; } }
-        else { set(r, true); if(btn){ let i=btn.querySelector('i'); if(i){i.className='fas fa-heart';i.style.color='#ef4444';} let sp=btn.querySelector('span'); if(sp&&!isNaN(parseInt(sp.innerText))) sp.innerText=parseInt(sp.innerText)+1; } }
+        else { set(r, true); window.playLikeSound(); if(btn){ let i=btn.querySelector('i'); if(i){i.className='fas fa-heart';i.style.color='#ef4444'; i.style.animation='likePopAnim .45s ease'; setTimeout(()=>{if(i)i.style.animation='';},450);} let sp=btn.querySelector('span'); if(sp&&!isNaN(parseInt(sp.innerText))) sp.innerText=parseInt(sp.innerText)+1; } }
     });
 };
 
