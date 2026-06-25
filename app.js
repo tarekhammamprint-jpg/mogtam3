@@ -1081,7 +1081,8 @@ window.loadProfileTabContent = async (tab, userId) => {
 window.renderProfilePostsEnhanced = async (userId, container) => {
     container.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل المنشورات...</p></div>';
     
-    const snapshot = await get(ref(db, 'posts'));
+    const isNewsBot = window.allUsersData[userId]?.isNewsBot;
+    const snapshot = await get(ref(db, isNewsBot ? 'newsPosts' : 'posts'));
     const posts = [];
     
     if (snapshot.exists()) {
