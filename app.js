@@ -1688,9 +1688,16 @@ window.fL = function(u, d) {
     } 
     
     try {
-        let oRef = ref(db, `users/${u}/online`); 
-        set(oRef, true); 
-        onDisconnect(oRef).set(false);
+        let oRef = ref(db, `users/${u}/online`);
+        // نمط الحضور الرسمي من Firebase: نعيد تسجيل onDisconnect كل مرة يُعاد الاتصال،
+        // لأن الإشارة القديمة تضيع لو انقطع الاتصال وأعيد الاتصال (شائع في الموبايل)
+        onValue(ref(db, '.info/connected'), (snap) => {
+            if (snap.val() === true) {
+                onDisconnect(oRef).set(false).then(() => {
+                    set(oRef, true);
+                });
+            }
+        });
         
         onValue(ref(db, `users/${u}/banned`), (snap) => {
             if (snap.val() === true) {
