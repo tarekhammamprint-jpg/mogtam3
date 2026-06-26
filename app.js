@@ -693,7 +693,7 @@ function createPostHTML(p, cp, it=false, im=false) {
     let dt = new Date(p.timestamp).toLocaleString('ar-EG'), ap = window.allUsersData[p.author]?.profilePic || dA, ism = p.author === window.currentUser, ad = window.getDisplayName(p.author), ah = `<span style="font-size:12px;color:var(--text-muted);font-weight:normal;">@${p.author}</span>`, af = '';
     let abg = p.author.toLowerCase() === 'admin21' ? '<span style="background:#7c3aed;color:#fff;padding:2px 6px;border-radius:6px;font-size:10px;margin-right:5px;font-weight:bold;">إدارة</span>' : '';
     if(window.currentUser && !ism && !window.myFriends.includes(p.author)) { let rr = window.currentRequests && window.currentRequests[p.author]; if(window.sentRequests && window.sentRequests[p.author]) af = `<button class="btn-primary" style="padding:2px 10px;font-size:11px;border-radius:6px;margin-right:10px;background:#e2e8f0;color:#0f172a;" disabled><i class="fas fa-clock"></i> تم</button>`; else if(rr) af = `<button class="btn-primary" style="padding:2px 10px;font-size:11px;border-radius:6px;margin-right:10px;background:#10b981;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${p.author}')"><i class="fas fa-check"></i> قبول</button>`; else af = `<button class="btn-primary" data-action="add" data-target="${p.author}" style="padding:2px 10px;font-size:11px;border-radius:6px;margin-right:10px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${p.author}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; }
-    let tbg = it ? `<span style="background:#ff9800;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;margin-right:10px;font-weight:bold;"><i class="fas fa-fire"></i> رائج</span>` : '', ch = ism ? `<div class="post-controls"><button onclick="event.stopPropagation();window.editPost('${p.id}')"><i class="fas fa-edit"></i></button><button onclick="event.stopPropagation();window.deletePost('${p.id}')"><i class="fas fa-trash"></i></button></div>` : '';
+    let tbg = it ? `<span style="background:#ff9800;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;margin-right:10px;font-weight:bold;"><i class="fas fa-fire"></i> رائج</span>` : '', ch = `<div class="post-options-wrap"><button class="post-options-btn" onclick="event.stopPropagation();window.togglePostOptionsMenu('${p.id}')"><i class="fas fa-ellipsis-h"></i></button><div class="post-options-menu" id="postOptMenu_${p.id}">${ism ? `<div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.editPost('${p.id}')"><i class="fas fa-edit"></i> تعديل المنشور</div><div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.deletePost('${p.id}')"><i class="fas fa-trash"></i> حذف المنشور</div><div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.copyPostLink('${p.id}')"><i class="fas fa-link"></i> نسخ رابط المنشور</div>` : `<div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.reportPost('${p.id}','${p.author}')"><i class="fas fa-flag"></i> الإبلاغ عن المنشور</div>`}</div></div>`;
     let hl = window.currentUser ? (p.likes && p.likes[window.currentUser]) : false, hi = hl ? '<i class="fas fa-heart" style="color:#ef4444;"></i>' : '<i class="far fa-heart" style="color:#64748b;"></i>', lc = p.likes ? Object.keys(p.likes).length : 0, lt = lc > 0 ? `<span style="font-size:14px;margin-right:5px;color:#64748b;">${lc}</span>` : `<span style="font-size:14px;margin-right:5px;color:#64748b;">إعجاب</span>`;
     let st = window.formatMentions(p.text), pb = '', ca = im ? '' : `onclick="window.openPostModal('${p.id}')"`; let isLongP = p.text && (p.text.length > 200 || p.text.split('\n').length > 3); let pTxt = `<div class="post-content ${isLongP && !im ? 'collapsed' : ''}" id="ptxt_${p.id}">${st}</div>`; if(isLongP && !im) pTxt += `<div class="show-more-btn" onclick="document.getElementById('ptxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`;
     let headerLeft = `<div style="display:flex; gap:10px; align-items:center;"><a href="#/@${p.author}"><img src="${ap}" class="avatar-small"></a><div style="display:flex; flex-direction:column; line-height:1.2;"><div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px;"><a href="#/@${p.author}" class="post-author" style="color:inherit; text-decoration:none;">${ad}</a>${ah} ${abg} ${af} ${tbg}</div><a href="#/post/${p.id}" class="post-time" style="color:inherit; text-decoration:none; margin-top:3px;">${dt}</a></div></div>`;
@@ -862,6 +862,42 @@ window.previewMedia = (e, type) => { let f = e.target.files[0]; if(!f) return; i
 window.removeMediaPreview = () => { window.selectedMediaFile = null; window.selectedMediaType = null; $('postMediaPreviewContainer').style.display = 'none'; $('postImagePreview').src = ''; $('postVideoPreview').src = ''; $('postVideoPreview').pause(); };
 window.publishPost = async () => { let c = $('postContent').value.trim(), f = window.selectedMediaFile, type = window.selectedMediaType; if(!c && f == null) return; let bt = $('publishBtn'), ot = bt.innerHTML; bt.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...'; bt.disabled = true; try { let url = null; if(f) url = await window.uploadToCloudinary(f, type === 'reel' ? 'video' : type); let d = {author:window.currentUser, text:c || (type==='reel'?'ريلز جديد 🎦':''), timestamp:Date.now()}; if(type === 'image') d.image = url; else if(type === 'video' || type === 'reel') d.video = url; if(type === 'reel') d.isReel = true; let nr = push(ref(db, 'posts')); await set(nr, d); window.myFriends.forEach(f => { if(c.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); }); bt.innerHTML = ot; bt.disabled = false; $('postContent').value = ''; window.removeMediaPreview(); $('globalMentionBox').style.display = 'none'; if(type === 'reel' || type === 'video') window.dlgAlert('تم نشر الفيديو بنجاح وإضافته للريلز! 🎬', 'success', 'تم النشر'); } catch(e) { window.dlgAlert("حدث خطأ أثناء الرفع، يرجى المحاولة مجدداً.", "danger", "خطأ"); bt.innerHTML = ot; bt.disabled = false; } };
 window.deletePost = (id) => { window.dlgDanger("هل تريد حذف هذا المنشور نهائياً؟").then(ok => { if(ok) { remove(ref(db, `posts/${id}`)); window.location.hash=''; } }); }; window.editPost = (id) => { let p = window.postCache[id]; if(!p) return; window.dlgPrompt("تعديل المنشور:", p.text || '', "اكتب النص الجديد...").then(nt => { if(nt !== null) update(ref(db, `posts/${id}`), {text:nt.trim()}); }); };
+
+window.togglePostOptionsMenu = (id) => {
+    let m = document.getElementById(`postOptMenu_${id}`); if(!m) return;
+    let isOpen = m.classList.contains('show');
+    window.closeAllPostOptMenus();
+    if (!isOpen) m.classList.add('show');
+};
+window.closeAllPostOptMenus = () => { document.querySelectorAll('.post-options-menu.show').forEach(m => m.classList.remove('show')); };
+document.addEventListener('click', () => window.closeAllPostOptMenus());
+
+window.copyPostLink = (id) => {
+    let link = `${window.location.origin}${window.location.pathname}#/post/${id}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(link).then(() => window.dlgAlert('تم نسخ رابط المنشور بنجاح ✅', 'success', 'تم النسخ')).catch(() => window.dlgAlert(link, 'info', 'رابط المنشور'));
+    } else {
+        window.dlgAlert(link, 'info', 'رابط المنشور');
+    }
+};
+
+window.reportPost = (postId, postAuthor) => {
+    if (!window.currentUser) return window.showRegisterModal();
+    if (postAuthor === window.currentUser) return;
+    window.dlgPrompt('سبب الإبلاغ (اختياري):', '', 'مثال: محتوى مخالف، تنمر، إزعاج...').then(reason => {
+        if (reason === null) return; // المستخدم ألغى
+        push(ref(db, 'reports'), {
+            postId: postId,
+            postAuthor: postAuthor,
+            reportedBy: window.currentUser,
+            reason: (reason || '').trim() || 'بدون سبب محدد',
+            timestamp: Date.now(),
+            status: 'pending'
+        }).then(() => {
+            window.dlgAlert('تم استلام بلاغك، شكراً لمساعدتك في الحفاظ على المنصة 🙏', 'success', 'تم الإبلاغ');
+        }).catch(() => window.dlgAlert('حدث خطأ، حاول مرة أخرى.', 'danger', 'خطأ'));
+    });
+};
 window.openEditProfileLogic = () => { let d = window.allUsersData[window.currentUser] || {}; $('editModalPicPreview').src = d.profilePic || dA; $('editPicBase64').value = d.profilePic || ''; $('editBio').value = d.bio || ''; $('editLocation').value = d.location || ''; $('editJob').value = d.job || ''; $('editEducation').value = d.education || ''; $('editHobbies').value = d.hobbies || ''; $('editDobProfile').value = d.birthdate || ''; $('editProfileModal').classList.add('show'); document.body.style.overflow = 'hidden'; };
 
 // =============== دوال البروفايل المطور (عامودين) ===============
@@ -1190,6 +1226,7 @@ window.renderProfilePostsEnhanced = async (userId, container) => {
                         <div style="font-weight:700;font-size:14px;">${authorName}</div>
                         <div style="font-size:11px;color:var(--text-muted);">${window.timeAgo(post.timestamp)}${post.isShare ? ' · <i class="fas fa-share" style="color:var(--primary);font-size:10px;"></i> شارك منشوراً' : ''}</div>
                     </div>
+                    <div class="post-options-wrap" onclick="event.stopPropagation();"><button class="post-options-btn" onclick="event.stopPropagation();window.togglePostOptionsMenu('${post.id}')"><i class="fas fa-ellipsis-h"></i></button><div class="post-options-menu" id="postOptMenu_${post.id}">${post.author === window.currentUser ? `<div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.editPost('${post.id}')"><i class="fas fa-edit"></i> تعديل المنشور</div><div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.deletePost('${post.id}')"><i class="fas fa-trash"></i> حذف المنشور</div><div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.copyPostLink('${post.id}')"><i class="fas fa-link"></i> نسخ رابط المنشور</div>` : `<div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.reportPost('${post.id}','${post.author}')"><i class="fas fa-flag"></i> الإبلاغ عن المنشور</div>`}</div></div>
                 </div>
                 ${post.text ? `<div class="post-content" style="margin-bottom:10px;">${window.formatMentions(post.text)}</div>` : ''}
                 ${!post.isShare && post.image ? `<img src="${post.image}" class="post-media" style="max-height:400px;" onclick="event.stopPropagation(); window.openPostModal('${post.id}')">` : ''}
