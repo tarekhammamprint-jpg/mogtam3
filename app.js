@@ -734,7 +734,9 @@ function renderFeed() {
 
 window.toggleLike = (id, htmlAuthor, btn) => {
     if(!window.currentUser) return window.showRegisterModal();
-    let r = ref(db, `posts/${id}/likes/${window.currentUser}`);
+    let cachedPost = window.postCache[id] || (window.allNewsPosts || []).find(x => x.id === id);
+    let isNewsBotPost = cachedPost ? !!cachedPost.isNewsBot : !!(window.allUsersData[htmlAuthor]?.isNewsBot);
+    let r = ref(db, `${isNewsBotPost ? 'newsPosts' : 'posts'}/${id}/likes/${window.currentUser}`);
     let i = btn ? btn.querySelector('i') : null, sp = btn ? btn.querySelector('.lc-count') : null;
     let wasLiked = i ? i.classList.contains('fas') : false;
     // تحديث فوري للواجهة (متفائل) قبل تأكيد الخادم — يجعل التفاعل سريعًا وحيويًا
@@ -753,7 +755,7 @@ window.toggleLike = (id, htmlAuthor, btn) => {
     }
     get(r).then(s => {
         if (s.exists()) { remove(r); }
-        else { set(r, true).then(() => { let p = window.postCache[id] || window.allPosts.find(x => x.id === id), tg = p ? p.author : htmlAuthor; if (tg && tg !== window.currentUser) push(ref(db, `users/${tg}/notifications`), {type:'like', from:window.currentUser, postId:id, timestamp:Date.now(), read:false}); }); }
+        else { set(r, true).then(() => { let p = cachedPost || window.allPosts.find(x => x.id === id), tg = p ? p.author : htmlAuthor; if (tg && tg !== window.currentUser) push(ref(db, `users/${tg}/notifications`), {type:'like', from:window.currentUser, postId:id, timestamp:Date.now(), read:false}); }); }
     });
 };
 
