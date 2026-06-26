@@ -429,6 +429,10 @@ function handleRouting() {
     // معالج صفحة تسجيل الدخول
     let lw = $('loginModal');
     let isPublicPage = hash.startsWith('#/post/') || hash.startsWith('#/@');
+    if (window.currentUser && hash === '#/login') {
+        window.location.replace('#/');
+        return;
+    }
     if (hash === '#/login' || (!window.currentUser && (hash === '' || hash === '#'))) { 
         if(lw) { 
             let s = $('hideLoginStyle'); 
