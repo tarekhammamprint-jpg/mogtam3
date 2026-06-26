@@ -741,12 +741,10 @@ window.toggleLike = (id, htmlAuthor, btn) => {
     if (btn) {
         let count = parseInt(btn.dataset.count, 10); if (isNaN(count)) count = 0;
         if (wasLiked) {
-            i.className = 'far fa-heart'; i.style.color = '#64748b';
+            if (i) { i.className = 'far fa-heart'; i.style.color = '#64748b'; }
             count = Math.max(0, count - 1);
         } else {
-            i.className = 'fas fa-heart'; i.style.color = '#ef4444';
-            i.style.animation = 'likePopAnim .45s ease';
-            setTimeout(() => { if (i) i.style.animation = ''; }, 450);
+            if (i) { i.className = 'fas fa-heart'; i.style.color = '#ef4444'; i.style.animation = 'likePopAnim .45s ease'; setTimeout(() => { if (i) i.style.animation = ''; }, 450); }
             count = count + 1;
             window.playLikeSound();
         }
