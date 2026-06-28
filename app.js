@@ -945,15 +945,33 @@ window.publishPost = async () => {
     let isReel = items.length === 1 && items[0].type === 'reel';
     try {
         let images = [], videos = [], total = items.length;
-        if (total > 0) progWrap.style.display = 'block';
+        let totalBytes = items.reduce((s, m) => s + (m.file.size || 0), 0) || 1;
+        let loadedPerFile = new Array(total).fill(0);
+        let updateOverall = () => {
+            let loaded = loadedPerFile.reduce((s, v) => s + v, 0);
+            let pct = Math.min(100, Math.round((loaded / totalBytes) * 100));
+            progBar.style.width = pct + '%';
+            progText.innerText = `جاري رفع ${total > 1 ? total + ' ملفات' : 'الملف'}... ${pct}%`;
+        };
+        if (total > 0) { progWrap.style.display = 'block'; updateOverall(); }
         for (let i = 0; i < total; i++) {
             let m = items[i];
             let cloudType = m.type === 'reel' ? 'video' : m.type;
-            let url = await window.uploadToCloudinary(m.file, cloudType, (pct) => {
-                let overall = Math.round(((i + pct / 100) / total) * 100);
-                progBar.style.width = overall + '%';
-                progText.innerText = total > 1 ? `جاري رفع ${m.type === 'image' ? 'الصورة' : 'الفيديو'} ${i + 1} من ${total} — ${pct}%` : `جاري الرفع... ${pct}%`;
-            });
+            let url;
+            try {
+                url = await window.uploadToCloudinary(m.file, cloudType, (pct) => {
+                    loadedPerFile[i] = (m.file.size || 0) * (pct / 100);
+                    updateOverall();
+                });
+            } catch (errFirst) {
+                // محاولة ثانية تلقائية في حال كان الخطأ مؤقتاً (انقطاع شبكة، حد طلبات)
+                await new Promise(r => setTimeout(r, 800));
+                url = await window.uploadToCloudinary(m.file, cloudType, (pct) => {
+                    loadedPerFile[i] = (m.file.size || 0) * (pct / 100);
+                    updateOverall();
+                });
+            }
+            loadedPerFile[i] = m.file.size || 0; updateOverall();
             if (m.type === 'image') images.push(url); else videos.push(url);
         }
         progBar.style.width = '100%'; progText.innerText = total > 0 ? 'اكتمل الرفع ✅' : '';
@@ -967,7 +985,8 @@ window.publishPost = async () => {
         $('postContent').value = ''; window.removeMediaPreview(); $('globalMentionBox').style.display = 'none';
         if (isReel) window.dlgAlert('تم نشر الفيديو بنجاح وإضافته للريلز! 🎬', 'success', 'تم النشر');
     } catch (e) {
-        window.dlgAlert("حدث خطأ أثناء الرفع، يرجى المحاولة مجدداً.", "danger", "خطأ");
+        console.error('Publish post error:', e);
+        window.dlgAlert("حدث خطأ أثناء الرفع: " + (e?.message || 'غير معروف') + " — يرجى المحاولة مجدداً.", "danger", "خطأ");
         bt.innerHTML = ot; bt.disabled = false; progWrap.style.display = 'none';
     }
 };
