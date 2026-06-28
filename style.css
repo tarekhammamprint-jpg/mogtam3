@@ -87,10 +87,10 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 .action-icon{font-size:18px;transition:transform .2s}
 .action-btn:active .action-icon{transform:scale(1.2)}
 .suggested-widget h4{margin-top:0;color:var(--text-main);font-size:17px;margin-bottom:20px;font-weight:800;text-align:right}
-.suggested-carousel{display:flex;overflow-x:auto;gap:15px;padding-bottom:10px;scroll-snap-type:x mandatory}
+.suggested-carousel{display:flex;flex-wrap:wrap;gap:15px;justify-content:center}
 .suggested-carousel::-webkit-scrollbar{height:6px}
 .suggested-carousel::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px}
-.suggested-card{min-width:150px;scroll-snap-align:start;border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:20px 15px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer;transition:.3s;background:#fff}
+.suggested-card{flex:1 1 160px;max-width:200px;min-width:140px;border:1px solid var(--border-color);border-radius:var(--radius-sm);padding:20px 15px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:10px;cursor:pointer;transition:.3s;background:#fff}
 .suggested-card:hover{box-shadow:var(--shadow-md);transform:translateY(-3px);border-color:#cbd5e1}
 .suggested-card img{width:80px;height:80px;border-radius:var(--radius-pill);object-fit:cover;box-shadow:var(--shadow-sm)}
 .suggested-card .s-name{font-weight:800;font-size:15px;color:var(--text-main);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
