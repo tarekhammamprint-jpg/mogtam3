@@ -82,6 +82,15 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 .shared-post-box:hover{background:#f1f5f9;border-color:#cbd5e1}
 .post-actions-bar{border-top:1px solid var(--border-color);border-bottom:1px solid var(--border-color);padding:8px 0;margin-bottom:15px;display:flex;justify-content:space-around;gap:8px;direction:rtl}
 .action-btn{flex:1;background:0 0;border:0;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;gap:8px;color:var(--text-muted);font-family:inherit;font-weight:700;padding:10px;border-radius:8px;transition:all .2s ease}
+.media-gallery{display:grid;gap:4px;border-radius:12px;overflow:hidden;margin-top:10px;max-height:420px}
+.media-gallery.g2{grid-template-columns:1fr 1fr}
+.media-gallery.g3{grid-template-columns:2fr 1fr;grid-template-rows:1fr 1fr}
+.media-gallery.g3 .media-gallery-item:first-child{grid-row:1/3}
+.media-gallery.g4{grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr}
+.media-gallery-item{position:relative;overflow:hidden;background:#000;cursor:pointer;min-height:120px}
+.media-gallery-item img,.media-gallery-item video{width:100%;height:100%;object-fit:cover;display:block}
+.media-gallery-more{position:absolute;inset:0;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800}
+.media-gallery-play{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:22px;text-shadow:0 2px 6px rgba(0,0,0,.6);pointer-events:none}
 @keyframes likePopAnim{0%{transform:scale(1)}30%{transform:scale(1.4)}55%{transform:scale(.9)}100%{transform:scale(1)}}
 .action-btn:hover{background:rgba(37,99,235,.08);color:var(--primary)}
 .action-icon{font-size:18px;transition:transform .2s}
