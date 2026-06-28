@@ -1921,18 +1921,60 @@ window.renderReelsTopBar = () => {
     c.innerHTML = h;
 };
 
+window.shuffleArray = (arr) => { let a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { let j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+let reelsSwipeBound = false;
+function attachReelsSwipeHandlers(area) {
+    if (reelsSwipeBound) return;
+    reelsSwipeBound = true;
+    let startY = 0, transitioning = false;
+
+    function getItems() { return area.querySelectorAll('.reel-screen'); }
+    function currentIndex() {
+        let idx = Math.round(area.scrollTop / area.clientHeight);
+        return Math.max(0, Math.min(idx, getItems().length - 1));
+    }
+    function goTo(idx) {
+        let items = getItems();
+        idx = Math.max(0, Math.min(idx, items.length - 1));
+        if (!items[idx]) return;
+        transitioning = true;
+        items[idx].scrollIntoView({ behavior: 'smooth', block: 'start' });
+        window.currentReelIdx = idx;
+        setTimeout(() => { transitioning = false; }, 450);
+    }
+    area.addEventListener('touchstart', (e) => { startY = e.touches[0].clientY; }, { passive: true });
+    area.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
+    area.addEventListener('touchend', (e) => {
+        if (transitioning) return;
+        let endY = e.changedTouches[0].clientY, delta = startY - endY;
+        if (Math.abs(delta) < 40) return; // حركة بسيطة جدًا، تجاهلها
+        goTo(currentIndex() + (delta > 0 ? 1 : -1)); // حركة واحدة = فيديو واحد فقط، بغض النظر عن قوة السحب
+    });
+    area.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (transitioning) return;
+        goTo(currentIndex() + (e.deltaY > 0 ? 1 : -1));
+    }, { passive: false });
+}
+
 window.openReelsLogic = (startIdx) => {
     let area = document.getElementById('reelsScrollArea');
     let modal = document.getElementById('reelsViewerModal');
     if (!area || !modal) return;
     area.innerHTML = '';
-    let reels = (window.allReels && window.allReels.length > 0) ? window.allReels : (window.allPosts || []).filter(p => p.video);
-    if (reels.length === 0) {
+    let baseReels = (window.allReels && window.allReels.length > 0) ? window.allReels : (window.allPosts || []).filter(p => p.video);
+    if (baseReels.length === 0) {
         area.innerHTML = '<p style="text-align:center;color:#fff;padding:40px;font-size:16px;">لا يوجد ريلز حالياً.</p>';
         modal.classList.add('show');
         document.body.style.overflow = 'hidden';
         return;
     }
+    // ترتيب عشوائي لظهور الريلز، مع ضمان أن الريلز المضغوط عليه يظهر أولًا
+    let clickedReel = baseReels[startIdx || 0];
+    let reels = window.shuffleArray(baseReels);
+    let realStartIdx = clickedReel ? reels.findIndex(r => r.id === clickedReel.id) : 0;
+    if (realStartIdx === -1) realStartIdx = 0;
     reels.forEach((r) => {
         let ap = (window.allUsersData[r.author] && window.allUsersData[r.author].profilePic) ? window.allUsersData[r.author].profilePic : dA;
         let dn = window.getDisplayName(r.author);
@@ -1948,10 +1990,12 @@ window.openReelsLogic = (startIdx) => {
     });
     modal.classList.add('show');
     document.body.style.overflow = 'hidden';
+    attachReelsSwipeHandlers(area);
     setTimeout(() => {
         let items = area.querySelectorAll('.reel-screen');
-        let idx = Math.min(startIdx || 0, items.length - 1);
+        let idx = Math.min(realStartIdx || 0, items.length - 1);
         if (items[idx]) items[idx].scrollIntoView({ behavior: 'instant' });
+        window.currentReelIdx = idx;
         let firstVid = items[idx] ? items[idx].querySelector('video') : null;
         if (firstVid) { firstVid.muted = false; firstVid.play().catch(() => { firstVid.muted = true; firstVid.play().catch(() => {}); }); }
     }, 150);
