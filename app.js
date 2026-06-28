@@ -210,8 +210,7 @@ window.isInitialLoad = true; window.currentRequests = {}; window.sentRequests = 
 window.usersListenerActive = false; window.privateListenersStarted = false;
 window.allCommunities = {}; window.currentCommunityId = null; window.currentCommunitySearchQuery = "";
 window.activeMentionInput = null; window.previousUnreadChats = {}; window.isChatBoxVisible = false;
-window.selectedMediaFile = null; window.selectedMediaType = null;
-window.selectedInterests = new Set();
+window.selectedMediaFiles = []; // [{file, type, previewUrl}] - يدعم رفع أكثر من صورة/فيديوwindow.selectedInterests = new Set();
 window.getDisplayName = (id) => window.allUsersData[id]?.displayName || id;
 window.getDisplayHandle = (id) => '@' + id;
 window.allReels = []; let reelsObserver = null;
@@ -656,7 +655,7 @@ window.goHome = () => {
     window.renderedPostIds = new Set(window.allPosts.map(p => p.id)); $('newPostsBtn').style.display='none'; window.feedLim=5; renderFeed();
 };
 
-window.uploadToCloudinary = async (file, type) => { let fd = new FormData(); fd.append('file', file); fd.append('upload_preset', window.CLOUDINARY_UPLOAD_PRESET); let res = await fetch(`https://api.cloudinary.com/v1_1/${window.CLOUDINARY_CLOUD_NAME}/${type}/upload`, {method:'POST', body:fd}); let data = await res.json(); return data.secure_url; };
+window.uploadToCloudinary = (file, type, onProgress) => { return new Promise((resolve, reject) => { let fd = new FormData(); fd.append('file', file); fd.append('upload_preset', window.CLOUDINARY_UPLOAD_PRESET); let xhr = new XMLHttpRequest(); xhr.open('POST', `https://api.cloudinary.com/v1_1/${window.CLOUDINARY_CLOUD_NAME}/${type}/upload`); xhr.upload.onprogress = (e) => { if (onProgress && e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100)); }; xhr.onload = () => { try { let data = JSON.parse(xhr.responseText); if (xhr.status >= 200 && xhr.status < 300 && data.secure_url) resolve(data.secure_url); else reject(new Error(data.error?.message || 'فشل الرفع')); } catch (e) { reject(e); } }; xhr.onerror = () => reject(new Error('فشل الاتصال بالخادم')); xhr.send(fd); }); };
 window.videoObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { if(entry.isIntersecting) { try { entry.target.muted = true; let playPromise = entry.target.play(); if(playPromise !== undefined) { playPromise.catch(error => {}); } } catch(e){} } else { try { if(!entry.target.paused) entry.target.pause(); } catch(e){} } }); }, {threshold: 0.5});
 reelsObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { let video = entry.target.querySelector('video'); if(!video) return; if(entry.isIntersecting) { try { video.muted = false; video.currentTime = 0; let p = video.play(); if(p !== undefined) p.catch(e => {}); } catch(e) {} let rid = entry.target.getAttribute('data-id'); if(rid && window.currentUser) { let vRef = ref(db, `posts/${rid}/views/${window.currentUser}`); get(vRef).then(s => { if(!s.exists()) set(vRef, true); }); } } else { try { if(!video.paused) video.pause(); } catch(e) {} } }); }, {threshold: 0.7});
 
@@ -707,6 +706,35 @@ function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestam
 window.showNewPosts = () => { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim=5; renderFeed(); $('newPostsBtn').style.display='none'; window.scrollTo({top:0, behavior:'smooth'}); };
 window.addEventListener('scroll', () => { if((window.innerHeight+window.scrollY) >= document.body.offsetHeight-800){ if(window.feedLim < window.allPosts.length){ window.feedLim += 5; renderFeed(); } } });
 
+window.renderMediaGallery = (p) => {
+    let imgs = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
+    let vids = (p.videos && p.videos.length) ? p.videos : (p.video ? [p.video] : []);
+    let total = imgs.length + vids.length;
+    if (total === 0) return '';
+    if (total === 1) {
+        if (imgs.length) return `<img src="${imgs[0]}" class="post-media">`;
+        return `<video src="${vids[0]}" class="post-media" controls playsinline poster="${videoPoster}" style="background:#1e293b;"></video>`;
+    }
+    let items = [...imgs.map(u => ({ type: 'image', u })), ...vids.map(u => ({ type: 'video', u }))];
+    let cls = items.length === 2 ? 'g2' : items.length === 3 ? 'g3' : 'g4';
+    let shown = items.slice(0, 4), extra = items.length - 4;
+    let html = `<div class="media-gallery ${cls}">` + shown.map((it, i) => {
+        let overlay = (i === 3 && extra > 0) ? `<div class="media-gallery-more">+${extra}</div>` : '';
+        return it.type === 'image'
+            ? `<div class="media-gallery-item" onclick="event.stopPropagation();window.openMediaViewer('${it.u}','image')"><img src="${it.u}">${overlay}</div>`
+            : `<div class="media-gallery-item" onclick="event.stopPropagation();window.openMediaViewer('${it.u}','video')"><video src="${it.u}" muted playsinline></video><i class="fas fa-play media-gallery-play"></i>${overlay}</div>`;
+    }).join('') + `</div>`;
+    return html;
+};
+window.openMediaViewer = (url, type) => {
+    let html = type === 'image' ? `<img src="${url}" style="max-width:100%;max-height:90vh;border-radius:10px;">` : `<video src="${url}" controls autoplay style="max-width:100%;max-height:90vh;border-radius:10px;"></video>`;
+    let ov = document.createElement('div');
+    ov.style = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:2147483200;display:flex;align-items:center;justify-content:center;padding:20px;';
+    ov.innerHTML = html;
+    ov.onclick = () => ov.remove();
+    document.body.appendChild(ov);
+};
+
 function createPostHTML(p, cp, it=false, im=false) {
     let dt = window.timeAgo(p.timestamp), dtFull = window.fullDateTime(p.timestamp), ap = window.allUsersData[p.author]?.profilePic || dA, ism = p.author === window.currentUser, ad = window.getDisplayName(p.author), ah = `<span style="font-size:12px;color:var(--text-muted);font-weight:normal;">@${p.author}</span>`, af = '';
     let abg = p.author.toLowerCase() === 'admin21' ? '<span style="background:#7c3aed;color:#fff;padding:2px 6px;border-radius:6px;font-size:10px;margin-right:5px;font-weight:bold;">إدارة</span>' : '';
@@ -715,7 +743,7 @@ function createPostHTML(p, cp, it=false, im=false) {
     let hl = window.currentUser ? (p.likes && p.likes[window.currentUser]) : false, hi = hl ? '<i class="fas fa-heart" style="color:#ef4444;"></i>' : '<i class="far fa-heart" style="color:#64748b;"></i>', lc = p.likes ? Object.keys(p.likes).length : 0, lt = lc > 0 ? `<span style="font-size:14px;margin-right:5px;color:#64748b;">${lc}</span>` : `<span style="font-size:14px;margin-right:5px;color:#64748b;">إعجاب</span>`;
     let st = window.formatMentions(p.text), pb = '', ca = im ? '' : `onclick="window.openPostModal('${p.id}')"`; let isLongP = p.text && (p.text.length > 200 || p.text.split('\n').length > 3); let pTxt = `<div class="post-content ${isLongP && !im ? 'collapsed' : ''}" id="ptxt_${p.id}">${st}</div>`; if(isLongP && !im) pTxt += `<div class="show-more-btn" onclick="document.getElementById('ptxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`;
     let headerLeft = `<div style="display:flex; gap:10px; align-items:center;"><a href="#/@${p.author}"><img src="${ap}" class="avatar-small"></a><div style="display:flex; flex-direction:column; line-height:1.2;"><div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px;"><a href="#/@${p.author}" class="post-author" style="color:inherit; text-decoration:none;">${ad}</a>${ah} ${abg} ${af} ${tbg}</div><a href="#/post/${p.id}" class="post-time" title="${dtFull}" style="color:inherit; text-decoration:none; margin-top:3px;">${dt}</a></div></div>`;
-    if(p.isShare && p.sharedData) { let sap = window.allUsersData[p.sharedData.author]?.profilePic || dA, sst = window.formatMentions(p.sharedData.text), sd = window.getDisplayName(p.sharedData.author); let isLongS = p.sharedData.text && (p.sharedData.text.length > 200 || p.sharedData.text.split('\n').length > 3); let sTxt = `<div class="post-content ${isLongS && !im ? 'collapsed' : ''}" id="stxt_${p.id}" style="font-size:14px;">${sst}</div>`; if(isLongS && !im) sTxt += `<div class="show-more-btn" onclick="document.getElementById('stxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`; pb = `<div class="post-clickable" ${ca}>${pTxt}<div class="shared-post-box" onclick="event.stopPropagation();window.openProfile('${p.sharedData.author}')"><div class="post-header" style="margin-bottom:8px;"><a href="#/@${p.sharedData.author}"><img src="${sap}" class="avatar-small"></a><div style="display:flex; flex-direction:column; line-height:1.2; margin-right:8px;"><a href="#/@${p.sharedData.author}" class="post-author" style="color:inherit; text-decoration:none;">${sd} <span style="font-size:11px;color:#64748b;">@${p.sharedData.author}</span></a><span class="post-time" title="${window.fullDateTime(p.sharedData.timestamp)}">${window.timeAgo(p.sharedData.timestamp)}</span></div></div>${sTxt}${p.sharedData.image ? `<img src="${p.sharedData.image}" class="post-media">` : ''}${p.sharedData.video ? `<video src="${p.sharedData.video}" class="post-media" controls poster="${videoPoster}" style="background:#1e293b;"></video>` : ''}</div></div>`; } else { pb = `<div class="post-clickable" ${ca}>${pTxt}${p.image ? `<img src="${p.image}" class="post-media">` : ''}${p.video ? `<video src="${p.video}" class="post-media" controls playsinline poster="${videoPoster}" style="background:#1e293b;"></video>` : ''}</div>`; }
+    if(p.isShare && p.sharedData) { let sap = window.allUsersData[p.sharedData.author]?.profilePic || dA, sst = window.formatMentions(p.sharedData.text), sd = window.getDisplayName(p.sharedData.author); let isLongS = p.sharedData.text && (p.sharedData.text.length > 200 || p.sharedData.text.split('\n').length > 3); let sTxt = `<div class="post-content ${isLongS && !im ? 'collapsed' : ''}" id="stxt_${p.id}" style="font-size:14px;">${sst}</div>`; if(isLongS && !im) sTxt += `<div class="show-more-btn" onclick="document.getElementById('stxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`; pb = `<div class="post-clickable" ${ca}>${pTxt}<div class="shared-post-box" onclick="event.stopPropagation();window.openProfile('${p.sharedData.author}')"><div class="post-header" style="margin-bottom:8px;"><a href="#/@${p.sharedData.author}"><img src="${sap}" class="avatar-small"></a><div style="display:flex; flex-direction:column; line-height:1.2; margin-right:8px;"><a href="#/@${p.sharedData.author}" class="post-author" style="color:inherit; text-decoration:none;">${sd} <span style="font-size:11px;color:#64748b;">@${p.sharedData.author}</span></a><span class="post-time" title="${window.fullDateTime(p.sharedData.timestamp)}">${window.timeAgo(p.sharedData.timestamp)}</span></div></div>${sTxt}${p.sharedData.image || p.sharedData.video ? window.renderMediaGallery(p.sharedData) : ''}</div></div>`; } else { pb = `<div class="post-clickable" ${ca}>${pTxt}${window.renderMediaGallery(p)}</div>`; }
     let cmh = ''; if(p.comments && typeof p.comments === 'object') { let ca = Object.entries(p.comments).map(([id,val]) => ({id,...val})).sort((a,b) => a.timestamp - b.timestamp), cs = im ? ca : ca.slice(-2); cs.forEach(c => { let cPic = window.allUsersData[c.author]?.profilePic || dA, cD = window.getDisplayName(c.author), sct = window.formatMentions(c.text), rh = ''; let cLikes = c.likes && typeof c.likes === 'object' ? c.likes : {}, cLc = Object.keys(cLikes).length, cLiked = window.currentUser && !!cLikes[window.currentUser]; let cLb = window.currentUser ? `<span class="reply-btn" onclick="window.toggleCommentLike('${p.id}','${c.id}',null,this)" style="margin-right:5px;color:${cLiked?'#ef4444':'inherit'};font-weight:${cLiked?'800':'inherit'};">إعجاب${cLc>0?` <span class="lc-count">${cLc}</span>`:''}</span>` : ''; if(c.replies && typeof c.replies === 'object') { Object.entries(c.replies).map(([rid,val]) => ({rid,...val})).sort((a,b) => a.timestamp - b.timestamp).forEach(r => { let rPic = window.allUsersData[r.author]?.profilePic || dA, rD = window.getDisplayName(r.author), srt = window.formatMentions(r.text), srb = im ? `<span class="reply-btn" onclick="window.prepareReply('${c.id}','${r.author}')" style="margin-top:4px;display:inline-block;margin-right:5px;">رد</span>` : ''; let rLikes = r.likes && typeof r.likes === 'object' ? r.likes : {}, rLc = Object.keys(rLikes).length, rLiked = window.currentUser && !!rLikes[window.currentUser]; let rLb = window.currentUser ? `<span class="reply-btn" onclick="window.toggleCommentLike('${p.id}','${c.id}','${r.rid}',this)" style="margin-top:4px;display:inline-block;margin-right:5px;color:${rLiked?'#ef4444':'inherit'};font-weight:${rLiked?'800':'inherit'};">إعجاب${rLc>0?` <span class="lc-count">${rLc}</span>`:''}</span>` : ''; rh += `<div class="comment reply-block" style="margin-bottom:8px;"><a href="#/@${r.author}"><img src="${rPic}" class="avatar-small" style="width:24px;height:24px;"></a><div style="flex:1;"><div class="comment-text-box" style="background:#fff;border:1px solid #e2e8f0;margin-bottom:2px;padding:8px 12px;"><a href="#/@${r.author}" class="comment-author" style="color:inherit; text-decoration:none; display:block;">${rD}</a><div>${srt}</div></div>${rLb}${srb}</div></div>`; }); } let rb = im ? `<span class="reply-btn" onclick="window.prepareReply('${c.id}','${c.author}')">رد</span>` : ''; cmh += `<div class="comment"><a href="#/@${c.author}"><img src="${cPic}" class="avatar-small" style="width:28px;height:28px;"></a><div style="flex:1;"><div class="comment-text-box"><a href="#/@${c.author}" class="comment-author" style="color:inherit; text-decoration:none; display:block;">${cD}</a><div>${sct}</div></div>${cLb}${rb}<div id="replies_${c.id}">${rh}</div></div></div>`; }); if(!im && ca.length > 2) cmh += `<div style="font-size:13px;color:#64748b;cursor:pointer;font-weight:700;margin-top:5px;text-align:center;padding:5px;background:#f1f5f9;border-radius:8px;" onclick="window.openPostModal('${p.id}')">عرض كل التعليقات (${ca.length})</div>`; }
     let cia = (!window.currentUser || cp === 'modal') ? '' : `<div class="comment-input-area"><img src="${window.allUsersData[window.currentUser]?.profilePic || dA}" class="avatar-small" style="width:32px;height:32px;"><input type="text" oninput="window.handleMentionInput(this)" id="commentInp_${cp}_${p.id}" class="comment-input" placeholder="اكتب تعليقاً..." onkeypress="if(event.key==='Enter') window.addComment('${p.id}','${p.author}','${cp}')"><button class="btn-primary" style="padding:8px 15px;border-radius:20px;" onclick="window.addComment('${p.id}','${p.author}','${cp}')"><i class="fas fa-paper-plane"></i></button></div>`;
     let admC = (window.currentUser && window.currentUser.toLowerCase() === 'admin21') ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #cbd5e1;display:flex;gap:10px;justify-content:flex-end;"><button onclick="window.warnUser('${p.author}')" style="background:#f59e0b;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-exclamation-triangle"></i> تحذير</button><button onclick="window.adminDeletePost('${p.id}')" style="background:#ef4444;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-trash"></i> حذف إداري</button></div>` : '';
@@ -876,9 +904,73 @@ window.publishShare = () => {
     }).catch(() => { if(btn) { btn.innerHTML = ot; btn.disabled = false; } });
 };
 window.previewImage = (e) => { let f = e.target.files[0]; if(!f) return; let reader = new FileReader(); reader.onload = (ev) => { let preview = document.getElementById('editModalPicPreview'); let base64Input = document.getElementById('editPicBase64'); if(preview) preview.src = ev.target.result; if(base64Input) base64Input.value = ev.target.result; }; reader.readAsDataURL(f); };
-window.previewMedia = (e, type) => { let f = e.target.files[0]; if(!f) return; if(type === 'video' || type === 'reel') { if(f.size > 50*1024*1024) { window.dlgAlert("الفيديو كبير جداً! الحد الأقصى 50 ميجا.", "warning", "تنبيه"); return; } } window.selectedMediaFile = f; window.selectedMediaType = type; let u = URL.createObjectURL(f), img = $('postImagePreview'), vid = $('postVideoPreview'), cont = $('postMediaPreviewContainer'); cont.style.display = 'block'; if(type === 'image') { img.src = u; img.style.display = 'block'; vid.style.display = 'none'; vid.pause(); } else { vid.src = u; vid.style.display = 'block'; img.style.display = 'none'; } };
-window.removeMediaPreview = () => { window.selectedMediaFile = null; window.selectedMediaType = null; $('postMediaPreviewContainer').style.display = 'none'; $('postImagePreview').src = ''; $('postVideoPreview').src = ''; $('postVideoPreview').pause(); };
-window.publishPost = async () => { let c = $('postContent').value.trim(), f = window.selectedMediaFile, type = window.selectedMediaType; if(!c && f == null) return; let bt = $('publishBtn'), ot = bt.innerHTML; bt.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...'; bt.disabled = true; try { let url = null; if(f) url = await window.uploadToCloudinary(f, type === 'reel' ? 'video' : type); let d = {author:window.currentUser, text:c || (type==='reel'?'ريلز جديد 🎦':''), timestamp:Date.now()}; if(type === 'image') d.image = url; else if(type === 'video' || type === 'reel') d.video = url; if(type === 'reel') d.isReel = true; let nr = push(ref(db, 'posts')); await set(nr, d); window.myFriends.forEach(f => { if(c.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:nr.key, timestamp:Date.now(), read:false}); }); bt.innerHTML = ot; bt.disabled = false; $('postContent').value = ''; window.removeMediaPreview(); $('globalMentionBox').style.display = 'none'; if(type === 'reel' || type === 'video') window.dlgAlert('تم نشر الفيديو بنجاح وإضافته للريلز! 🎬', 'success', 'تم النشر'); } catch(e) { window.dlgAlert("حدث خطأ أثناء الرفع، يرجى المحاولة مجدداً.", "danger", "خطأ"); bt.innerHTML = ot; bt.disabled = false; } };
+window.previewMedia = (e, type) => {
+    let files = Array.from(e.target.files || []); if (files.length === 0) return;
+    if (type === 'video' || type === 'reel') {
+        for (let f of files) { if (f.size > 50*1024*1024) { window.dlgAlert("الفيديو كبير جداً! الحد الأقصى 50 ميجا.", "warning", "تنبيه"); return; } }
+    }
+    if (type === 'reel') {
+        // الريلز عنصر واحد فقط، ويستبدل أي تحديد سابق
+        window.selectedMediaFiles = [{ file: files[0], type: 'reel', previewUrl: URL.createObjectURL(files[0]) }];
+    } else {
+        // إزالة أي ريلز محدد سابقًا عند اختيار صور/فيديوهات عادية
+        window.selectedMediaFiles = window.selectedMediaFiles.filter(m => m.type !== 'reel');
+        files.forEach(f => window.selectedMediaFiles.push({ file: f, type, previewUrl: URL.createObjectURL(f) }));
+    }
+    e.target.value = '';
+    window.renderMediaPreviewGrid();
+};
+
+window.renderMediaPreviewGrid = () => {
+    let cont = $('postMediaPreviewContainer'), grid = $('postMediaPreviewGrid');
+    if (window.selectedMediaFiles.length === 0) { cont.style.display = 'none'; grid.innerHTML = ''; return; }
+    cont.style.display = 'block';
+    grid.innerHTML = window.selectedMediaFiles.map((m, i) => `
+        <div style="position:relative;border-radius:10px;overflow:hidden;aspect-ratio:1/1;background:#000;">
+            ${m.type === 'image' ? `<img src="${m.previewUrl}" style="width:100%;height:100%;object-fit:cover;">` : `<video src="${m.previewUrl}" style="width:100%;height:100%;object-fit:cover;" muted></video><i class="fas fa-play" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:20px;text-shadow:0 2px 6px rgba(0,0,0,.6);"></i>`}
+            <span onclick="window.removeOneMediaItem(${i})" style="position:absolute;top:5px;left:5px;background:rgba(0,0,0,.7);color:#fff;cursor:pointer;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:12px;"><i class="fas fa-times"></i></span>
+        </div>`).join('');
+};
+
+window.removeOneMediaItem = (idx) => { window.selectedMediaFiles.splice(idx, 1); window.renderMediaPreviewGrid(); };
+
+window.removeMediaPreview = () => { window.selectedMediaFiles = []; $('postMediaPreviewContainer').style.display = 'none'; $('postMediaPreviewGrid').innerHTML = ''; $('postUploadProgressWrap').style.display = 'none'; };
+
+window.publishPost = async () => {
+    let c = $('postContent').value.trim(), items = window.selectedMediaFiles;
+    if (!c && items.length === 0) return;
+    let bt = $('publishBtn'), ot = bt.innerHTML;
+    bt.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري النشر...'; bt.disabled = true;
+    let progWrap = $('postUploadProgressWrap'), progBar = $('postUploadProgressBar'), progText = $('postUploadProgressText');
+    let isReel = items.length === 1 && items[0].type === 'reel';
+    try {
+        let images = [], videos = [], total = items.length;
+        if (total > 0) progWrap.style.display = 'block';
+        for (let i = 0; i < total; i++) {
+            let m = items[i];
+            let cloudType = m.type === 'reel' ? 'video' : m.type;
+            let url = await window.uploadToCloudinary(m.file, cloudType, (pct) => {
+                let overall = Math.round(((i + pct / 100) / total) * 100);
+                progBar.style.width = overall + '%';
+                progText.innerText = total > 1 ? `جاري رفع ${m.type === 'image' ? 'الصورة' : 'الفيديو'} ${i + 1} من ${total} — ${pct}%` : `جاري الرفع... ${pct}%`;
+            });
+            if (m.type === 'image') images.push(url); else videos.push(url);
+        }
+        progBar.style.width = '100%'; progText.innerText = total > 0 ? 'اكتمل الرفع ✅' : '';
+        let d = { author: window.currentUser, text: c || (isReel ? 'ريلز جديد 🎦' : ''), timestamp: Date.now() };
+        if (images.length === 1) d.image = images[0]; else if (images.length > 1) { d.images = images; d.image = images[0]; }
+        if (videos.length === 1) d.video = videos[0]; else if (videos.length > 1) { d.videos = videos; d.video = videos[0]; }
+        if (isReel) d.isReel = true;
+        let nr = push(ref(db, 'posts')); await set(nr, d);
+        window.myFriends.forEach(f => { if (c.includes('@' + f)) push(ref(db, `users/${f}/notifications`), { type: 'mention', from: window.currentUser, postId: nr.key, timestamp: Date.now(), read: false }); });
+        bt.innerHTML = ot; bt.disabled = false;
+        $('postContent').value = ''; window.removeMediaPreview(); $('globalMentionBox').style.display = 'none';
+        if (isReel) window.dlgAlert('تم نشر الفيديو بنجاح وإضافته للريلز! 🎬', 'success', 'تم النشر');
+    } catch (e) {
+        window.dlgAlert("حدث خطأ أثناء الرفع، يرجى المحاولة مجدداً.", "danger", "خطأ");
+        bt.innerHTML = ot; bt.disabled = false; progWrap.style.display = 'none';
+    }
+};
 window.deletePost = (id) => { window.dlgDanger("هل تريد حذف هذا المنشور نهائياً؟").then(ok => { if(ok) { remove(ref(db, `posts/${id}`)); window.location.hash=''; } }); }; window.editPost = (id) => { let p = window.postCache[id]; if(!p) return; window.dlgPrompt("تعديل المنشور:", p.text || '', "اكتب النص الجديد...").then(nt => { if(nt !== null) update(ref(db, `posts/${id}`), {text:nt.trim()}); }); };
 
 window.togglePostOptionsMenu = (id) => {
@@ -1247,8 +1339,7 @@ window.renderProfilePostsEnhanced = async (userId, container) => {
                     <div class="post-options-wrap" onclick="event.stopPropagation();"><button class="post-options-btn" onclick="event.stopPropagation();window.togglePostOptionsMenu('${post.id}')"><i class="fas fa-ellipsis-h"></i></button><div class="post-options-menu" id="postOptMenu_${post.id}">${post.author === window.currentUser ? `<div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.editPost('${post.id}')"><i class="fas fa-edit"></i> تعديل المنشور</div><div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.deletePost('${post.id}')"><i class="fas fa-trash"></i> حذف المنشور</div><div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.copyPostLink('${post.id}')"><i class="fas fa-link"></i> نسخ رابط المنشور</div>` : `<div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.reportPost('${post.id}','${post.author}')"><i class="fas fa-flag"></i> الإبلاغ عن المنشور</div>`}</div></div>
                 </div>
                 ${post.text ? `<div class="post-content" style="margin-bottom:10px;">${window.formatMentions(post.text)}</div>` : ''}
-                ${!post.isShare && post.image ? `<img src="${post.image}" class="post-media" style="max-height:400px;" onclick="event.stopPropagation(); window.openPostModal('${post.id}')">` : ''}
-                ${!post.isShare && post.video ? `<video src="${post.video}" class="post-media" controls playsinline style="max-height:400px;background:#1e293b;" onclick="event.stopPropagation()"></video>` : ''}
+                ${!post.isShare ? window.renderMediaGallery(post) : ''}
                 ${sharedBox}
                 <div class="post-actions-bar" style="margin-top:10px;" onclick="event.stopPropagation()">
                     <button class="action-btn" data-count="${likesCount || 0}" onclick="window.toggleLike('${post.id}','${post.author}',this)">
