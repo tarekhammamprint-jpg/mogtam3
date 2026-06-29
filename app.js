@@ -904,6 +904,36 @@ window.publishShare = () => {
     }).catch(() => { if(btn) { btn.innerHTML = ot; btn.disabled = false; } });
 };
 window.previewImage = (e) => { let f = e.target.files[0]; if(!f) return; let reader = new FileReader(); reader.onload = (ev) => { let preview = document.getElementById('editModalPicPreview'); let base64Input = document.getElementById('editPicBase64'); if(preview) preview.src = ev.target.result; if(base64Input) base64Input.value = ev.target.result; }; reader.readAsDataURL(f); };
+window.compressImageIfNeeded = (file) => {
+    const MAX_BYTES = 9.5 * 1024 * 1024; // هامش أمان تحت حد 10 ميجا في كلاودينري
+    if (file.size <= MAX_BYTES) return Promise.resolve(file);
+    return new Promise((resolve) => {
+        let img = new Image(), url = URL.createObjectURL(file);
+        img.onload = () => {
+            let { width, height } = img;
+            let maxDim = 2200;
+            if (width > maxDim || height > maxDim) {
+                if (width > height) { height = Math.round(height * (maxDim / width)); width = maxDim; }
+                else { width = Math.round(width * (maxDim / height)); height = maxDim; }
+            }
+            let canvas = document.createElement('canvas');
+            canvas.width = width; canvas.height = height;
+            canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+            URL.revokeObjectURL(url);
+            let tryQuality = (q) => {
+                canvas.toBlob((blob) => {
+                    if (!blob) return resolve(file);
+                    if (blob.size > MAX_BYTES && q > 0.4) { tryQuality(q - 0.15); return; }
+                    resolve(new File([blob], file.name.replace(/\.[^.]+$/, '') + '.jpg', { type: 'image/jpeg' }));
+                }, 'image/jpeg', q);
+            };
+            tryQuality(0.85);
+        };
+        img.onerror = () => resolve(file);
+        img.src = url;
+    });
+};
+
 window.previewMedia = (e, type) => {
     let files = Array.from(e.target.files || []); if (files.length === 0) return;
     if (type === 'video' || type === 'reel') {
@@ -957,21 +987,23 @@ window.publishPost = async () => {
         for (let i = 0; i < total; i++) {
             let m = items[i];
             let cloudType = m.type === 'reel' ? 'video' : m.type;
+            let fileToUpload = m.file;
+            if (m.type === 'image') { progText.innerText = 'جاري تحسين حجم الصورة...'; fileToUpload = await window.compressImageIfNeeded(m.file); loadedPerFile[i] = 0; }
             let url;
             try {
-                url = await window.uploadToCloudinary(m.file, cloudType, (pct) => {
-                    loadedPerFile[i] = (m.file.size || 0) * (pct / 100);
+                url = await window.uploadToCloudinary(fileToUpload, cloudType, (pct) => {
+                    loadedPerFile[i] = (fileToUpload.size || 0) * (pct / 100);
                     updateOverall();
                 });
             } catch (errFirst) {
                 // محاولة ثانية تلقائية في حال كان الخطأ مؤقتاً (انقطاع شبكة، حد طلبات)
                 await new Promise(r => setTimeout(r, 800));
-                url = await window.uploadToCloudinary(m.file, cloudType, (pct) => {
-                    loadedPerFile[i] = (m.file.size || 0) * (pct / 100);
+                url = await window.uploadToCloudinary(fileToUpload, cloudType, (pct) => {
+                    loadedPerFile[i] = (fileToUpload.size || 0) * (pct / 100);
                     updateOverall();
                 });
             }
-            loadedPerFile[i] = m.file.size || 0; updateOverall();
+            loadedPerFile[i] = fileToUpload.size || 0; updateOverall();
             if (m.type === 'image') images.push(url); else videos.push(url);
         }
         progBar.style.width = '100%'; progText.innerText = total > 0 ? 'اكتمل الرفع ✅' : '';
