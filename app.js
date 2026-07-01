@@ -721,19 +721,78 @@ window.renderMediaGallery = (p) => {
     let html = `<div class="media-gallery ${cls}">` + shown.map((it, i) => {
         let overlay = (i === 3 && extra > 0) ? `<div class="media-gallery-more">+${extra}</div>` : '';
         return it.type === 'image'
-            ? `<div class="media-gallery-item" onclick="event.stopPropagation();window.openMediaViewer('${it.u}','image')"><img src="${it.u}">${overlay}</div>`
-            : `<div class="media-gallery-item" onclick="event.stopPropagation();window.openMediaViewer('${it.u}','video')"><video src="${it.u}" muted playsinline></video><i class="fas fa-play media-gallery-play"></i>${overlay}</div>`;
+            ? `<div class="media-gallery-item" onclick="event.stopPropagation();window.openMediaViewerFor('${p.id||p.postId}',${i})"><img src="${it.u}">${overlay}</div>`
+            : `<div class="media-gallery-item" onclick="event.stopPropagation();window.openMediaViewerFor('${p.id||p.postId}',${i})"><video src="${it.u}" muted playsinline></video><i class="fas fa-play media-gallery-play"></i>${overlay}</div>`;
     }).join('') + `</div>`;
     return html;
 };
-window.openMediaViewer = (url, type) => {
-    let html = type === 'image' ? `<img src="${url}" style="max-width:100%;max-height:90vh;border-radius:10px;">` : `<video src="${url}" controls autoplay style="max-width:100%;max-height:90vh;border-radius:10px;"></video>`;
-    let ov = document.createElement('div');
-    ov.style = 'position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:2147483200;display:flex;align-items:center;justify-content:center;padding:20px;';
-    ov.innerHTML = html;
-    ov.onclick = () => ov.remove();
-    document.body.appendChild(ov);
+window.openMediaViewerFor = (postId, idx) => {
+    let post = window.postCache[postId] || (window.allNewsPosts || []).find(x => x.id === postId) || (window.allPosts || []).find(x => x.id === postId);
+    if (!post) return;
+    let imgs = (post.images && post.images.length) ? post.images : (post.image ? [post.image] : []);
+    let vids = (post.videos && post.videos.length) ? post.videos : (post.video ? [post.video] : []);
+    let items = [...imgs.map(u => ({ type: 'image', u })), ...vids.map(u => ({ type: 'video', u }))];
+    window.openMediaViewer(items, idx, post);
 };
+
+window.openMediaViewer = (items, startIdx, post) => {
+    document.body.style.overflow = 'hidden';
+    let temp = document.createElement('div');
+    temp.innerHTML = createPostHTML(post, 'modal', false, true);
+    let headerEl = temp.querySelector('.post-header');
+    let commentsEl = temp.querySelector('.comments-section');
+    let actionsEl = temp.querySelector('.post-actions-bar');
+    let headerHTML = headerEl ? headerEl.outerHTML : '';
+    let actionsHTML = actionsEl ? actionsEl.outerHTML : '';
+    let commentsHTML = commentsEl ? commentsEl.outerHTML : '<div></div>';
+
+    let ov = document.createElement('div');
+    ov.id = 'fbMediaViewer';
+    ov.style.cssText = 'position:fixed;inset:0;background:#000;z-index:2147483200;display:flex;flex-direction:row;direction:ltr;';
+    ov.innerHTML = `
+        <div class="fb-comments-panel" style="width:380px;max-width:92vw;background:#fff;direction:rtl;display:flex;flex-direction:column;overflow:hidden;">
+            <div style="padding:14px;border-bottom:1px solid #e2e8f0;flex-shrink:0;">${headerHTML}</div>
+            <div style="flex:1;overflow-y:auto;padding:14px;" id="fbMediaCommentsScroll">${commentsHTML}</div>
+            <div style="border-top:1px solid #e2e8f0;flex-shrink:0;">${actionsHTML}</div>
+        </div>
+        <div class="fb-media-main">
+            <button class="fb-media-close" onclick="window.closeMediaViewer()"><i class="fas fa-times"></i></button>
+            ${items.length > 1 ? `<button class="fb-media-nav fb-media-prev" onclick="window.mediaViewerNav(-1)"><i class="fas fa-chevron-left"></i></button>` : ''}
+            <div id="fbMediaContent" style="max-width:100%;max-height:100%;display:flex;align-items:center;justify-content:center;"></div>
+            ${items.length > 1 ? `<button class="fb-media-nav fb-media-next" onclick="window.mediaViewerNav(1)"><i class="fas fa-chevron-right"></i></button>` : ''}
+            ${items.length > 1 ? `<div class="fb-media-counter" id="fbMediaCounter"></div>` : ''}
+        </div>`;
+    document.body.appendChild(ov);
+    window._mvItems = items; window._mvIdx = startIdx || 0;
+    window._renderMVContent();
+};
+
+window._renderMVContent = () => {
+    let items = window._mvItems, idx = window._mvIdx, it = items[idx];
+    let c = document.getElementById('fbMediaContent'), counter = document.getElementById('fbMediaCounter');
+    if (!c) return;
+    c.innerHTML = it.type === 'image'
+        ? `<img src="${it.u}" style="max-width:100%;max-height:100vh;object-fit:contain;">`
+        : `<video src="${it.u}" controls autoplay style="max-width:100%;max-height:100vh;object-fit:contain;"></video>`;
+    if (counter) counter.innerText = `${idx + 1} / ${items.length}`;
+};
+window.mediaViewerNav = (dir) => {
+    let items = window._mvItems;
+    window._mvIdx = (window._mvIdx + dir + items.length) % items.length;
+    window._renderMVContent();
+};
+window.closeMediaViewer = () => {
+    let ov = document.getElementById('fbMediaViewer');
+    if (ov) ov.remove();
+    document.body.style.overflow = '';
+};
+document.addEventListener('keydown', (e) => {
+    if (!document.getElementById('fbMediaViewer')) return;
+    if (e.key === 'Escape') window.closeMediaViewer();
+    else if (e.key === 'ArrowLeft') window.mediaViewerNav(1);
+    else if (e.key === 'ArrowRight') window.mediaViewerNav(-1);
+});
+
 
 function createPostHTML(p, cp, it=false, im=false) {
     let dt = window.timeAgo(p.timestamp), dtFull = window.fullDateTime(p.timestamp), ap = window.allUsersData[p.author]?.profilePic || dA, ism = p.author === window.currentUser, ad = window.getDisplayName(p.author), ah = `<span style="font-size:12px;color:var(--text-muted);font-weight:normal;">@${p.author}</span>`, af = '';
@@ -975,7 +1034,15 @@ window.publishPost = async () => {
     let isReel = items.length === 1 && items[0].type === 'reel';
     try {
         let images = [], videos = [], total = items.length;
-        let totalBytes = items.reduce((s, m) => s + (m.file.size || 0), 0) || 1;
+        if (total > 0) { progWrap.style.display = 'block'; progText.innerText = 'جاري تحضير الملفات...'; }
+        // تحضير كل الملفات أولاً (ضغط الصور الكبيرة) لمعرفة الحجم الحقيقي النهائي قبل حساب نسبة التحميل
+        let finalFiles = [];
+        for (let m of items) {
+            let f = m.file;
+            if (m.type === 'image') f = await window.compressImageIfNeeded(m.file);
+            finalFiles.push(f);
+        }
+        let totalBytes = finalFiles.reduce((s, f) => s + (f.size || 0), 0) || 1;
         let loadedPerFile = new Array(total).fill(0);
         let updateOverall = () => {
             let loaded = loadedPerFile.reduce((s, v) => s + v, 0);
@@ -983,12 +1050,10 @@ window.publishPost = async () => {
             progBar.style.width = pct + '%';
             progText.innerText = `جاري رفع ${total > 1 ? total + ' ملفات' : 'الملف'}... ${pct}%`;
         };
-        if (total > 0) { progWrap.style.display = 'block'; updateOverall(); }
+        updateOverall();
         for (let i = 0; i < total; i++) {
-            let m = items[i];
+            let m = items[i], fileToUpload = finalFiles[i];
             let cloudType = m.type === 'reel' ? 'video' : m.type;
-            let fileToUpload = m.file;
-            if (m.type === 'image') { progText.innerText = 'جاري تحسين حجم الصورة...'; fileToUpload = await window.compressImageIfNeeded(m.file); loadedPerFile[i] = 0; }
             let url;
             try {
                 url = await window.uploadToCloudinary(fileToUpload, cloudType, (pct) => {
