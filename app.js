@@ -737,33 +737,62 @@ window.openMediaViewerFor = (postId, idx) => {
 
 window.openMediaViewer = (items, startIdx, post) => {
     document.body.style.overflow = 'hidden';
-    let temp = document.createElement('div');
-    temp.innerHTML = createPostHTML(post, 'modal', false, true);
-    let headerEl = temp.querySelector('.post-header');
-    let commentsEl = temp.querySelector('.comments-section');
-    let actionsEl = temp.querySelector('.post-actions-bar');
-    let headerHTML = headerEl ? headerEl.outerHTML : '';
-    let actionsHTML = actionsEl ? actionsEl.outerHTML : '';
-    let commentsHTML = commentsEl ? commentsEl.outerHTML : '<div></div>';
+    // نبني HTML التعليقات مباشرة من بيانات المنشور (مشتركة لكل الصور)
+    let commentsHTML = '';
+    if (post.comments && typeof post.comments === 'object') {
+        Object.entries(post.comments).map(([id,val]) => ({id,...val})).sort((a,b) => a.timestamp - b.timestamp).forEach(c => {
+            let cPic = window.allUsersData[c.author]?.profilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+            let cD = window.getDisplayName(c.author);
+            commentsHTML += `<div style="display:flex;gap:8px;margin-bottom:12px;"><img src="${cPic}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;"><div style="background:#f1f5f9;border-radius:12px;padding:8px 12px;flex:1;"><div style="font-weight:700;font-size:13px;">${cD}</div><div style="font-size:13px;">${c.text || ''}</div></div></div>`;
+        });
+    }
+    let likeCount = post.likes ? Object.keys(post.likes).length : 0;
+    let isLiked = window.currentUser && post.likes && !!post.likes[window.currentUser];
+    let commentInput = window.currentUser ? `
+        <div style="display:flex;gap:8px;align-items:center;padding:10px 14px;border-top:1px solid #e2e8f0;">
+            <img src="${window.allUsersData[window.currentUser]?.profilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+            <input type="text" id="mvCommentInput" placeholder="اكتب تعليقاً..." style="flex:1;border:1px solid #e2e8f0;border-radius:20px;padding:8px 14px;font-family:Cairo,sans-serif;font-size:13px;outline:none;" onkeypress="if(event.key==='Enter')window.mvAddComment('${post.id}','${post.author}')">
+            <button onclick="window.mvAddComment('${post.id}','${post.author}')" style="background:var(--primary);color:#fff;border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
+        </div>` : '';
+    let actionBar = `
+        <div style="display:flex;border-top:1px solid #e2e8f0;padding:4px 0;">
+            <button class="action-btn" data-count="${likeCount}" onclick="window.toggleLike('${post.id}','${post.author}',this);setTimeout(()=>window.mvRefreshLikeCount('${post.id}'),300)" style="flex:1;">
+                <i class="${isLiked?'fas':'far'} fa-heart" style="${isLiked?'color:#ef4444;':''}"></i>
+                <span class="lc-count">${likeCount || 'إعجاب'}</span>
+            </button>
+            <button class="action-btn" style="flex:1;" onclick="document.getElementById('mvCommentInput')?.focus()">
+                <i class="far fa-comment-alt"></i> تعليق
+            </button>
+        </div>`;
 
     let ov = document.createElement('div');
     ov.id = 'fbMediaViewer';
-    ov.style.cssText = 'position:fixed;inset:0;background:#000;z-index:2147483200;display:flex;flex-direction:row;direction:ltr;';
+    ov.style.cssText = 'position:fixed;inset:0;background:#000;z-index:2147483200;display:flex;direction:ltr;';
     ov.innerHTML = `
-        <div class="fb-comments-panel" style="width:380px;max-width:92vw;background:#fff;direction:rtl;display:flex;flex-direction:column;overflow:hidden;">
-            <div style="padding:14px;border-bottom:1px solid #e2e8f0;flex-shrink:0;">${headerHTML}</div>
-            <div style="flex:1;overflow-y:auto;padding:14px;" id="fbMediaCommentsScroll">${commentsHTML}</div>
-            <div style="border-top:1px solid #e2e8f0;flex-shrink:0;">${actionsHTML}</div>
+        <div class="fb-comments-panel">
+            <div class="fb-panel-header">
+                <img src="${window.allUsersData[post.author]?.profilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;">
+                <div>
+                    <div style="font-weight:700;font-size:14px;">${window.getDisplayName(post.author)}</div>
+                    <div style="font-size:11px;color:#64748b;">${window.timeAgo(post.timestamp)}</div>
+                </div>
+            </div>
+            ${post.text ? `<div style="padding:10px 14px;font-size:14px;color:#334155;border-bottom:1px solid #e2e8f0;">${post.text}</div>` : ''}
+            ${actionBar}
+            <div style="flex:1;overflow-y:auto;padding:14px;" id="mvCommentsList">
+                ${commentsHTML || '<div style="text-align:center;color:#94a3b8;font-size:13px;padding:20px;">لا توجد تعليقات بعد</div>'}
+            </div>
+            ${commentInput}
         </div>
         <div class="fb-media-main">
             <button class="fb-media-close" onclick="window.closeMediaViewer()"><i class="fas fa-times"></i></button>
-            ${items.length > 1 ? `<button class="fb-media-nav fb-media-prev" onclick="window.mediaViewerNav(-1)"><i class="fas fa-chevron-left"></i></button>` : ''}
-            <div id="fbMediaContent" style="max-width:100%;max-height:100%;display:flex;align-items:center;justify-content:center;"></div>
-            ${items.length > 1 ? `<button class="fb-media-nav fb-media-next" onclick="window.mediaViewerNav(1)"><i class="fas fa-chevron-right"></i></button>` : ''}
+            ${items.length > 1 ? `<button class="fb-media-nav fb-media-prev" onclick="window.mediaViewerNav(-1)"><i class="fas fa-chevron-right"></i></button>` : ''}
+            <div id="fbMediaContent"></div>
+            ${items.length > 1 ? `<button class="fb-media-nav fb-media-next" onclick="window.mediaViewerNav(1)"><i class="fas fa-chevron-left"></i></button>` : ''}
             ${items.length > 1 ? `<div class="fb-media-counter" id="fbMediaCounter"></div>` : ''}
         </div>`;
     document.body.appendChild(ov);
-    window._mvItems = items; window._mvIdx = startIdx || 0;
+    window._mvItems = items; window._mvIdx = startIdx || 0; window._mvPost = post;
     window._renderMVContent();
 };
 
@@ -772,26 +801,51 @@ window._renderMVContent = () => {
     let c = document.getElementById('fbMediaContent'), counter = document.getElementById('fbMediaCounter');
     if (!c) return;
     c.innerHTML = it.type === 'image'
-        ? `<img src="${it.u}" style="max-width:100%;max-height:100vh;object-fit:contain;">`
-        : `<video src="${it.u}" controls autoplay style="max-width:100%;max-height:100vh;object-fit:contain;"></video>`;
+        ? `<img src="${it.u}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">`
+        : `<video src="${it.u}" controls autoplay playsinline style="max-width:100%;max-height:100%;object-fit:contain;display:block;"></video>`;
     if (counter) counter.innerText = `${idx + 1} / ${items.length}`;
 };
+
 window.mediaViewerNav = (dir) => {
-    let items = window._mvItems;
-    window._mvIdx = (window._mvIdx + dir + items.length) % items.length;
+    window._mvIdx = (window._mvIdx + dir + window._mvItems.length) % window._mvItems.length;
     window._renderMVContent();
 };
+
+window.mvAddComment = (postId, postAuthor) => {
+    let inp = document.getElementById('mvCommentInput'); if (!inp) return;
+    let txt = inp.value.trim(); if (!txt) return;
+    inp.value = ''; inp.disabled = true;
+    push(ref(db, `posts/${postId}/comments`), { author: window.currentUser, text: txt, timestamp: Date.now() }).then(() => {
+        inp.disabled = false; inp.focus();
+        if (postAuthor !== window.currentUser) push(ref(db, `users/${postAuthor}/notifications`), { type: 'comment', from: window.currentUser, postId, timestamp: Date.now(), read: false });
+        // أضف التعليق الجديد للقائمة مباشرة
+        let list = document.getElementById('mvCommentsList'); if (!list) return;
+        let pic = window.allUsersData[window.currentUser]?.profilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+        let name = window.getDisplayName(window.currentUser);
+        let el = document.createElement('div');
+        el.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;';
+        el.innerHTML = `<img src="${pic}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;"><div style="background:#f1f5f9;border-radius:12px;padding:8px 12px;flex:1;"><div style="font-weight:700;font-size:13px;">${name}</div><div style="font-size:13px;">${txt}</div></div>`;
+        if (list.querySelector('[style*="لا توجد تعليقات"]')) list.innerHTML = '';
+        list.appendChild(el);
+        list.scrollTop = list.scrollHeight;
+    }).catch(() => { inp.disabled = false; });
+};
+
+window.mvRefreshLikeCount = (postId) => {};
+
 window.closeMediaViewer = () => {
-    let ov = document.getElementById('fbMediaViewer');
-    if (ov) ov.remove();
+    let ov = document.getElementById('fbMediaViewer'); if (ov) ov.remove();
     document.body.style.overflow = '';
 };
+
 document.addEventListener('keydown', (e) => {
     if (!document.getElementById('fbMediaViewer')) return;
     if (e.key === 'Escape') window.closeMediaViewer();
-    else if (e.key === 'ArrowLeft') window.mediaViewerNav(1);
-    else if (e.key === 'ArrowRight') window.mediaViewerNav(-1);
+    else if (e.key === 'ArrowLeft') window.mediaViewerNav(-1);
+    else if (e.key === 'ArrowRight') window.mediaViewerNav(1);
 });
+
+
 
 
 function createPostHTML(p, cp, it=false, im=false) {
