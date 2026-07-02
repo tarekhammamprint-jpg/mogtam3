@@ -712,7 +712,7 @@ window.renderMediaGallery = (p) => {
     let total = imgs.length + vids.length;
     if (total === 0) return '';
     if (total === 1) {
-        if (imgs.length) return `<img src="${imgs[0]}" class="post-media">`;
+        if (imgs.length) return `<img src="${imgs[0]}" class="post-media" style="cursor:pointer;" onclick="event.stopPropagation();window.openMediaViewerFor('${p.id}',0)">`;
         return `<video src="${vids[0]}" class="post-media" controls playsinline poster="${videoPoster}" style="background:#1e293b;"></video>`;
     }
     let items = [...imgs.map(u => ({ type: 'image', u })), ...vids.map(u => ({ type: 'video', u }))];
@@ -743,7 +743,43 @@ window.openMediaViewer = (items, startIdx, post) => {
         Object.entries(post.comments).map(([id,val]) => ({id,...val})).sort((a,b) => a.timestamp - b.timestamp).forEach(c => {
             let cPic = window.allUsersData[c.author]?.profilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
             let cD = window.getDisplayName(c.author);
-            commentsHTML += `<div style="display:flex;gap:8px;margin-bottom:12px;"><img src="${cPic}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;"><div style="background:#f1f5f9;border-radius:12px;padding:8px 12px;flex:1;"><div style="font-weight:700;font-size:13px;">${cD}</div><div style="font-size:13px;">${c.text || ''}</div></div></div>`;
+            let cLikes = c.likes ? Object.keys(c.likes).length : 0;
+            let cLiked = window.currentUser && c.likes && !!c.likes[window.currentUser];
+            let repliesHTML = '';
+            if (c.replies && typeof c.replies === 'object') {
+                Object.entries(c.replies).map(([rid,rv]) => ({rid,...rv})).sort((a,b) => a.timestamp - b.timestamp).forEach(r => {
+                    let rPic = window.allUsersData[r.author]?.profilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+                    let rD = window.getDisplayName(r.author);
+                    let rLikes = r.likes ? Object.keys(r.likes).length : 0;
+                    let rLiked = window.currentUser && r.likes && !!r.likes[window.currentUser];
+                    repliesHTML += `<div style="display:flex;gap:7px;margin-top:8px;margin-right:20px;">
+                        <img src="${rPic}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                        <div style="flex:1;">
+                            <div style="background:#e2e8f0;border-radius:10px;padding:7px 10px;">
+                                <div style="font-weight:700;font-size:12px;">${rD}</div>
+                                <div style="font-size:12px;">${r.text||''}</div>
+                            </div>
+                            <div style="display:flex;gap:12px;margin-top:3px;padding-right:6px;">
+                                <span onclick="window.toggleCommentLike('${post.id}','${c.id}','${r.rid}',this)" style="font-size:11px;cursor:pointer;font-weight:700;color:${rLiked?'#ef4444':'#64748b'};">إعجاب${rLikes>0?' '+rLikes:''}</span>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+            }
+            commentsHTML += `<div style="display:flex;gap:8px;margin-bottom:14px;" data-cid="${c.id}">
+                <img src="${cPic}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                <div style="flex:1;">
+                    <div style="background:#f1f5f9;border-radius:12px;padding:8px 12px;">
+                        <div style="font-weight:700;font-size:13px;">${cD}</div>
+                        <div style="font-size:13px;">${c.text||''}</div>
+                    </div>
+                    <div style="display:flex;gap:12px;margin-top:4px;padding-right:6px;">
+                        <span onclick="window.toggleCommentLike('${post.id}','${c.id}',null,this)" style="font-size:12px;cursor:pointer;font-weight:700;color:${cLiked?'#ef4444':'#64748b'};">إعجاب${cLikes>0?' '+cLikes:''}</span>
+                        ${window.currentUser?`<span onclick="window.mvStartReply('${c.id}','${c.author}','${cD}')" style="font-size:12px;cursor:pointer;font-weight:700;color:#2563eb;">رد</span>`:''}
+                    </div>
+                    ${repliesHTML}
+                </div>
+            </div>`;
         });
     }
     let likeCount = post.likes ? Object.keys(post.likes).length : 0;
@@ -811,22 +847,46 @@ window.mediaViewerNav = (dir) => {
     window._renderMVContent();
 };
 
+window.mvStartReply = (commentId, commentAuthor, commentAuthorName) => {
+    let inp = document.getElementById('mvCommentInput'); if (!inp) return;
+    inp.dataset.replyTo = commentId;
+    inp.dataset.replyAuthor = commentAuthor;
+    inp.placeholder = `الرد على ${commentAuthorName}...`;
+    inp.value = `@${commentAuthor} `;
+    inp.focus();
+};
+
 window.mvAddComment = (postId, postAuthor) => {
     let inp = document.getElementById('mvCommentInput'); if (!inp) return;
     let txt = inp.value.trim(); if (!txt) return;
+    let replyTo = inp.dataset.replyTo;
     inp.value = ''; inp.disabled = true;
-    push(ref(db, `posts/${postId}/comments`), { author: window.currentUser, text: txt, timestamp: Date.now() }).then(() => {
+    inp.placeholder = 'اكتب تعليقاً...'; delete inp.dataset.replyTo; delete inp.dataset.replyAuthor;
+    let dbPath = replyTo
+        ? `posts/${postId}/comments/${replyTo}/replies`
+        : `posts/${postId}/comments`;
+    push(ref(db, dbPath), { author: window.currentUser, text: txt, timestamp: Date.now() }).then((ref2) => {
         inp.disabled = false; inp.focus();
-        if (postAuthor !== window.currentUser) push(ref(db, `users/${postAuthor}/notifications`), { type: 'comment', from: window.currentUser, postId, timestamp: Date.now(), read: false });
-        // أضف التعليق الجديد للقائمة مباشرة
+        if (postAuthor !== window.currentUser) push(ref(db, `users/${postAuthor}/notifications`), { type: replyTo ? 'reply' : 'comment', from: window.currentUser, postId, timestamp: Date.now(), read: false });
         let list = document.getElementById('mvCommentsList'); if (!list) return;
         let pic = window.allUsersData[window.currentUser]?.profilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
         let name = window.getDisplayName(window.currentUser);
-        let el = document.createElement('div');
-        el.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;';
-        el.innerHTML = `<img src="${pic}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;"><div style="background:#f1f5f9;border-radius:12px;padding:8px 12px;flex:1;"><div style="font-weight:700;font-size:13px;">${name}</div><div style="font-size:13px;">${txt}</div></div>`;
-        if (list.querySelector('[style*="لا توجد تعليقات"]')) list.innerHTML = '';
-        list.appendChild(el);
+        if (replyTo) {
+            // أضف الرد تحت التعليق الأصلي
+            let cDiv = list.querySelector(`[data-cid="${replyTo}"]`);
+            if (cDiv) {
+                let el = document.createElement('div');
+                el.style.cssText = 'display:flex;gap:7px;margin-top:8px;margin-right:20px;';
+                el.innerHTML = `<img src="${pic}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;"><div style="flex:1;"><div style="background:#e2e8f0;border-radius:10px;padding:7px 10px;"><div style="font-weight:700;font-size:12px;">${name}</div><div style="font-size:12px;">${txt}</div></div></div>`;
+                cDiv.appendChild(el);
+            }
+        } else {
+            let el = document.createElement('div');
+            el.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;'; el.dataset.cid = ref2.key;
+            el.innerHTML = `<img src="${pic}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;"><div style="flex:1;"><div style="background:#f1f5f9;border-radius:12px;padding:8px 12px;"><div style="font-weight:700;font-size:13px;">${name}</div><div style="font-size:13px;">${txt}</div></div><div style="display:flex;gap:12px;margin-top:4px;padding-right:6px;"><span style="font-size:12px;cursor:pointer;font-weight:700;color:#64748b;">إعجاب</span><span onclick="window.mvStartReply('${ref2.key}','${window.currentUser}','${name}')" style="font-size:12px;cursor:pointer;font-weight:700;color:#2563eb;">رد</span></div></div>`;
+            if (list.querySelector('[style*="لا توجد تعليقات"]')) list.innerHTML = '';
+            list.appendChild(el);
+        }
         list.scrollTop = list.scrollHeight;
     }).catch(() => { inp.disabled = false; });
 };
@@ -1624,17 +1684,20 @@ window.renderProfileMediaEnhanced = async (userId, container) => {
     
     let html = '<div class="media-grid-enhanced">';
     media.forEach(item => {
-        const isImage = !!item.image;
-        const url = isImage ? item.image : item.video;
+        window.postCache[item.id] = item;
+        let imgs = (item.images && item.images.length) ? item.images : (item.image ? [item.image] : []);
+        let vids = (item.videos && item.videos.length) ? item.videos : (item.video ? [item.video] : []);
+        let allItems = [...imgs.map(u => ({type:'image',u})), ...vids.map(u => ({type:'video',u}))];
+        let firstItem = allItems[0]; if (!firstItem) return;
+        let extraBadge = allItems.length > 1 ? `<div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,.6);color:#fff;border-radius:10px;padding:2px 8px;font-size:12px;font-weight:700;">+${allItems.length}</div>` : '';
         html += `
-            <div class="media-item-enhanced" onclick="window.openPostModal('${item.id}')">
-                ${isImage ? 
-                    `<img src="${url}" loading="lazy">` : 
-                    `<video src="${url}" muted playsinline preload="metadata"></video>`
+            <div class="media-item-enhanced" onclick="window.openMediaViewerFor('${item.id}',0)">
+                ${firstItem.type === 'image' ?
+                    `<img src="${firstItem.u}" loading="lazy">` :
+                    `<video src="${firstItem.u}" muted playsinline preload="metadata"></video>`
                 }
-                <div class="media-type-badge">
-                    <i class="fas ${isImage ? 'fa-image' : 'fa-video'}"></i>
-                </div>
+                <div class="media-type-badge"><i class="fas ${firstItem.type === 'image' ? 'fa-image' : 'fa-video'}"></i></div>
+                ${extraBadge}
             </div>
         `;
     });
@@ -1850,7 +1913,7 @@ function renderProfilePosts(u) {
     $('profilePostsFeed').innerHTML = '<div style="text-align:center;padding:20px;color:var(--primary);"><i class="fas fa-spinner fa-spin fa-2x"></i><br>جاري جلب المنشورات...</div>';
     let isNewsBot = window.allUsersData[u]?.isNewsBot;
     let postsRef = isNewsBot ? ref(db, 'newsPosts') : ref(db, 'posts');
-    get(postsRef).then(s => { let h = '', ph = ''; ph += `<a href="#/@${u}"><img src="${pp}" style="cursor:pointer;"></a>`; if(s.exists()) { let userPosts = []; s.forEach(c => { let p = c.val(); p.id = c.key; if(p.author === u) { userPosts.push(p); window.postCache[p.id] = p; } }); userPosts.sort((a,b) => b.timestamp - a.timestamp); userPosts.forEach(p => { if(!p.isReel) { let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10; h += createPostHTML(p, 'profile', it, false); if(p.image) ph += `<a href="#/post/${p.id}"><img src="${p.image}" style="cursor:pointer;"></a>`; if(p.video) ph += `<a href="#/post/${p.id}"><video src="${p.video}" style="cursor:pointer;"></video></a>`; } }); } $('profilePostsFeed').innerHTML = h || '<p style="text-align:center;color:#666;font-size:13px;">لا مقالات.</p>'; $('profilePhotosGrid').innerHTML = ph; document.querySelectorAll('#profilePostsFeed video').forEach(v => window.videoObserver.observe(v)); }).catch(e => { $('profilePostsFeed').innerHTML = '<p style="text-align:center;color:#ef4444;">حدث خطأ في جلب المنشورات.</p>'; }); let rh = ''; let userReels = window.allReels.filter(r => r.author === u); if(userReels.length > 0) { userReels.forEach(r => { let globalIdx = window.allReels.findIndex(x => x.id === r.id); let vc = r.views ? Object.keys(r.views).length : 0; rh += `<div class="reel-thumb" style="width:100%; height:180px;" onclick="window.openReelsViewer(${globalIdx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto" poster="${reelPoster}" style="pointer-events:none; background:#1e293b; object-fit:cover;"></video><span class="r-views"><i class="fas fa-play"></i> ${vc}</span></div>`; }); } $('profileReelsGrid').innerHTML = rh || '<p style="text-align:center;color:#666;grid-column:span 3;">لا يوجد ريلز لهذا الحساب.</p>'; get(ref(db, `friends/${u}`)).then(s => { let fh = ''; if(s.exists()) { Object.keys(s.val()).forEach(f => { let pic = window.allUsersData[f]?.profilePic || dA, dn = window.getDisplayName(f), mc = 0; if(f !== window.currentUser) { let tf = window.allFriendsData[f] ? Object.keys(window.allFriendsData[f]) : []; mc = tf.filter(x => window.myFriends.includes(x)).length; } let mt = f === window.currentUser ? '' : (mc > 0 ? `<span class="f-mutual"><i class="fas fa-user-friends"></i> ${mc} مشتركون</span>` : `<span class="f-mutual">لا مشتركون</span>`); fh += `<a href="#/@${f}" class="friend-card" style="color:inherit; text-decoration:none;"><img src="${pic}"><div style="display:flex;flex-direction:column;justify-content:center;"><span class="f-name">${dn}</span>${mt}</div></a>`; }); } $('profileFriendsList').innerHTML = fh || '<p style="text-align:center;color:#666;font-size:13px;grid-column:span 2;">لا أصدقاء.</p>'; }); }
+    get(postsRef).then(s => { let h = '', ph = ''; ph += `<a href="#/@${u}"><img src="${pp}" style="cursor:pointer;"></a>`; if(s.exists()) { let userPosts = []; s.forEach(c => { let p = c.val(); p.id = c.key; if(p.author === u) { userPosts.push(p); window.postCache[p.id] = p; } }); userPosts.sort((a,b) => b.timestamp - a.timestamp); userPosts.forEach(p => { if(!p.isReel) { let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10; h += createPostHTML(p, 'profile', it, false); if(p.image || p.images) { let imgs2 = (p.images&&p.images.length)?p.images:(p.image?[p.image]:[]); ph += `<div style="cursor:pointer;" onclick="window.openMediaViewerFor('${p.id}',0)"><img src="${imgs2[0]}" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:6px;"></div>`; } if(p.video&&!p.isReel) ph += `<div style="cursor:pointer;" onclick="window.openMediaViewerFor('${p.id}',0)"><video src="${p.video}" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:6px;" muted playsinline></video></div>`; } }); } $('profilePostsFeed').innerHTML = h || '<p style="text-align:center;color:#666;font-size:13px;">لا مقالات.</p>'; $('profilePhotosGrid').innerHTML = ph; document.querySelectorAll('#profilePostsFeed video').forEach(v => window.videoObserver.observe(v)); }).catch(e => { $('profilePostsFeed').innerHTML = '<p style="text-align:center;color:#ef4444;">حدث خطأ في جلب المنشورات.</p>'; }); let rh = ''; let userReels = window.allReels.filter(r => r.author === u); if(userReels.length > 0) { userReels.forEach(r => { let globalIdx = window.allReels.findIndex(x => x.id === r.id); let vc = r.views ? Object.keys(r.views).length : 0; rh += `<div class="reel-thumb" style="width:100%; height:180px;" onclick="window.openReelsViewer(${globalIdx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto" poster="${reelPoster}" style="pointer-events:none; background:#1e293b; object-fit:cover;"></video><span class="r-views"><i class="fas fa-play"></i> ${vc}</span></div>`; }); } $('profileReelsGrid').innerHTML = rh || '<p style="text-align:center;color:#666;grid-column:span 3;">لا يوجد ريلز لهذا الحساب.</p>'; get(ref(db, `friends/${u}`)).then(s => { let fh = ''; if(s.exists()) { Object.keys(s.val()).forEach(f => { let pic = window.allUsersData[f]?.profilePic || dA, dn = window.getDisplayName(f), mc = 0; if(f !== window.currentUser) { let tf = window.allFriendsData[f] ? Object.keys(window.allFriendsData[f]) : []; mc = tf.filter(x => window.myFriends.includes(x)).length; } let mt = f === window.currentUser ? '' : (mc > 0 ? `<span class="f-mutual"><i class="fas fa-user-friends"></i> ${mc} مشتركون</span>` : `<span class="f-mutual">لا مشتركون</span>`); fh += `<a href="#/@${f}" class="friend-card" style="color:inherit; text-decoration:none;"><img src="${pic}"><div style="display:flex;flex-direction:column;justify-content:center;"><span class="f-name">${dn}</span>${mt}</div></a>`; }); } $('profileFriendsList').innerHTML = fh || '<p style="text-align:center;color:#666;font-size:13px;grid-column:span 2;">لا أصدقاء.</p>'; }); }
 
 window.sendFriendRequestToFromFeed = (t, b) => { if(!window.currentUser) { window.showRegisterModal(); return; } if(t === window.currentUser) return; window.sentRequests[t] = true; document.querySelectorAll(`button[data-action="add"][data-target="${t}"]`).forEach(x => { x.innerHTML = `<i class="fas fa-clock"></i> أرسل`; x.style.background = "#e2e8f0"; x.style.color = "#0f172a"; x.disabled = true; }); if(b && !b.hasAttribute('data-target')) { b.innerHTML = `<i class="fas fa-clock"></i> أرسل`; b.style.background = "#e2e8f0"; b.style.color = "#0f172a"; b.disabled = true; } set(ref(db, `friendRequests/${t}/${window.currentUser}`), Date.now()).then(() => push(ref(db, `users/${t}/notifications`), {type:'friend_req', from:window.currentUser, timestamp:Date.now(), read:false})); };
 window.cancelFriendRequest = (t) => { if(!window.currentUser) return; delete window.sentRequests[t]; remove(ref(db, `friendRequests/${t}/${window.currentUser}`)).then(() => window.openProfile(t)); };
