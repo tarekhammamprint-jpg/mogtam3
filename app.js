@@ -830,6 +830,15 @@ window.openMediaViewer = (items, startIdx, post) => {
     document.body.appendChild(ov);
     window._mvItems = items; window._mvIdx = startIdx || 0; window._mvPost = post;
     window._renderMVContent();
+
+    // سحب اللمس للتنقل على الموبايل
+    let mc = document.getElementById('fbMediaContent');
+    let ts = 0;
+    mc.addEventListener('touchstart', e => { ts = e.touches[0].clientX; }, { passive: true });
+    mc.addEventListener('touchend', e => {
+        let diff = ts - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 40) window.mediaViewerNav(diff > 0 ? 1 : -1);
+    }, { passive: true });
 };
 
 window._renderMVContent = () => {
@@ -839,8 +848,18 @@ window._renderMVContent = () => {
     c.innerHTML = it.type === 'image'
         ? `<img src="${it.u}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">`
         : `<video src="${it.u}" controls autoplay playsinline style="max-width:100%;max-height:100%;object-fit:contain;display:block;"></video>`;
-    if (counter) counter.innerText = `${idx + 1} / ${items.length}`;
+    if (counter) {
+        if (items.length <= 8) {
+            // نقاط دائرية للتنقل (مناسب للموبايل والكمبيوتر)
+            counter.innerHTML = items.map((_, i) =>
+                `<span onclick="window._mvGoTo(${i})" style="display:inline-block;width:${i===idx?'20px':'8px'};height:8px;border-radius:10px;background:${i===idx?'#fff':'rgba(255,255,255,.45)'};margin:0 3px;cursor:pointer;transition:all .25s;"></span>`
+            ).join('');
+        } else {
+            counter.innerText = `${idx + 1} / ${items.length}`;
+        }
+    }
 };
+window._mvGoTo = (idx) => { window._mvIdx = idx; window._renderMVContent(); };
 
 window.mediaViewerNav = (dir) => {
     window._mvIdx = (window._mvIdx + dir + window._mvItems.length) % window._mvItems.length;
