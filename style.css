@@ -98,36 +98,70 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 .fb-media-next{left:14px}
 .fb-media-counter{position:absolute;bottom:14px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.55);color:#fff;padding:4px 14px;border-radius:20px;font-size:13px;font-weight:700}
 @media(max-width:700px){
-    /* ── الموبايل: الصورة تملأ الشاشة كاملة في الأعلى ── */
     #fbMediaViewer{flex-direction:column!important}
-    .fb-comments-panel{width:100%!important;min-width:unset;height:auto;max-height:42vh;flex-shrink:0;order:2}
-    .fb-panel-header{padding:10px 14px}
-    .fb-media-main{height:0;flex:1;order:1;min-height:0}
+    /* إخفاء لوحة التعليقات الجانبية على الموبايل */
+    .fb-comments-panel{display:none!important}
+    .fb-media-main{height:100%;order:1;min-height:0}
     #fbMediaContent img,#fbMediaContent video{max-width:100%!important;max-height:100%!important;object-fit:contain}
-
-    /* إخفاء أزرار التنقل الجانبية على الموبايل (السحب باليد بديل) */
     .fb-media-prev,.fb-media-next{display:none!important}
+    .fb-media-counter{bottom:70px}
+    .fb-media-close{top:10px;right:10px;width:36px;height:36px;font-size:14px;background:rgba(0,0,0,.5)!important}
 
-    /* مؤشر نقاط التنقل (dots) */
-    .fb-media-counter{
-        bottom:8px;left:50%;transform:translateX(-50%);
-        background:rgba(0,0,0,.45);padding:4px 12px;
-        border-radius:20px;font-size:12px;font-weight:700;
-        letter-spacing:1px;
+    /* شريط الإجراءات الثابت أسفل الصورة */
+    #fbMobileBar{
+        display:flex!important;
+        position:absolute;bottom:0;left:0;right:0;
+        background:linear-gradient(transparent,rgba(0,0,0,.75));
+        padding:14px 16px 20px;
+        gap:16px;align-items:center;z-index:8;
     }
-
-    /* شريط الإعجاب/تعليق المُكبَّر في الموبايل */
-    .fb-comments-panel .action-btn{
-        font-size:16px!important;padding:14px 8px!important;
-        gap:10px!important;
+    #fbMobileBar button{
+        background:none;border:none;color:#fff;
+        display:flex;align-items:center;gap:7px;
+        font-size:16px;font-weight:700;cursor:pointer;
+        font-family:Cairo,sans-serif;
     }
-    .fb-comments-panel .action-btn i{font-size:20px!important}
+    #fbMobileBar button i{font-size:22px}
 
-    /* زر الإغلاق واضح فوق الصورة */
-    .fb-media-close{
-        top:10px;right:10px;
-        width:36px;height:36px;font-size:14px;
-        background:rgba(0,0,0,.5)!important;
+    /* Bottom Sheet التعليقات */
+    #fbCommentsSheet{
+        display:none;
+        position:fixed;inset:0;z-index:2147483300;
+    }
+    #fbCommentsSheet.open{display:block}
+    #fbCommentsSheetBg{
+        position:absolute;inset:0;background:rgba(0,0,0,.45);
+    }
+    #fbCommentsSheetInner{
+        position:absolute;bottom:0;left:0;right:0;
+        background:#fff;border-radius:20px 20px 0 0;
+        max-height:85vh;display:flex;flex-direction:column;
+        direction:rtl;
+        animation:slideUpSheet .3s ease;
+    }
+    @keyframes slideUpSheet{from{transform:translateY(100%)}to{transform:translateY(0)}}
+    #fbCommentsSheetHandle{
+        width:40px;height:4px;background:#cbd5e1;
+        border-radius:4px;margin:10px auto 4px;flex-shrink:0;
+    }
+    #fbCommentsSheetTitle{
+        font-size:16px;font-weight:800;text-align:center;
+        padding:6px 16px 12px;border-bottom:1px solid #e2e8f0;flex-shrink:0;
+    }
+    #fbCommentsSheetList{
+        flex:1;overflow-y:auto;padding:14px;
+    }
+    #fbCommentsSheetInput{
+        display:flex;gap:8px;align-items:center;
+        padding:10px 14px 20px;border-top:1px solid #e2e8f0;flex-shrink:0;
+    }
+    #fbCommentsSheetInput input{
+        flex:1;border:1px solid #e2e8f0;border-radius:22px;
+        padding:10px 16px;font-size:15px;font-family:Cairo,sans-serif;outline:none;
+    }
+    #fbCommentsSheetInput button{
+        background:var(--primary);color:#fff;border:none;
+        border-radius:50%;width:40px;height:40px;cursor:pointer;font-size:15px;
     }
 }
 .media-gallery.g3{grid-template-columns:2fr 1fr;grid-template-rows:1fr 1fr}
