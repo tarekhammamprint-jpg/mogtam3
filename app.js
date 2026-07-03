@@ -827,7 +827,7 @@ window.openMediaViewer = (items, startIdx, post) => {
             ${items.length > 1 ? `<button class="fb-media-nav fb-media-next" onclick="window.mediaViewerNav(1)"><i class="fas fa-chevron-left"></i></button>` : ''}
             ${items.length > 1 ? `<div class="fb-media-counter" id="fbMediaCounter"></div>` : ''}
             <!-- شريط الأكشن للموبايل فقط (مخفي على الكمبيوتر بالـCSS) -->
-            <div id="fbMobileBar" style="display:none;">
+            <div id="fbMobileBar">
                 <button onclick="window.toggleLike('${post.id}','${post.author}',this)" data-count="${likeCount}" style="color:${isLiked?'#ef4444':'#fff'}">
                     <i class="${isLiked?'fas':'far'} fa-heart"></i>
                     <span class="lc-count">${likeCount||''}</span>
