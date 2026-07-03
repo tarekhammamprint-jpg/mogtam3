@@ -826,6 +826,35 @@ window.openMediaViewer = (items, startIdx, post) => {
             <div id="fbMediaContent"></div>
             ${items.length > 1 ? `<button class="fb-media-nav fb-media-next" onclick="window.mediaViewerNav(1)"><i class="fas fa-chevron-left"></i></button>` : ''}
             ${items.length > 1 ? `<div class="fb-media-counter" id="fbMediaCounter"></div>` : ''}
+            <!-- شريط الأكشن للموبايل فقط (مخفي على الكمبيوتر بالـCSS) -->
+            <div id="fbMobileBar" style="display:none;">
+                <button onclick="window.toggleLike('${post.id}','${post.author}',this)" data-count="${likeCount}" style="color:${isLiked?'#ef4444':'#fff'}">
+                    <i class="${isLiked?'fas':'far'} fa-heart"></i>
+                    <span class="lc-count">${likeCount||''}</span>
+                </button>
+                <button onclick="window.openMvCommentsSheet()">
+                    <i class="far fa-comment"></i>
+                    <span>${post.comments ? Object.keys(post.comments).length : 0} تعليق</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Bottom Sheet التعليقات للموبايل -->
+        <div id="fbCommentsSheet">
+            <div id="fbCommentsSheetBg" onclick="window.closeMvCommentsSheet()"></div>
+            <div id="fbCommentsSheetInner">
+                <div id="fbCommentsSheetHandle"></div>
+                <div id="fbCommentsSheetTitle">التعليقات</div>
+                <div id="fbCommentsSheetList" id="mvCommentsList">
+                    ${commentsHTML || '<div style="text-align:center;color:#94a3b8;font-size:14px;padding:30px;">لا توجد تعليقات بعد</div>'}
+                </div>
+                ${window.currentUser ? `
+                <div id="fbCommentsSheetInput">
+                    <img src="${window.allUsersData[window.currentUser]?.profilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+                    <input type="text" id="mvCommentInput" placeholder="اكتب تعليقاً..." onkeypress="if(event.key==='Enter')window.mvAddComment('${post.id}','${post.author}')">
+                    <button onclick="window.mvAddComment('${post.id}','${post.author}')"><i class="fas fa-paper-plane"></i></button>
+                </div>` : ''}
+            </div>
         </div>`;
     document.body.appendChild(ov);
     window._mvItems = items; window._mvIdx = startIdx || 0; window._mvPost = post;
@@ -912,8 +941,14 @@ window.mvAddComment = (postId, postAuthor) => {
 
 window.mvRefreshLikeCount = (postId) => {};
 
+window.openMvCommentsSheet = () => {
+    document.getElementById('fbCommentsSheet')?.classList.add('open');
+};
+window.closeMvCommentsSheet = () => {
+    document.getElementById('fbCommentsSheet')?.classList.remove('open');
+};
 window.closeMediaViewer = () => {
-    let ov = document.getElementById('fbMediaViewer'); if (ov) ov.remove();
+    document.getElementById('fbMediaViewer')?.remove();
     document.body.style.overflow = '';
 };
 
