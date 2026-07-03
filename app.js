@@ -787,7 +787,7 @@ window.openMediaViewer = (items, startIdx, post) => {
     let commentInput = window.currentUser ? `
         <div style="display:flex;gap:8px;align-items:center;padding:10px 14px;border-top:1px solid #e2e8f0;">
             <img src="${window.allUsersData[window.currentUser]?.profilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">
-            <input type="text" id="mvCommentInput" placeholder="اكتب تعليقاً..." style="flex:1;border:1px solid #e2e8f0;border-radius:20px;padding:8px 14px;font-family:Cairo,sans-serif;font-size:13px;outline:none;" onkeypress="if(event.key==='Enter')window.mvAddComment('${post.id}','${post.author}')">
+            <input type="text" id="_mvInpDesktop" placeholder="اكتب تعليقاً..." style="flex:1;border:1px solid #e2e8f0;border-radius:20px;padding:8px 14px;font-family:Cairo,sans-serif;font-size:13px;outline:none;" onkeypress="if(event.key==='Enter')window.mvAddComment('${post.id}','${post.author}')">
             <button onclick="window.mvAddComment('${post.id}','${post.author}')" style="background:var(--primary);color:#fff;border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
         </div>` : '';
     let actionBar = `
@@ -815,7 +815,7 @@ window.openMediaViewer = (items, startIdx, post) => {
             </div>
             ${post.text ? `<div style="padding:10px 14px;font-size:14px;color:#334155;border-bottom:1px solid #e2e8f0;">${post.text}</div>` : ''}
             ${actionBar}
-            <div style="flex:1;overflow-y:auto;padding:14px;" id="mvCommentsList">
+            <div style="flex:1;overflow-y:auto;padding:14px;" id="_mvListDesktop">
                 ${commentsHTML || '<div style="text-align:center;color:#94a3b8;font-size:13px;padding:20px;">لا توجد تعليقات بعد</div>'}
             </div>
             ${commentInput}
@@ -832,10 +832,10 @@ window.openMediaViewer = (items, startIdx, post) => {
                     <i class="${isLiked?'fas':'far'} fa-heart"></i>
                     <span class="lc-count">${likeCount||''}</span>
                 </button>
-                <button onclick="window.openMvCommentsSheet()">
-                    <i class="far fa-comment"></i>
-                    <span>${post.comments ? Object.keys(post.comments).length : 0} تعليق</span>
-                </button>
+            <button onclick="window.openMvCommentsSheet(true)">
+                <i class="far fa-comment"></i>
+                <span>${post.comments ? Object.keys(post.comments).length : 0} تعليق</span>
+            </button>
             </div>
         </div>
 
@@ -845,7 +845,7 @@ window.openMediaViewer = (items, startIdx, post) => {
             <div id="fbCommentsSheetInner">
                 <div id="fbCommentsSheetHandle"></div>
                 <div id="fbCommentsSheetTitle">التعليقات</div>
-                <div id="fbCommentsSheetList" id="mvCommentsList">
+                <div id="mvCommentsList" style="flex:1;overflow-y:auto;padding:16px;">
                     ${commentsHTML || '<div style="text-align:center;color:#94a3b8;font-size:14px;padding:30px;">لا توجد تعليقات بعد</div>'}
                 </div>
                 ${window.currentUser ? `
@@ -896,12 +896,15 @@ window.mediaViewerNav = (dir) => {
 };
 
 window.mvStartReply = (commentId, commentAuthor, commentAuthorName) => {
-    let inp = document.getElementById('mvCommentInput'); if (!inp) return;
-    inp.dataset.replyTo = commentId;
-    inp.dataset.replyAuthor = commentAuthor;
-    inp.placeholder = `الرد على ${commentAuthorName}...`;
-    inp.value = `@${commentAuthor} `;
-    inp.focus();
+    window.openMvCommentsSheet(false);
+    setTimeout(() => {
+        let inp = document.getElementById('mvCommentInput'); if (!inp) return;
+        inp.dataset.replyTo = commentId;
+        inp.dataset.replyAuthor = commentAuthor;
+        inp.placeholder = `الرد على ${commentAuthorName}...`;
+        inp.value = `@${commentAuthor} `;
+        inp.focus();
+    }, 350);
 };
 
 window.mvAddComment = (postId, postAuthor) => {
@@ -941,8 +944,9 @@ window.mvAddComment = (postId, postAuthor) => {
 
 window.mvRefreshLikeCount = (postId) => {};
 
-window.openMvCommentsSheet = () => {
+window.openMvCommentsSheet = (focusInput) => {
     document.getElementById('fbCommentsSheet')?.classList.add('open');
+    if (focusInput) setTimeout(() => document.getElementById('mvCommentInput')?.focus(), 350);
 };
 window.closeMvCommentsSheet = () => {
     document.getElementById('fbCommentsSheet')?.classList.remove('open');
