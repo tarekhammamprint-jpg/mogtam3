@@ -1270,10 +1270,12 @@ window.togglePostOptionsMenu = (id) => {
 window.closeAllPostOptMenus = () => { document.querySelectorAll('.post-options-menu.show').forEach(m => m.classList.remove('show')); };
 document.addEventListener('click', () => window.closeAllPostOptMenus());
 
+const OG_WORKER = 'https://mogtam3-og.tarek-hammam-print.workers.dev';
+window.getShareLink = (id) => `${OG_WORKER}/?post=${id}`;
 window.copyPostLink = (id) => {
-    let link = `${window.location.origin}${window.location.pathname}#/post/${id}`;
+    let link = window.getShareLink(id);
     if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(link).then(() => window.dlgAlert('تم نسخ رابط المنشور بنجاح ✅', 'success', 'تم النسخ')).catch(() => window.dlgAlert(link, 'info', 'رابط المنشور'));
+        navigator.clipboard.writeText(link).then(() => window.dlgAlert('تم نسخ رابط المنشور ✅\nعند مشاركته على فيسبوك/واتساب سيظهر العنوان والصورة تلقائياً.', 'success', 'تم النسخ')).catch(() => window.dlgAlert(link, 'info', 'رابط المنشور'));
     } else {
         window.dlgAlert(link, 'info', 'رابط المنشور');
     }
