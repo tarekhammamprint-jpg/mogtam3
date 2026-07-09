@@ -1270,8 +1270,8 @@ window.togglePostOptionsMenu = (id) => {
 window.closeAllPostOptMenus = () => { document.querySelectorAll('.post-options-menu.show').forEach(m => m.classList.remove('show')); };
 document.addEventListener('click', () => window.closeAllPostOptMenus());
 
-const OG_WORKER = 'https://mogtam3-og.tarek-hammam-print.workers.dev';
-window.getShareLink = (id) => `${OG_WORKER}/?post=${id}`;
+const OG_WORKER = 'https://red-snowflake-1dad.tarek-hammam-print.workers.dev';
+window.getShareLink = (id) => `${OG_WORKER}/og?post=${id}`;
 window.copyPostLink = (id) => {
     let link = window.getShareLink(id);
     if (navigator.clipboard && navigator.clipboard.writeText) {
