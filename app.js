@@ -2106,6 +2106,9 @@ window.fL = function(u, d) {
     
     let loggedInNav = $('loggedInNav'); 
     if(loggedInNav) loggedInNav.style.display = 'flex';
+
+    let navSearch = $('navSearchContainer');
+    if(navSearch) navSearch.style.display = 'flex';
     
     let cb = $('composerBox'); 
     if(cb) cb.style.display = 'block'; 
