@@ -4,20 +4,6 @@
     <meta charset="UTF-8" />
     <meta content="width=device-width,initial-scale=1.0" name="viewport" />
     <title>مجتمعنا - منصة تواصل</title>
-    <meta property="og:site_name" content="مجتمعنا">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="مجتمعنا - منصة تواصل اجتماعي عربية">
-    <meta property="og:description" content="تواصل مع الأصدقاء والعالم من حولك في منصة مجتمعنا العربية">
-    <meta property="og:image" content="https://tarekhammamprint-jpg.github.io/mogtam3/og-cover.png">
-    <meta property="og:url" content="https://tarekhammamprint-jpg.github.io/mogtam3/">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="مجتمعنا - منصة تواصل اجتماعي عربية">
-    <meta name="twitter:description" content="تواصل مع الأصدقاء والعالم من حولك في منصة مجتمعنا العربية">
-    <meta name="twitter:image" content="https://tarekhammamprint-jpg.github.io/mogtam3/og-cover.png">
-    <meta id="ogTitle" property="og:title" content="مجتمعنا">
-    <meta id="ogDesc" property="og:description" content="منصة تواصل اجتماعي عربية">
-    <meta id="ogImg" property="og:image" content="https://tarekhammamprint-jpg.github.io/mogtam3/og-cover.png">
-    <meta id="ogUrl" property="og:url" content="https://tarekhammamprint-jpg.github.io/mogtam3/">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="style.css" />
@@ -297,7 +283,7 @@
 
     <div class="navbar">
         <div onclick="window.goHome()" class="nav-brand">مجتمعنا</div>
-        <div class="search-container">
+        <div class="search-container" id="navSearchContainer" style="display:none;">
             <em class="fas fa-search search-icon"></em>
             <input onkeyup="window.handleGlobalSearch(this.value)" onblur="if(this.value===''){this.placeholder='بحث';}" onfocus="this.placeholder='ابحث...'" placeholder="بحث" id="globalSearch" class="search-bar" type="text" />
             <div class="search-results-dropdown" id="searchResults"></div>
