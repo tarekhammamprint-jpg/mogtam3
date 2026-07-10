@@ -53,6 +53,11 @@ window.generateHandles = (n) => {
 };
 
 window.showRegisterModal = () => { 
+    // احفظ الصفحة الحالية للرجوع إليها بعد تسجيل الدخول
+    let currentHash = window.location.hash;
+    if (currentHash && currentHash !== '#/login' && currentHash !== '#/' && currentHash !== '') {
+        window._returnAfterLogin = currentHash;
+    }
     let s = document.getElementById('hideLoginStyle'); 
     if(s) s.remove();
     let lw = document.getElementById('loginModal');
@@ -71,6 +76,7 @@ window.showRegisterModal = () => {
 };
 
 window.closeRegisterModal = () => { 
+    window._returnAfterLogin = null; // إلغاء الرجوع التلقائي لو أغلق بدون تسجيل
     let lw = $('loginModal'); 
     if(lw) { 
         lw.style.opacity = '0'; 
@@ -112,7 +118,15 @@ window.topLogin = () => {
         }
         if(s.exists()){ 
             if(s.val().password === p) { 
-                window.fL(u, s.val()); 
+                window.closeRegisterModal();
+                window.fL(u, s.val());
+                // رجوع للصفحة التي كان عليها الزائر قبل نافذة الدخول
+                if (window._returnAfterLogin) {
+                    setTimeout(() => {
+                        window.location.hash = window._returnAfterLogin;
+                        window._returnAfterLogin = null;
+                    }, 400);
+                } 
             } else { 
                 window.dlgAlert("كلمة المرور غير صحيحة.", "danger", "خطأ في الدخول"); 
             }
@@ -156,7 +170,14 @@ window.login = () => {
             clearTimeout(timeoutId); 
             if(s.exists()){ 
                 if(s.val().password === p) {
-                    window.fL(u, s.val()); 
+                    window.closeRegisterModal();
+                    window.fL(u, s.val());
+                    if (window._returnAfterLogin) {
+                        setTimeout(() => {
+                            window.location.hash = window._returnAfterLogin;
+                            window._returnAfterLogin = null;
+                        }, 400);
+                    }
                 } else { 
                     window.dlgAlert("كلمة المرور غير صحيحة.", "danger", "خطأ في الدخول"); 
                     b.innerText = ot; 
