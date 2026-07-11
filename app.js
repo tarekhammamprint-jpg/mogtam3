@@ -706,6 +706,51 @@ function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestam
 window.showNewPosts = () => { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim=5; renderFeed(); $('newPostsBtn').style.display='none'; window.scrollTo({top:0, behavior:'smooth'}); };
 window.addEventListener('scroll', () => { if((window.innerHeight+window.scrollY) >= document.body.offsetHeight-800){ if(window.feedLim < window.allPosts.length){ window.feedLim += 5; renderFeed(); } } });
 
+// ── مشغّل الفيديو الذكي ─────────────────────────────────────
+window.toggleVideoMute = (btn) => {
+    let wrap = btn.closest('.smart-video-wrap'); if (!wrap) return;
+    let vid = wrap.querySelector('video'); if (!vid) return;
+    vid.muted = !vid.muted;
+    btn.innerHTML = vid.muted ? '<i class="fas fa-volume-mute"></i>' : '<i class="fas fa-volume-up"></i>';
+};
+
+// تشغيل/إيقاف الفيديو عند النقر على منطقة الفيديو نفسها (بدون فتح المودال)
+document.addEventListener('click', e => {
+    let wrap = e.target.closest('.smart-video-wrap');
+    if (!wrap) return;
+    // لو ضغط على الـ mute button أو overlay، لا تفتح المودال
+    if (e.target.closest('.sv-mute-btn')) return;
+    let vid = wrap.querySelector('video');
+    if (!vid) return;
+    if (vid.paused) {
+        vid.play();
+        wrap.classList.add('playing');
+    } else {
+        vid.pause();
+        wrap.classList.remove('playing');
+    }
+});
+
+// إيقاف الفيديو تلقائياً لما يختفي عن الشاشة
+if ('IntersectionObserver' in window) {
+    let vidObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            let vid = entry.target;
+            if (!entry.isIntersecting && !vid.paused) {
+                vid.pause();
+                vid.closest('.smart-video-wrap')?.classList.remove('playing');
+            }
+        });
+    }, { threshold: 0.3 });
+    let observeVideos = () => {
+        document.querySelectorAll('.smart-video').forEach(v => {
+            if (!v.dataset.observed) { vidObserver.observe(v); v.dataset.observed = '1'; }
+        });
+    };
+    // راقب إضافة فيديوهات جديدة للصفحة
+    new MutationObserver(observeVideos).observe(document.body, { childList: true, subtree: true });
+}
+
 window.renderMediaGallery = (p) => {
     let imgs = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
     let vids = (p.videos && p.videos.length) ? p.videos : (p.video ? [p.video] : []);
@@ -713,7 +758,7 @@ window.renderMediaGallery = (p) => {
     if (total === 0) return '';
     if (total === 1) {
         if (imgs.length) return `<img src="${imgs[0]}" class="post-media" style="cursor:pointer;" onclick="event.stopPropagation();window.openMediaViewerFor('${p.id}',0)">`;
-        return `<video src="${vids[0]}" class="post-media" controls playsinline poster="${videoPoster}" style="background:#1e293b;"></video>`;
+        return `<div class="smart-video-wrap" onclick="event.stopPropagation();window.openMediaViewerFor('${p.id}',0)"><video src="${vids[0]}" class="post-media smart-video" muted playsinline preload="metadata" style="background:#1e293b;cursor:pointer;"></video><div class="sv-overlay"><i class="fas fa-play sv-play-icon"></i></div><button class="sv-mute-btn" onclick="event.stopPropagation();window.toggleVideoMute(this)"><i class="fas fa-volume-mute"></i></button></div>`;
     }
     let items = [...imgs.map(u => ({ type: 'image', u })), ...vids.map(u => ({ type: 'video', u }))];
     let cls = items.length === 2 ? 'g2' : items.length === 3 ? 'g3' : 'g4';
@@ -722,7 +767,7 @@ window.renderMediaGallery = (p) => {
         let overlay = (i === 3 && extra > 0) ? `<div class="media-gallery-more">+${extra}</div>` : '';
         return it.type === 'image'
             ? `<div class="media-gallery-item" onclick="event.stopPropagation();window.openMediaViewerFor('${p.id||p.postId}',${i})"><img src="${it.u}">${overlay}</div>`
-            : `<div class="media-gallery-item" onclick="event.stopPropagation();window.openMediaViewerFor('${p.id||p.postId}',${i})"><video src="${it.u}" muted playsinline></video><i class="fas fa-play media-gallery-play"></i>${overlay}</div>`;
+            : `<div class="media-gallery-item" onclick="event.stopPropagation();window.openMediaViewerFor('${p.id||p.postId}',${i})"><video src="${it.u}" muted playsinline preload="metadata"></video><i class="fas fa-play media-gallery-play"></i>${overlay}</div>`;
     }).join('') + `</div>`;
     return html;
 };
@@ -876,7 +921,7 @@ window._renderMVContent = () => {
     if (!c) return;
     c.innerHTML = it.type === 'image'
         ? `<img src="${it.u}" style="max-width:100%;max-height:100%;object-fit:contain;display:block;">`
-        : `<video src="${it.u}" controls autoplay playsinline style="max-width:100%;max-height:100%;object-fit:contain;display:block;"></video>`;
+        : `<video src="${it.u}" controls autoplay playsinline style="max-width:100%;max-height:100%;object-fit:contain;display:block;background:#000;"></video>`;
     if (counter) {
         if (items.length <= 8) {
             // نقاط دائرية للتنقل (مناسب للموبايل والكمبيوتر)
