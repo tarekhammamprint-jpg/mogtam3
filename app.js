@@ -205,7 +205,7 @@ if (document.readyState === 'loading') {
 window.CLOUDINARY_CLOUD_NAME = "diwaqfsap"; window.CLOUDINARY_UPLOAD_PRESET = "ml_default";
 window.currentUser = localStorage.getItem('savedUser') || null;
 window.currentChatTarget = null; window.allUsersData = {}; window.allFriendsData = {};
-window.myFriends = []; window.allPosts = []; window.postCache = {}; window.renderedPostIds = new Set();
+window.myFriends = []; window.allPosts = []; window.postCache = {}; window.renderedPostIds = new Set(); window.activeAds = [];
 window.isInitialLoad = true; window.currentRequests = {}; window.sentRequests = {}; window.feedLim = 5; 
 window.usersListenerActive = false; window.privateListenersStarted = false;
 window.allCommunities = {}; window.currentCommunityId = null; window.currentCommunitySearchQuery = "";
@@ -1054,6 +1054,8 @@ function renderFeed() {
         h += createPostHTML(v.p, 'feed', v.it, false);
         if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget();
         if(window.currentUser && i>0 && i%5===0) h += window.generateReelsWidgetHTML();
+        // إعلان ممول كل 7 منشورات
+        if(window.activeAds && window.activeAds.length > 0 && (i+1) % 7 === 0) h += window.getActiveAdHTML();
     });
     if(pf) { pf.innerHTML = h || '<p style="text-align:center;color:#666;padding:20px;">المنشورات تظهر هنا.</p>'; document.querySelectorAll('#postsFeed video').forEach(v => window.videoObserver.observe(v)); }
 }
@@ -2039,6 +2041,84 @@ function renderSidebarUsers() { let fh = '', fa = [], rh = '', ra = []; window.m
 window.getSuggestions = () => { let ml = window.currentUser ? (window.allUsersData[window.currentUser]?.location || "غير محدد") : "غير محدد", sg = []; for(let u in window.allUsersData) { if(u === window.currentUser || window.myFriends.includes(u)) continue; let d = window.allUsersData[u];  let tf = Object.keys(window.allFriendsData[u] || {}), mc = tf.filter(f => window.myFriends.includes(f)).length, isl = (d.location && d.location === ml && ml !== "غير محدد"); if(mc > 0 || isl) { sg.push({name:u, data:d, mutualCount:mc, isSameLocation:isl}); } } sg.sort((a,b) => { if(b.mutualCount !== a.mutualCount) return b.mutualCount - a.mutualCount; if(b.isSameLocation && !a.isSameLocation) return 1; if(!b.isSameLocation && a.isSameLocation) return -1; return 0; }); return sg; };
 function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;"><i class="fas ${x.mutualCount > 0 ? 'fa-user-friends' : 'fa-map-marker-alt'}"></i> ${x.mutualCount > 0 ? `مشتركون: ${x.mutualCount}` : 'من منطقتك'}</span></a>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
 
+// ══════════════════════════════════════
+// نظام الإعلانات الممولة
+// ══════════════════════════════════════
+function listenToAds() {
+    onValue(ref(db, 'ads'), snap => {
+        const now = Date.now();
+        window.activeAds = snap.exists()
+            ? Object.entries(snap.val())
+                .map(([id, a]) => ({ ...a, id }))
+                .filter(a => a.status === 'active' && (!a.endDate || new Date(a.endDate).getTime() > now))
+            : [];
+        renderSidebarAd();
+    });
+}
+
+function createAdHTML(ad) {
+    const ownerName = window.allUsersData[ad.owner]?.displayName || ad.owner || 'معلن';
+    const ownerPic = window.allUsersData[ad.owner]?.profilePic || dA;
+    const mediaHtml = ad.mediaUrl
+        ? (ad.mediaType === 'image'
+            ? `<img src="${ad.mediaUrl}" class="post-media" style="cursor:default;">`
+            : `<div class="smart-video-wrap"><video src="${ad.mediaUrl}" class="smart-video" muted playsinline preload="metadata" style="background:#1e293b;cursor:pointer;"></video><div class="sv-overlay"><i class="fas fa-play sv-play-icon"></i></div><button class="sv-mute-btn" onclick="event.stopPropagation();window.toggleVideoMute(this)"><i class="fas fa-volume-mute"></i></button></div>`)
+        : '';
+    const ctaHtml = ad.destinationUrl
+        ? `<a href="${ad.destinationUrl}" target="_blank" rel="noopener" class="ad-cta-btn"><i class="fas fa-external-link-alt"></i> ${ad.cta || 'اعرف المزيد'}</a>`
+        : '';
+    return `<div class="post ad-post" style="border:1.5px solid #e0e7ff;position:relative;">
+        <div class="ad-sponsored-badge"><i class="fas fa-bullhorn"></i> ممول</div>
+        <div class="post-header">
+            <div style="display:flex;gap:10px;align-items:center;">
+                <img src="${ownerPic}" class="avatar-small">
+                <div>
+                    <div style="font-weight:700;font-size:14px;">${ownerName}</div>
+                    <div style="font-size:11px;color:#94a3b8;">إعلان ممول · <i class="fas fa-globe-americas"></i></div>
+                </div>
+            </div>
+        </div>
+        ${ad.description ? `<div style="padding:0 0 10px;font-size:14px;color:#334155;">${ad.description}</div>` : ''}
+        ${mediaHtml}
+        ${ad.headline || ad.destinationUrl ? `
+        <div class="ad-bottom-bar">
+            <div>
+                ${ad.headline ? `<div style="font-size:14px;font-weight:700;color:#0f172a;">${ad.headline}</div>` : ''}
+                ${ad.destinationUrl ? `<div style="font-size:11px;color:#64748b;">${ad.destinationUrl.replace(/^https?:\/\//,'').split('/')[0]}</div>` : ''}
+            </div>
+            ${ctaHtml}
+        </div>` : ''}
+    </div>`;
+}
+
+function renderSidebarAd() {
+    const slot = document.getElementById('sidebarAdSlot');
+    if (!slot || !window.activeAds.length) { if(slot) slot.innerHTML = ''; return; }
+    const ad = window.activeAds[Math.floor(Math.random() * window.activeAds.length)];
+    const ownerPic = window.allUsersData[ad.owner]?.profilePic || dA;
+    const ownerName = window.allUsersData[ad.owner]?.displayName || ad.owner || 'معلن';
+    slot.innerHTML = `
+        <div class="sidebar-ad-card">
+            <div class="sidebar-ad-label"><i class="fas fa-bullhorn"></i> إعلان ممول</div>
+            ${ad.mediaUrl && ad.mediaType === 'image' ? `<img src="${ad.mediaUrl}" class="sidebar-ad-img">` : ''}
+            <div class="sidebar-ad-body">
+                <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                    <img src="${ownerPic}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;">
+                    <span style="font-size:12px;font-weight:700;">${ownerName}</span>
+                </div>
+                <div class="sidebar-ad-title">${ad.headline || ''}</div>
+                <div class="sidebar-ad-desc">${(ad.description||'').substring(0,80)}${(ad.description||'').length>80?'...':''}</div>
+                ${ad.destinationUrl ? `<a href="${ad.destinationUrl}" target="_blank" class="sidebar-ad-btn">${ad.cta||'اعرف المزيد'} <i class="fas fa-arrow-left"></i></a>` : ''}
+            </div>
+        </div>`;
+}
+
+window.getActiveAdHTML = () => {
+    if (!window.activeAds || !window.activeAds.length) return '';
+    const ad = window.activeAds[Math.floor(Math.random() * window.activeAds.length)];
+    return createAdHTML(ad);
+};
+
 function listenToNewsBotPosts() {
     onValue(query(ref(db, 'newsPosts'), orderByChild('timestamp'), limitToLast(50)), s => {
         window.allNewsPosts = [];
@@ -2227,6 +2307,7 @@ window.fL = function(u, d) {
     
     if(typeof listenToReels === 'function') listenToReels();
     if(typeof listenToNewsBotPosts === 'function') listenToNewsBotPosts();
+    listenToAds();
     
     setTimeout(() => { 
         if(typeof window.initRightSidebar === 'function') window.initRightSidebar();
