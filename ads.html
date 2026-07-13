@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إنشاء إعلان ممول — مجتمعنا</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getDatabase, ref, push, set, get } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+
+const app = initializeApp({
+    apiKey: "AIzaSyAD5-oCqWmvrjKD24uSRNqqxoijQnsnqA4",
+    authDomain: "mogtam3-1b98f.firebaseapp.com",
+    databaseURL: "https://mogtam3-1b98f-default-rtdb.firebaseio.com",
+    projectId: "mogtam3-1b98f",
+    storageBucket: "mogtam3-1b98f.firebasestorage.app",
+    messagingSenderId: "948636671408",
+    appId: "1:948636671408:web:501b87559ed12ff09a8a75"
+});
+const db = getDatabase(app);
+
+const CLOUDINARY_CLOUD = "diwaqfsap";
+const CLOUDINARY_PRESET = "ml_default";
+
+const savedUser = localStorage.getItem('savedUser');
+if (!savedUser) { alert('يجب تسجيل الدخول أولاً'); window.location.href = 'index.html'; }
+
+let adData = {
+    owner: savedUser,
+    step: 1,
+    objective: '',
+    adName: '',
+    headline: '',
+    description: '',
+    cta: 'اعرف المزيد',
+    destinationUrl: '',
+    mediaUrl: '',
+    mediaType: '',
+    ageMin: 18, ageMax: 65,
+    gender: 'all',
+    interests: [],
+    locations: [],
+    budget: 50,
+    budgetType: 'daily',
+    duration: 7,
+    startDate: '',
+    paymentMethod: '',
+    status: 'pending_payment',
+    createdAt: Date.now()
+};
+
+window.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('adOwner').innerText = savedUser;
+    document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
+    adData.startDate = document.getElementById('startDate').value;
+    renderStep(1);
+});
+
+function renderStep(n) {
+    adData.step = n;
+    document.querySelectorAll('.step-panel').forEach(p => p.style.display = 'none');
+    document.getElementById('step' + n)?.style.setProperty('display', 'block');
+    document.querySelectorAll('.step-dot').forEach((d, i) => {
+        d.classList.toggle('active', i + 1 === n);
+        d.classList.toggle('done', i + 1 < n);
+    });
+    updatePreview();
+}
+
+window.nextStep = (n) => {
+    if (n === 2 && !adData.objective) return showMsg('اختر هدف الإعلان أولاً', 'error');
+    if (n === 3 && (!adData.headline || !adData.description)) return showMsg('أدخل عنوان ووصف الإعلان', 'error');
+    if (n === 4 && !adData.mediaUrl) return showMsg('يجب رفع صورة أو فيديو للإعلان', 'error');
+    renderStep(n);
+};
+window.prevStep = (n) => renderStep(n);
+
+window.selectObjective = (obj, el) => {
+    adData.objective = obj;
+    document.querySelectorAll('.obj-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+};
+
+window.selectCTA = (cta) => { adData.cta = cta; updatePreview(); };
+window.selectGender = (g, el) => {
+    adData.gender = g;
+    document.querySelectorAll('.gender-btn').forEach(b => b.classList.remove('active'));
+    el.classList.add('active');
+};
+
+window.updateField = (field, val) => {
+    adData[field] = field === 'budget' || field === 'ageMin' || field === 'ageMax' || field === 'duration'
+        ? parseInt(val) || 0 : val;
+    updatePreview();
+};
+
+window.addInterest = () => {
+    const inp = document.getElementById('interestInput');
+    const val = inp.value.trim();
+    if (!val || adData.interests.includes(val)) { inp.value = ''; return; }
+    adData.interests.push(val);
+    inp.value = '';
+    renderInterests();
+};
+window.removeInterest = (i) => { adData.interests.splice(i, 1); renderInterests(); };
+function renderInterests() {
+    document.getElementById('interestTags').innerHTML = adData.interests.map((t, i) =>
+        `<span class="tag">${t} <i class="fas fa-times" onclick="window.removeInterest(${i})"></i></span>`).join('');
+}
+
+window.addLocation = () => {
+    const inp = document.getElementById('locationInput');
+    const val = inp.value.trim();
+    if (!val) return;
+    adData.locations.push(val);
+    inp.value = '';
+    renderLocations();
+};
+window.removeLocation = (i) => { adData.locations.splice(i, 1); renderLocations(); };
+function renderLocations() {
+    document.getElementById('locationTags').innerHTML = adData.locations.map((t, i) =>
+        `<span class="tag">${t} <i class="fas fa-times" onclick="window.removeLocation(${i})"></i></span>`).join('');
+}
+
+window.uploadAdMedia = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const type = file.type.startsWith('video') ? 'video' : 'image';
+    const btn = document.getElementById('uploadBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...';
+    btn.disabled = true;
+    try {
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('upload_preset', CLOUDINARY_PRESET);
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/${type}/upload`, { method: 'POST', body: fd });
+        const data = await res.json();
+        adData.mediaUrl = data.secure_url;
+        adData.mediaType = type;
+        document.getElementById('mediaPreviewWrap').innerHTML = type === 'image'
+            ? `<img src="${data.secure_url}" style="max-width:100%;max-height:220px;border-radius:10px;object-fit:cover;">`
+            : `<video src="${data.secure_url}" controls style="max-width:100%;max-height:220px;border-radius:10px;"></video>`;
+        btn.innerHTML = '<i class="fas fa-check"></i> تم الرفع';
+        updatePreview();
+    } catch (err) {
+        btn.innerHTML = '<i class="fas fa-upload"></i> رفع صورة / فيديو';
+        btn.disabled = false;
+        showMsg('فشل رفع الملف، حاول مرة أخرى.', 'error');
+    }
+};
+
+function calcTotal() {
+    return adData.budgetType === 'daily' ? adData.budget * adData.duration : adData.budget;
+}
+
+window.selectPayment = (method, el) => {
+    adData.paymentMethod = method;
+    document.querySelectorAll('.pay-card').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('payNowBtn').disabled = false;
+};
+
+window.submitAd = async () => {
+    if (!adData.paymentMethod) return showMsg('اختر طريقة الدفع', 'error');
+    const btn = document.getElementById('payNowBtn');
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري المعالجة...';
+    btn.disabled = true;
+    try {
+        adData.status = 'pending_review';
+        adData.totalBudget = calcTotal();
+        adData.createdAt = Date.now();
+        const newRef = push(ref(db, 'ads'));
+        await set(newRef, { ...adData, id: newRef.key });
+        document.getElementById('step5').style.display = 'none';
+        document.getElementById('successPanel').style.display = 'flex';
+    } catch (err) {
+        btn.innerHTML = 'ادفع الآن';
+        btn.disabled = false;
+        showMsg('حدث خطأ، يرجى المحاولة مجدداً.', 'error');
+    }
+};
+
+function updatePreview() {
+    const p = document.getElementById('adPreview');
+    const d = adData;
+    const mediaHtml = d.mediaUrl
+        ? (d.mediaType === 'image' ? `<img src="${d.mediaUrl}" style="width:100%;height:180px;object-fit:cover;">` : `<video src="${d.mediaUrl}" muted loop autoplay style="width:100%;height:180px;object-fit:cover;"></video>`)
+        : `<div style="width:100%;height:180px;background:#e2e8f0;display:flex;align-items:center;justify-content:center;color:#94a3b8;"><i class="fas fa-image fa-2x"></i></div>`;
+    p.innerHTML = `
+        <div class="preview-post">
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;">
+                <div style="width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px;">${(savedUser||'').charAt(0).toUpperCase()}</div>
+                <div>
+                    <div style="font-weight:700;font-size:13px;">${savedUser||'المعلن'}</div>
+                    <div style="font-size:11px;color:#94a3b8;">ممول · <i class="fas fa-globe-americas"></i></div>
+                </div>
+            </div>
+            <div style="padding:0 12px 8px;font-size:13px;color:#334155;">${d.description || 'وصف إعلانك...'}</div>
+            ${mediaHtml}
+            <div style="padding:10px 12px;border-top:1px solid #e2e8f0;background:#f8fafc;display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <div style="font-size:13px;font-weight:700;color:#0f172a;">${d.headline || 'عنوان الإعلان'}</div>
+                    <div style="font-size:11px;color:#64748b;">${d.destinationUrl || 'رابط الموقع'}</div>
+                </div>
+                <button style="background:#2563eb;color:#fff;border:none;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:700;font-family:Cairo,sans-serif;cursor:pointer;">${d.cta}</button>
+            </div>
+            <div style="padding:6px 12px;display:flex;gap:15px;border-top:1px solid #e2e8f0;">
+                <span style="font-size:12px;color:#64748b;cursor:pointer;"><i class="far fa-thumbs-up"></i> إعجاب</span>
+                <span style="font-size:12px;color:#64748b;cursor:pointer;"><i class="far fa-comment"></i> تعليق</span>
+                <span style="font-size:12px;color:#64748b;cursor:pointer;"><i class="fas fa-share"></i> مشاركة</span>
+            </div>
+        </div>`;
+}
+
+function showMsg(msg, type) {
+    const el = document.getElementById('msgToast');
+    el.innerText = msg;
+    el.className = 'msg-toast show ' + type;
+    setTimeout(() => el.classList.remove('show'), 3000);
+}
+</script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Cairo,sans-serif;background:#f1f5f9;color:#0f172a;min-height:100vh}
+.top-bar{background:#fff;border-bottom:1px solid #e2e8f0;padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.top-bar .logo{font-size:20px;font-weight:900;background:linear-gradient(135deg,#2563eb,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent;cursor:pointer}
+.user-badge{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;color:#475569}
+.user-badge .av{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+.steps-bar{display:flex;align-items:center;justify-content:center;gap:0;padding:20px;flex-wrap:wrap}
+.step-dot{width:36px;height:36px;border-radius:50%;border:2px solid #cbd5e1;background:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:#94a3b8;transition:.3s;cursor:default;flex-shrink:0}
+.step-dot.active{border-color:#2563eb;background:#2563eb;color:#fff}
+.step-dot.done{border-color:#10b981;background:#10b981;color:#fff}
+.step-line{width:50px;height:2px;background:#e2e8f0;flex-shrink:0}
+.step-label{font-size:10px;color:#94a3b8;margin-top:4px;text-align:center;white-space:nowrap}
+.main-grid{display:grid;grid-template-columns:1fr 360px;gap:20px;max-width:1100px;margin:0 auto;padding:20px}
+@media(max-width:900px){.main-grid{grid-template-columns:1fr}}
+.step-panel{display:none}
+.card{background:#fff;border-radius:16px;padding:24px;border:1px solid #e2e8f0;margin-bottom:16px}
+.card h3{font-size:16px;font-weight:800;margin-bottom:16px;color:#0f172a;display:flex;align-items:center;gap:8px}
+.card h3 i{color:#2563eb}
+.obj-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:600px){.obj-grid{grid-template-columns:1fr 1fr}}
+.obj-card{border:2px solid #e2e8f0;border-radius:12px;padding:16px;text-align:center;cursor:pointer;transition:.2s}
+.obj-card:hover{border-color:#2563eb;background:#eff6ff}
+.obj-card.selected{border-color:#2563eb;background:#eff6ff}
+.obj-card i{font-size:24px;margin-bottom:8px;display:block}
+.obj-card .title{font-size:13px;font-weight:700}
+.obj-card .desc{font-size:11px;color:#64748b;margin-top:4px}
+.form-group{margin-bottom:16px}
+.form-group label{display:block;font-size:13px;font-weight:700;margin-bottom:6px;color:#374151}
+.form-group input,.form-group textarea,.form-group select{width:100%;border:1px solid #e2e8f0;border-radius:10px;padding:10px 14px;font-family:Cairo,sans-serif;font-size:14px;outline:none;transition:.2s}
+.form-group input:focus,.form-group textarea:focus,.form-group select:focus{border-color:#2563eb}
+.form-group textarea{resize:vertical;min-height:80px}
+.char-count{font-size:11px;color:#94a3b8;text-align:left;margin-top:4px}
+.upload-area{border:2px dashed #cbd5e1;border-radius:12px;padding:30px;text-align:center;cursor:pointer;transition:.2s}
+.upload-area:hover{border-color:#2563eb;background:#eff6ff}
+.upload-btn{background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;border:none;padding:12px 24px;border-radius:10px;font-family:Cairo,sans-serif;font-size:14px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:8px}
+.range-wrap{display:flex;align-items:center;gap:12px}
+.range-wrap input[type=range]{flex:1;accent-color:#2563eb}
+.range-val{min-width:40px;text-align:center;font-weight:800;color:#2563eb}
+.gender-btn{border:2px solid #e2e8f0;background:#fff;padding:8px 20px;border-radius:8px;cursor:pointer;font-family:Cairo,sans-serif;font-size:13px;font-weight:700;transition:.2s}
+.gender-btn.active{border-color:#2563eb;background:#eff6ff;color:#2563eb}
+.tag{background:#eff6ff;color:#2563eb;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;margin:3px}
+.tag i{cursor:pointer;opacity:.7}
+.tag i:hover{opacity:1}
+.budget-toggle{display:flex;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:12px}
+.budget-toggle button{flex:1;padding:10px;border:none;background:#fff;cursor:pointer;font-family:Cairo,sans-serif;font-size:13px;font-weight:700;color:#64748b;transition:.2s}
+.budget-toggle button.active{background:#2563eb;color:#fff}
+.budget-display{background:#f8fafc;border-radius:10px;padding:14px;margin-top:12px;text-align:center}
+.budget-total{font-size:24px;font-weight:900;color:#2563eb}
+.budget-label{font-size:12px;color:#64748b;margin-top:4px}
+.pay-card{border:2px solid #e2e8f0;border-radius:12px;padding:16px;cursor:pointer;display:flex;align-items:center;gap:12px;margin-bottom:10px;transition:.2s}
+.pay-card:hover{border-color:#2563eb}
+.pay-card.selected{border-color:#2563eb;background:#eff6ff}
+.pay-card i{font-size:24px;width:36px;text-align:center}
+.pay-card .pay-title{font-size:14px;font-weight:700}
+.pay-card .pay-sub{font-size:12px;color:#64748b}
+.btn-next{background:linear-gradient(135deg,#2563eb,#7c3aed);color:#fff;border:none;padding:12px 32px;border-radius:12px;font-family:Cairo,sans-serif;font-size:15px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:.2s;width:100%;justify-content:center;margin-top:8px}
+.btn-next:hover{opacity:.9}
+.btn-back{background:#f1f5f9;color:#475569;border:none;padding:12px 24px;border-radius:12px;font-family:Cairo,sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;width:100%;justify-content:center;display:inline-flex;align-items:center;gap:8px}
+.preview-card{background:#fff;border-radius:16px;border:1px solid #e2e8f0;position:sticky;top:80px}
+.preview-card h4{padding:16px;font-size:14px;font-weight:800;border-bottom:1px solid #e2e8f0;color:#0f172a}
+.preview-post{border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;font-family:Cairo,sans-serif;}
+.pay-btn{background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;padding:14px;border-radius:12px;font-family:Cairo,sans-serif;font-size:15px;font-weight:800;cursor:pointer;width:100%;margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px}
+.pay-btn:disabled{opacity:.6;cursor:not-allowed}
+#successPanel{display:none;flex-direction:column;align-items:center;justify-content:center;min-height:400px;text-align:center;padding:40px}
+.success-icon{width:80px;height:80px;border-radius:50%;background:#f0fdf4;color:#10b981;font-size:36px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px}
+.msg-toast{position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(100px);background:#0f172a;color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:700;transition:.3s;opacity:0;z-index:9999}
+.msg-toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.msg-toast.error{background:#ef4444}
+.steps-row{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;padding:16px}
+.step-item{display:flex;flex-direction:column;align-items:center;gap:4px}
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+    <div class="logo" onclick="window.location.href='index.html'">مجتمعنا</div>
+    <div style="font-size:16px;font-weight:900;color:#2563eb;">مدير الإعلانات</div>
+    <div class="user-badge">
+        <div class="av" id="adOwnerAv"></div>
+        <span id="adOwner"></span>
+    </div>
+</div>
+
+<!-- خطوات -->
+<div class="steps-row">
+    <div class="step-item"><div class="step-dot active" id="sd1">1</div><div class="step-label">الهدف</div></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-dot" id="sd2">2</div><div class="step-label">المحتوى</div></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-dot" id="sd3">3</div><div class="step-label">الوسائط</div></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-dot" id="sd4">4</div><div class="step-label">الجمهور</div></div>
+    <div class="step-line"></div>
+    <div class="step-item"><div class="step-dot" id="sd5">5</div><div class="step-label">الميزانية</div></div>
+</div>
+
+<div class="main-grid">
+<div>
+
+<!-- الخطوة 1: الهدف -->
+<div class="step-panel" id="step1">
+<div class="card">
+    <h3><i class="fas fa-bullseye"></i> اختر هدف إعلانك</h3>
+    <div class="obj-grid">
+        <div class="obj-card" onclick="window.selectObjective('awareness',this)">
+            <i class="fas fa-eye" style="color:#f59e0b;"></i>
+            <div class="title">الوعي بالعلامة</div>
+            <div class="desc">أوصل إعلانك لأكبر عدد</div>
+        </div>
+        <div class="obj-card" onclick="window.selectObjective('traffic',this)">
+            <i class="fas fa-mouse-pointer" style="color:#2563eb;"></i>
+            <div class="title">زيادة الزيارات</div>
+            <div class="desc">وجّه الناس لموقعك</div>
+        </div>
+        <div class="obj-card" onclick="window.selectObjective('engagement',this)">
+            <i class="fas fa-heart" style="color:#ef4444;"></i>
+            <div class="title">التفاعل</div>
+            <div class="desc">المزيد من الإعجابات والتعليقات</div>
+        </div>
+        <div class="obj-card" onclick="window.selectObjective('leads',this)">
+            <i class="fas fa-user-plus" style="color:#10b981;"></i>
+            <div class="title">توليد العملاء</div>
+            <div class="desc">اجمع بيانات العملاء المحتملين</div>
+        </div>
+        <div class="obj-card" onclick="window.selectObjective('sales',this)">
+            <i class="fas fa-shopping-cart" style="color:#7c3aed;"></i>
+            <div class="title">المبيعات</div>
+            <div class="desc">حوّل الزوار لعملاء</div>
+        </div>
+        <div class="obj-card" onclick="window.selectObjective('video_views',this)">
+            <i class="fas fa-play-circle" style="color:#0891b2;"></i>
+            <div class="title">مشاهدات الفيديو</div>
+            <div class="desc">زد مشاهدات فيديوهاتك</div>
+        </div>
+    </div>
+</div>
+<div class="form-group">
+    <label>اسم الحملة الإعلانية</label>
+    <input type="text" placeholder="مثال: حملة رمضان 2026" oninput="window.updateField('adName',this.value)">
+</div>
+<button class="btn-next" onclick="window.nextStep(2)">التالي <i class="fas fa-arrow-left"></i></button>
+</div>
+
+<!-- الخطوة 2: المحتوى -->
+<div class="step-panel" id="step2">
+<div class="card">
+    <h3><i class="fas fa-pen-nib"></i> محتوى الإعلان</h3>
+    <div class="form-group">
+        <label>العنوان الرئيسي <span style="color:#ef4444">*</span></label>
+        <input type="text" maxlength="40" placeholder="عنوان جذاب لا يتجاوز 40 حرفاً" oninput="window.updateField('headline',this.value);document.getElementById('hlCount').innerText=this.value.length+'/40'">
+        <div class="char-count" id="hlCount">0/40</div>
+    </div>
+    <div class="form-group">
+        <label>النص الأساسي <span style="color:#ef4444">*</span></label>
+        <textarea maxlength="125" placeholder="وصف مختصر جذاب لا يتجاوز 125 حرفاً" oninput="window.updateField('description',this.value);document.getElementById('descCount').innerText=this.value.length+'/125'"></textarea>
+        <div class="char-count" id="descCount">0/125</div>
+    </div>
+    <div class="form-group">
+        <label>رابط الوجهة</label>
+        <input type="url" placeholder="https://موقعك.com" oninput="window.updateField('destinationUrl',this.value)">
+    </div>
+    <div class="form-group">
+        <label>زر الدعوة للفعل (CTA)</label>
+        <select onchange="window.selectCTA(this.value)">
+            <option value="اعرف المزيد">اعرف المزيد</option>
+            <option value="تسوق الآن">تسوق الآن</option>
+            <option value="تواصل معنا">تواصل معنا</option>
+            <option value="سجل الآن">سجل الآن</option>
+            <option value="احجز الآن">احجز الآن</option>
+            <option value="اشترك">اشترك</option>
+            <option value="حمّل التطبيق">حمّل التطبيق</option>
+            <option value="احصل على عرض">احصل على عرض</option>
+        </select>
+    </div>
+</div>
+<button class="btn-back" onclick="window.prevStep(1)"><i class="fas fa-arrow-right"></i> السابق</button>
+<button class="btn-next" onclick="window.nextStep(3)">التالي <i class="fas fa-arrow-left"></i></button>
+</div>
+
+<!-- الخطوة 3: الوسائط -->
+<div class="step-panel" id="step3">
+<div class="card">
+    <h3><i class="fas fa-images"></i> صورة / فيديو الإعلان</h3>
+    <div class="upload-area" onclick="document.getElementById('adMediaInput').click()">
+        <i class="fas fa-cloud-upload-alt" style="font-size:36px;color:#94a3b8;margin-bottom:10px;display:block;"></i>
+        <p style="font-size:14px;color:#475569;font-weight:700;">اسحب الملف هنا أو اضغط لاختياره</p>
+        <p style="font-size:12px;color:#94a3b8;margin-top:6px;">صور: JPG, PNG (حتى 10MB) · فيديو: MP4 (حتى 50MB)</p>
+        <p style="font-size:12px;color:#2563eb;margin-top:8px;font-weight:700;">الحجم المثالي: 1200 × 628 بكسل</p>
+    </div>
+    <input type="file" id="adMediaInput" accept="image/*,video/*" style="display:none" onchange="window.uploadAdMedia(event)">
+    <div style="text-align:center;margin-top:16px;">
+        <button class="upload-btn" id="uploadBtn" onclick="document.getElementById('adMediaInput').click()">
+            <i class="fas fa-upload"></i> رفع صورة / فيديو
+        </button>
+    </div>
+    <div id="mediaPreviewWrap" style="margin-top:16px;text-align:center;"></div>
+</div>
+<button class="btn-back" onclick="window.prevStep(2)"><i class="fas fa-arrow-right"></i> السابق</button>
+<button class="btn-next" onclick="window.nextStep(4)">التالي <i class="fas fa-arrow-left"></i></button>
+</div>
+
+<!-- الخطوة 4: الجمهور -->
+<div class="step-panel" id="step4">
+<div class="card">
+    <h3><i class="fas fa-users"></i> تحديد الجمهور المستهدف</h3>
+    <div class="form-group">
+        <label>الفئة العمرية</label>
+        <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
+            <div style="flex:1;">
+                <div style="font-size:12px;color:#64748b;margin-bottom:6px;">من <b id="ageMinVal">18</b> سنة</div>
+                <input type="range" min="13" max="65" value="18" oninput="window.updateField('ageMin',this.value);document.getElementById('ageMinVal').innerText=this.value">
+            </div>
+            <div style="flex:1;">
+                <div style="font-size:12px;color:#64748b;margin-bottom:6px;">إلى <b id="ageMaxVal">65</b> سنة</div>
+                <input type="range" min="13" max="65" value="65" oninput="window.updateField('ageMax',this.value);document.getElementById('ageMaxVal').innerText=this.value">
+            </div>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>الجنس</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button class="gender-btn active" onclick="window.selectGender('all',this)">الكل</button>
+            <button class="gender-btn" onclick="window.selectGender('male',this)">ذكور فقط</button>
+            <button class="gender-btn" onclick="window.selectGender('female',this)">إناث فقط</button>
+        </div>
+    </div>
+    <div class="form-group">
+        <label>المناطق الجغرافية</label>
+        <div style="display:flex;gap:8px;">
+            <input type="text" id="locationInput" placeholder="أضف مدينة أو دولة..." style="flex:1;" onkeypress="if(event.key==='Enter')window.addLocation()">
+            <button onclick="window.addLocation()" style="background:#2563eb;color:#fff;border:none;padding:10px 16px;border-radius:10px;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700;">+ إضافة</button>
+        </div>
+        <div id="locationTags" style="margin-top:8px;"></div>
+    </div>
+    <div class="form-group">
+        <label>الاهتمامات</label>
+        <div style="display:flex;gap:8px;">
+            <input type="text" id="interestInput" placeholder="مثال: تقنية، طبخ، رياضة..." style="flex:1;" onkeypress="if(event.key==='Enter')window.addInterest()">
+            <button onclick="window.addInterest()" style="background:#7c3aed;color:#fff;border:none;padding:10px 16px;border-radius:10px;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700;">+ إضافة</button>
+        </div>
+        <div id="interestTags" style="margin-top:8px;"></div>
+    </div>
+</div>
+<button class="btn-back" onclick="window.prevStep(3)"><i class="fas fa-arrow-right"></i> السابق</button>
+<button class="btn-next" onclick="window.nextStep(5)">التالي <i class="fas fa-arrow-left"></i></button>
+</div>
+
+<!-- الخطوة 5: الميزانية والدفع -->
+<div class="step-panel" id="step5">
+<div class="card">
+    <h3><i class="fas fa-wallet"></i> الميزانية والجدول الزمني</h3>
+    <div class="budget-toggle">
+        <button class="active" onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));this.classList.add('active');window.updateField('budgetType','daily')">ميزانية يومية</button>
+        <button onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));this.classList.add('active');window.updateField('budgetType','total')">ميزانية إجمالية</button>
+    </div>
+    <div class="form-group">
+        <label>الميزانية (بالجنيه المصري)</label>
+        <div class="range-wrap">
+            <input type="range" min="10" max="5000" step="10" value="50" oninput="window.updateField('budget',this.value);document.getElementById('budgetVal').innerText=this.value">
+            <span class="range-val" id="budgetVal">50</span> ج.م
+        </div>
+    </div>
+    <div class="form-group">
+        <label>مدة الإعلان (بالأيام)</label>
+        <div class="range-wrap">
+            <input type="range" min="1" max="30" value="7" oninput="window.updateField('duration',this.value);document.getElementById('durationVal').innerText=this.value">
+            <span class="range-val" id="durationVal">7</span> أيام
+        </div>
+    </div>
+    <div class="form-group">
+        <label>تاريخ البداية</label>
+        <input type="date" id="startDate" oninput="window.updateField('startDate',this.value)">
+    </div>
+    <div class="budget-display">
+        <div class="budget-total" id="totalBudgetDisplay">350 ج.م</div>
+        <div class="budget-label">إجمالي الإنفاق المتوقع</div>
+    </div>
+</div>
+
+<div class="card">
+    <h3><i class="fas fa-credit-card"></i> طريقة الدفع</h3>
+    <div class="pay-card" onclick="window.selectPayment('vodafone',this)">
+        <i class="fas fa-mobile-alt" style="color:#e00;"></i>
+        <div><div class="pay-title">فودافون كاش</div><div class="pay-sub">ادفع عبر فودافون كاش على الرقم: 010XXXXXXXX</div></div>
+    </div>
+    <div class="pay-card" onclick="window.selectPayment('instapay',this)">
+        <i class="fas fa-university" style="color:#2563eb;"></i>
+        <div><div class="pay-title">InstaPay</div><div class="pay-sub">تحويل بنكي فوري عبر InstaPay</div></div>
+    </div>
+    <div class="pay-card" onclick="window.selectPayment('card',this)">
+        <i class="fas fa-credit-card" style="color:#7c3aed;"></i>
+        <div><div class="pay-title">بطاقة بنكية</div><div class="pay-sub">Visa / Mastercard / Meeza</div></div>
+    </div>
+    <div class="pay-card" onclick="window.selectPayment('cash',this)">
+        <i class="fas fa-money-bill-wave" style="color:#10b981;"></i>
+        <div><div class="pay-title">كاش عند المراجعة</div><div class="pay-sub">سيتم التواصل معك لتأكيد الدفع</div></div>
+    </div>
+
+    <div style="background:#fffbeb;border:1px solid #fbbf24;border-radius:10px;padding:14px;margin-top:12px;font-size:13px;color:#92400e;line-height:1.7;">
+        <i class="fas fa-info-circle" style="color:#f59e0b;"></i>
+        <strong>ملاحظة:</strong> بعد الضغط على "ادفع الآن"، سيتم مراجعة إعلانك خلال 24 ساعة. يرجى إرسال إيصال الدفع على واتساب أو عبر الرسائل.
+    </div>
+
+    <button class="pay-btn" id="payNowBtn" disabled onclick="window.submitAd()">
+        <i class="fas fa-lock"></i> ادفع الآن وأرسل للمراجعة
+    </button>
+</div>
+
+<button class="btn-back" onclick="window.prevStep(4)"><i class="fas fa-arrow-right"></i> السابق</button>
+</div>
+
+<!-- نجاح -->
+<div id="successPanel" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:400px;text-align:center;padding:40px;background:#fff;border-radius:16px;border:1px solid #e2e8f0;">
+    <div class="success-icon"><i class="fas fa-check"></i></div>
+    <h2 style="font-size:22px;font-weight:900;margin-bottom:10px;color:#0f172a;">تم استلام إعلانك بنجاح! 🎉</h2>
+    <p style="color:#64748b;font-size:14px;max-width:400px;line-height:1.8;">سيقوم فريقنا بمراجعة إعلانك خلال <strong>24 ساعة</strong> وسيتم تفعيله فور التأكيد وإتمام عملية الدفع.</p>
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:16px;margin:20px 0;font-size:13px;color:#166534;max-width:400px;">
+        <i class="fas fa-whatsapp" style="font-size:18px;color:#25d366;"></i>
+        <strong>أرسل إيصال الدفع</strong> عبر واتساب أو رسالة مباشرة لإدارة مجتمعنا لتسريع المراجعة.
+    </div>
+    <a href="index.html" class="btn-next" style="text-decoration:none;max-width:300px;">
+        <i class="fas fa-home"></i> العودة للرئيسية
+    </a>
+</div>
+
+</div>
+
+<!-- معاينة الإعلان -->
+<div>
+<div class="preview-card">
+    <h4><i class="fas fa-eye" style="color:#2563eb;"></i> معاينة الإعلان</h4>
+    <div style="padding:12px;" id="adPreview"></div>
+    <div style="padding:12px;border-top:1px solid #e2e8f0;font-size:12px;color:#94a3b8;text-align:center;">
+        هكذا سيظهر إعلانك في الفيد
+    </div>
+</div>
+</div>
+
+</div>
+
+<div class="msg-toast" id="msgToast"></div>
+
+<script>
+// تحديث إجمالي الميزانية ديناميكياً
+setInterval(() => {
+    const total = (parseInt(document.getElementById('budgetVal')?.innerText||50)) * (parseInt(document.getElementById('durationVal')?.innerText||7));
+    const el = document.getElementById('totalBudgetDisplay');
+    if (el) el.innerText = total + ' ج.م';
+    const av = document.getElementById('adOwnerAv');
+    const owner = document.getElementById('adOwner');
+    if (av && owner) av.innerText = (owner.innerText||'').charAt(0).toUpperCase();
+    const dots = document.querySelectorAll('.step-dot');
+    const step = parseInt(window.adData?.step || 1);
+    dots.forEach((d, i) => {
+        d.classList.toggle('active', i+1 === step);
+        d.classList.toggle('done', i+1 < step);
+    });
+}, 300);
+</script>
+</body>
+</html>
