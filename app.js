@@ -1546,6 +1546,7 @@ window.generateProfileActions = (u, isOwnProfile, isFriend, hasRequest, sentRequ
     if (isOwnProfile) {
         return `
             <button class="btn-primary" onclick="window.openEditProfileModal()"><i class="fas fa-edit"></i> تعديل الملف الشخصي</button>
+            <a href="ads.html" target="_blank" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;padding:8px 18px;border-radius:30px;font-weight:700;font-size:14px;background:#fff;border:2px solid #f59e0b;color:#92400e;font-family:Cairo,sans-serif;cursor:pointer;"><i class="fas fa-bullhorn" style="color:#f59e0b;"></i> إعلان ممول</a>
             <button class="btn-secondary" onclick="window.shareProfile('${u}')"><i class="fas fa-share-alt"></i> مشاركة</button>
         `;
     }
