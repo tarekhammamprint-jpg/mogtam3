@@ -693,7 +693,133 @@ const eRE = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); window.formatMentio
 window.handleMentionInput = (e) => { window.activeMentionInput = e; let v = e.value, c = e.selectionStart, tb = v.substring(0,c), la = tb.lastIndexOf('@'), mb = $('globalMentionBox'); if(la !== -1 && (la === 0 || tb[la-1] === ' ')) { let q = tb.substring(la+1), m = window.myFriends.filter(f => f.toLowerCase().includes(q.toLowerCase()) || window.getDisplayName(f).toLowerCase().includes(q.toLowerCase())); if(m.length > 0) { let h = ''; m.forEach(x => { h += `<div class="mention-item" onclick="window.insertMention('${x}')"><img src="${window.allUsersData[x]?.profilePic||dA}"> <span>${window.getDisplayName(x)} (@${x})</span></div>`; }); mb.innerHTML = h; mb.style.display = 'block'; let r = e.getBoundingClientRect(); mb.style.left = r.left + 'px'; mb.style.top = (r.top - mb.offsetHeight - 5) + 'px'; if(r.top < mb.offsetHeight) mb.style.top = (r.bottom + 5) + 'px'; } else mb.style.display = 'none'; } else mb.style.display = 'none'; }; window.insertMention = (f) => { let e = window.activeMentionInput; if(!e) return; let v = e.value, c = e.selectionStart, tb = v.substring(0,c), la = tb.lastIndexOf('@'), ta = v.substring(c); if(la !== -1) { let n = v.substring(0,la) + '@' + f + ' '; e.value = n + ta; e.focus(); e.selectionStart = e.selectionEnd = n.length; } $('globalMentionBox').style.display = 'none'; };
 
 document.addEventListener('click', (e) => { if(!e.target || typeof e.target.closest !== 'function') return; if(!e.target.closest('#globalMentionBox') && !e.target.classList.contains('comment-input') && !e.target.classList.contains('composer-input')) { $('globalMentionBox').style.display = 'none'; } if(!e.target.closest('.search-container')) { $('searchResults').style.display = 'none'; } if(!e.target.closest('.notif-container')) { $('notifDropdown').style.display = 'none'; } if(!e.target.closest('.nav-user-container') && !e.target.closest('.b-nav-item')) { let u = $('userMenuDropdown'), m = $('mobileUserMenuDropdown'); if(u) u.style.display = 'none'; if(m) m.style.display = 'none'; } });
-window.toggleDropdown = (id) => { let e = $(id); if(!e) return; let d = e.style.display === 'block'; ['notifDropdown','userMenuDropdown','mobileUserMenuDropdown'].forEach(x => { let el=$(x); if(el) el.style.display='none'; }); if(!d) e.style.display = 'block'; }; window.toggleSidebar = () => { let s = $('sidebarArea'); window.innerWidth <= 768 ? s.classList.toggle('mobile-show') : s.classList.toggle('hidden'); }; window.switchProfileTab = (t) => { ['posts','reels','photos','friends','about'].forEach(x => { let e = $('tab-'+x), b = $('btnTab'+x.charAt(0).toUpperCase()+x.slice(1)); if(e) e.style.display = 'none'; if(b) b.classList.remove('active'); }); $('tab-'+t).style.display = 'block'; $('btnTab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.add('active'); };
+// ── القائمة كاملة الشاشة (تستبدل الـ dropdown القديم) ──────
+window.openFullMenu = () => {
+    let ov = document.getElementById('fullMenuOverlay');
+    if (!ov) {
+        ov = document.createElement('div');
+        ov.id = 'fullMenuOverlay';
+        ov.innerHTML = `
+        <style>
+        #fullMenuOverlay{position:fixed;inset:0;background:#f1f5f9;z-index:2147483100;direction:rtl;overflow-y:auto;font-family:Cairo,sans-serif;}
+        .fmenu-header{background:#fff;border-bottom:1px solid #e2e8f0;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:10;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+        .fmenu-logo{font-size:20px;font-weight:900;background:linear-gradient(135deg,#2563eb,#7c3aed);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .fmenu-close{background:#f1f5f9;border:none;font-size:18px;cursor:pointer;color:#64748b;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center}
+        .fmenu-hero{padding:20px;background:linear-gradient(135deg,#2563eb,#7c3aed);display:flex;align-items:center;gap:14px}
+        .fmenu-hero-av{width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid rgba(255,255,255,.4);flex-shrink:0}
+        .fmenu-hero-name{font-size:18px;font-weight:900;color:#fff}
+        .fmenu-hero-handle{font-size:13px;color:rgba(255,255,255,.75);margin-top:2px}
+        .fmenu-body{padding:16px;max-width:620px;margin:0 auto}
+        .fmenu-section-title{font-size:11px;font-weight:800;color:#94a3b8;letter-spacing:1px;margin:20px 0 8px}
+        .fmenu-card{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:.2s;text-decoration:none;color:inherit}
+        .fmenu-card:hover{border-color:#2563eb;background:#f8faff;transform:translateX(-2px)}
+        .fmenu-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+        .fmenu-txt{flex:1}
+        .fmenu-title{font-size:14px;font-weight:800;color:#0f172a}
+        .fmenu-desc{font-size:12px;color:#64748b;margin-top:2px}
+        .fmenu-badge{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:800;margin-right:4px;color:#fff;vertical-align:middle}
+        .fmenu-chevron{color:#cbd5e1;font-size:12px}
+        </style>
+        <div class="fmenu-header">
+            <div class="fmenu-logo">مجتمعنا</div>
+            <button class="fmenu-close" onclick="window.closeFullMenu()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="fmenu-hero">
+            <img class="fmenu-hero-av" id="fullMenuAvatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
+            <div>
+                <div class="fmenu-hero-name" id="fullMenuName"></div>
+                <div class="fmenu-hero-handle" id="fullMenuHandle"></div>
+            </div>
+        </div>
+        <div class="fmenu-body">
+            <div class="fmenu-section-title">الحساب</div>
+            <div class="fmenu-card" onclick="window.closeFullMenu();window.openProfile(window.currentUser)">
+                <div class="fmenu-icon" style="background:#eff6ff"><i class="fas fa-user-edit" style="color:#2563eb"></i></div>
+                <div class="fmenu-txt"><div class="fmenu-title">تعديل البيانات الشخصية</div><div class="fmenu-desc">غيّر اسمك وصورتك وبياناتك</div></div>
+                <i class="fas fa-chevron-left fmenu-chevron"></i>
+            </div>
+            <div class="fmenu-card" onclick="window.closeFullMenu();window.location.hash='#/stats'">
+                <div class="fmenu-icon" style="background:#f0fdf4"><i class="fas fa-chart-bar" style="color:#10b981"></i></div>
+                <div class="fmenu-txt"><div class="fmenu-title">إحصائيات المنصة</div><div class="fmenu-desc">أعداد المستخدمين والمنشورات</div></div>
+                <i class="fas fa-chevron-left fmenu-chevron"></i>
+            </div>
+
+            <div class="fmenu-section-title">النمو والإيرادات</div>
+            <a href="ads.html" target="_blank" class="fmenu-card">
+                <div class="fmenu-icon" style="background:#fffbeb"><i class="fas fa-bullhorn" style="color:#f59e0b"></i></div>
+                <div class="fmenu-txt">
+                    <div class="fmenu-title" style="color:#92400e">إنشاء إعلان ممول <span class="fmenu-badge" style="background:#f59e0b">جديد</span></div>
+                    <div class="fmenu-desc">روّج لمنتجاتك وخدماتك على المنصة</div>
+                </div>
+                <i class="fas fa-chevron-left fmenu-chevron"></i>
+            </a>
+            <div class="fmenu-card" onclick="window.closeFullMenu();window.dlgAlert('ميزة الربح من المنشورات قريباً! 🚀','info','قريباً')">
+                <div class="fmenu-icon" style="background:#f5f3ff"><i class="fas fa-money-bill-wave" style="color:#7c3aed"></i></div>
+                <div class="fmenu-txt">
+                    <div class="fmenu-title">الربح من المنشورات <span class="fmenu-badge" style="background:#7c3aed">قريباً</span></div>
+                    <div class="fmenu-desc">اكسب من محتواك ومتابعيك</div>
+                </div>
+                <i class="fas fa-chevron-left fmenu-chevron"></i>
+            </div>
+            <div class="fmenu-card" onclick="window.closeFullMenu();window.dlgAlert('برنامج الإحالات قريباً! 🚀','info','قريباً')">
+                <div class="fmenu-icon" style="background:#fff1f2"><i class="fas fa-gift" style="color:#ef4444"></i></div>
+                <div class="fmenu-txt">
+                    <div class="fmenu-title">برنامج الإحالات <span class="fmenu-badge" style="background:#ef4444">قريباً</span></div>
+                    <div class="fmenu-desc">ادعُ أصدقاءك واكسب مكافآت</div>
+                </div>
+                <i class="fas fa-chevron-left fmenu-chevron"></i>
+            </div>
+
+            <div class="fmenu-section-title">المجتمع</div>
+            <div class="fmenu-card" onclick="window.closeFullMenu();window.openCommunitiesModal()">
+                <div class="fmenu-icon" style="background:#f0f9ff"><i class="fas fa-users-cog" style="color:#0891b2"></i></div>
+                <div class="fmenu-txt"><div class="fmenu-title">مجتمعاتي</div><div class="fmenu-desc">تصفّح وإدارة مجتمعاتك</div></div>
+                <i class="fas fa-chevron-left fmenu-chevron"></i>
+            </div>
+
+            <div style="margin-top:24px">
+                <div class="fmenu-card" onclick="window.closeFullMenu();window.logoutUser()" style="border-color:#fecaca">
+                    <div class="fmenu-icon" style="background:#fef2f2"><i class="fas fa-sign-out-alt" style="color:#ef4444"></i></div>
+                    <div class="fmenu-txt"><div class="fmenu-title" style="color:#ef4444">تسجيل الخروج</div><div class="fmenu-desc">الخروج من حسابك</div></div>
+                </div>
+            </div>
+            <div style="text-align:center;color:#94a3b8;font-size:11px;margin-top:24px;padding-bottom:30px">مجتمعنا © 2025</div>
+        </div>`;
+        document.body.appendChild(ov);
+    }
+    // تحديث بيانات المستخدم
+    const u = window.currentUser;
+    if (u) {
+        const d = window.allUsersData?.[u] || {};
+        const nm = document.getElementById('fullMenuName');
+        const hd = document.getElementById('fullMenuHandle');
+        const av = document.getElementById('fullMenuAvatar');
+        if (nm) nm.innerText = d.displayName || d.name || u;
+        if (hd) hd.innerText = '@' + u;
+        if (av && d.profilePic) av.src = d.profilePic;
+    }
+    ov.style.display = 'block';
+    document.body.style.overflow = 'hidden';
+};
+window.closeFullMenu = () => {
+    const ov = document.getElementById('fullMenuOverlay');
+    if (ov) ov.style.display = 'none';
+    document.body.style.overflow = '';
+};
+
+// إعادة توجيه toggleDropdown للقائمة الجديدة عند استدعائها للقائمة الشخصية
+window.toggleDropdown = (id) => {
+    if (id === 'userMenuDropdown' || id === 'mobileUserMenuDropdown') {
+        window.openFullMenu();
+        return;
+    }
+    let e = $(id); if(!e) return;
+    let d = e.style.display === 'block';
+    ['notifDropdown','userMenuDropdown','mobileUserMenuDropdown'].forEach(x => { let el=$(x); if(el) el.style.display='none'; });
+    if(!d) e.style.display = 'block';
+};
+
+window.toggleSidebar = () => { let s = $('sidebarArea'); window.innerWidth <= 768 ? s.classList.toggle('mobile-show') : s.classList.toggle('hidden'); }; window.switchProfileTab = (t) => { ['posts','reels','photos','friends','about'].forEach(x => { let e = $('tab-'+x), b = $('btnTab'+x.charAt(0).toUpperCase()+x.slice(1)); if(e) e.style.display = 'none'; if(b) b.classList.remove('active'); }); $('tab-'+t).style.display = 'block'; $('btnTab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.add('active'); };
 window.handleGlobalSearch = (q) => { let r = $('searchResults'); if(!q.trim()){ r.style.display='none'; return; } let h=''; for(let u in window.allUsersData) { let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())) { h += `<a href="#/@${u}" class="search-result-item" onclick="$('searchResults').style.display='none'; $('globalSearch').value='';" style="text-decoration:none; color:inherit;"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"> <div style="display:flex;flex-direction:column;line-height:1.2;"><span>${d}</span><span style="font-size:11px;color:#64748b;">@${u}</span></div></a>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#666;">لا توجد نتائج</div>'; r.style.display='block'; }; window.searchChatUsers = (q) => { let r=$('chatSearchBox'), f=$('friendsList'), rh=$('msgRequestsHeader'), rl=$('msgRequestsList'); if(!q.trim()){ r.style.display='none'; f.style.display='block'; if(rl&&rl.innerHTML!==''){ rh.style.display='block'; rl.style.display='block'; } return; } f.style.display='none'; rh.style.display='none'; rl.style.display='none'; let h=''; for(let u in window.allUsersData){ if(u===window.currentUser) continue; let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())){ h += `<div class="user-row" onclick="window.openChat('${u}')"><div class="user-info"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"><span>${d}</span></div><button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:4px;"><i class="fas fa-comment-dots"></i></button></div>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#64748b;font-size:14px;">لا توجد نتائج</div>'; r.style.display='block'; };
 
 window.renderSuggestedUsersModal = () => { let s = window.getSuggestions ? window.getSuggestions().slice(0,15) : [], h=''; if(s.length===0) h='<p style="text-align:center;color:#666;font-size:14px;padding:20px;">لا يوجد مقترحات حالياً (تظهر فقط للأصدقاء المشتركين أو المقربين).</p>'; else s.forEach(x => { let p=x.data.profilePic||dA, d=window.getDisplayName(x.name), st=x.mutualCount>0?`مشترون: ${x.mutualCount}`:'من منطقتك', rr = window.currentRequests && window.currentRequests[x.name], b=''; if(window.sentRequests && window.sentRequests[x.name]) b=`<button class="btn-secondary" disabled style="padding:6px 12px;font-size:13px;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b=`<button class="btn-primary" style="background:#10b981;padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b=`<button class="btn-primary" data-action="add" data-target="${x.name}" style="padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; h += `<div class="req-row"><a href="#/@${x.name}" style="display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;"><img src="${p}" class="avatar-small"><div style="display:flex;flex-direction:column;cursor:pointer;"><strong style="font-size:15px;color:var(--text-main);text-align:right;">${d}</strong><span style="font-size:12px;color:var(--text-muted);text-align:right;">${st}</span></div></a><div class="req-actions">${b}</div></div>`; }); let u = $('usersList'); if(u) u.innerHTML=h; };
