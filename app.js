@@ -1368,7 +1368,7 @@ window.renderMediaPreviewGrid = () => {
 
 window.removeOneMediaItem = (idx) => { window.selectedMediaFiles.splice(idx, 1); window.renderMediaPreviewGrid(); };
 
-window.removeMediaPreview = () => { window.selectedMediaFiles = []; $('postMediaPreviewContainer').style.display = 'none'; $('postMediaPreviewGrid').innerHTML = ''; $('postUploadProgressWrap').style.display = 'none'; };
+window.removeMediaPreview = () => { window.selectedMediaFiles = []; let pmc=$('postMediaPreviewContainer'),pmg=$('postMediaPreviewGrid'),ppw=$('postUploadProgressWrap'); if(pmc)pmc.style.display='none'; if(pmg)pmg.innerHTML=''; if(ppw)ppw.style.display='none'; };
 
 window.publishPost = async () => {
     let c = $('postContent').value.trim(), items = window.selectedMediaFiles;
@@ -1376,10 +1376,12 @@ window.publishPost = async () => {
     let bt = $('publishBtn'), ot = bt.innerHTML;
     bt.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري النشر...'; bt.disabled = true;
     let progWrap = $('postUploadProgressWrap'), progBar = $('postUploadProgressBar'), progText = $('postUploadProgressText');
+    const setProg = (w, t) => { if(progBar) progBar.style.width = w; if(progText) progText.innerText = t; };
+    const showProg = (v) => { if(progWrap) progWrap.style.display = v; };
     let isReel = items.length === 1 && items[0].type === 'reel';
     try {
         let images = [], videos = [], total = items.length;
-        if (total > 0) { progWrap.style.display = 'block'; progText.innerText = 'جاري تحضير الملفات...'; }
+        if (total > 0) { showProg('block'); setProg('0%', 'جاري تحضير الملفات...'); }
         // تحضير كل الملفات أولاً (ضغط الصور الكبيرة) لمعرفة الحجم الحقيقي النهائي قبل حساب نسبة التحميل
         let finalFiles = [];
         for (let m of items) {
@@ -1392,8 +1394,7 @@ window.publishPost = async () => {
         let updateOverall = () => {
             let loaded = loadedPerFile.reduce((s, v) => s + v, 0);
             let pct = Math.min(100, Math.round((loaded / totalBytes) * 100));
-            progBar.style.width = pct + '%';
-            progText.innerText = `جاري رفع ${total > 1 ? total + ' ملفات' : 'الملف'}... ${pct}%`;
+            setProg(pct + '%', `جاري رفع ${total > 1 ? total + ' ملفات' : 'الملف'}... ${pct}%`);
         };
         updateOverall();
         for (let i = 0; i < total; i++) {
@@ -1416,7 +1417,7 @@ window.publishPost = async () => {
             loadedPerFile[i] = fileToUpload.size || 0; updateOverall();
             if (m.type === 'image') images.push(url); else videos.push(url);
         }
-        progBar.style.width = '100%'; progText.innerText = total > 0 ? 'اكتمل الرفع ✅' : '';
+        setProg('100%', total > 0 ? 'اكتمل الرفع ✅' : '');
         let d = { author: window.currentUser, text: c || (isReel ? 'ريلز جديد 🎦' : ''), timestamp: Date.now() };
         if (images.length === 1) d.image = images[0]; else if (images.length > 1) { d.images = images; d.image = images[0]; }
         if (videos.length === 1) d.video = videos[0]; else if (videos.length > 1) { d.videos = videos; d.video = videos[0]; }
@@ -1424,12 +1425,14 @@ window.publishPost = async () => {
         let nr = push(ref(db, 'posts')); await set(nr, d);
         window.myFriends.forEach(f => { if (c.includes('@' + f)) push(ref(db, `users/${f}/notifications`), { type: 'mention', from: window.currentUser, postId: nr.key, timestamp: Date.now(), read: false }); });
         bt.innerHTML = ot; bt.disabled = false;
-        $('postContent').value = ''; window.removeMediaPreview(); $('globalMentionBox').style.display = 'none';
+        let pc = $('postContent'); if(pc) pc.value = '';
+        window.removeMediaPreview();
+        let gmb = $('globalMentionBox'); if(gmb) gmb.style.display = 'none';
         if (isReel) window.dlgAlert('تم نشر الفيديو بنجاح وإضافته للريلز! 🎬', 'success', 'تم النشر');
     } catch (e) {
         console.error('Publish post error:', e);
         window.dlgAlert("حدث خطأ أثناء الرفع: " + (e?.message || 'غير معروف') + " — يرجى المحاولة مجدداً.", "danger", "خطأ");
-        bt.innerHTML = ot; bt.disabled = false; progWrap.style.display = 'none';
+        bt.innerHTML = ot; bt.disabled = false; showProg('none');
     }
 };
 window.deletePost = (id) => { window.dlgDanger("هل تريد حذف هذا المنشور نهائياً؟").then(ok => { if(ok) { remove(ref(db, `posts/${id}`)); window.location.hash=''; } }); }; window.editPost = (id) => { let p = window.postCache[id]; if(!p) return; window.dlgPrompt("تعديل المنشور:", p.text || '', "اكتب النص الجديد...").then(nt => { if(nt !== null) update(ref(db, `posts/${id}`), {text:nt.trim()}); }); };
