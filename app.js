@@ -2249,6 +2249,57 @@ window.getActiveAdHTML = () => {
     return createAdHTML(ad);
 };
 
+// ── حقن عناصر رفع المتعدد وشريط التحميل في صندوق النشر ──
+function injectUploadUI() {
+    const composer = document.getElementById('postContent');
+    if (!composer || document.getElementById('postMediaPreviewContainer')) return;
+    const wrap = composer.closest('.composer-box') || composer.parentElement;
+    if (!wrap) return;
+
+    // منطقة المعاينة
+    const previewContainer = document.createElement('div');
+    previewContainer.id = 'postMediaPreviewContainer';
+    previewContainer.style.cssText = 'display:none;margin-bottom:10px;';
+    previewContainer.innerHTML = `<div id="postMediaPreviewGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;"></div>`;
+
+    // شريط التحميل
+    const progressWrap = document.createElement('div');
+    progressWrap.id = 'postUploadProgressWrap';
+    progressWrap.style.cssText = 'display:none;margin-bottom:10px;';
+    progressWrap.innerHTML = `
+        <div style="background:#e2e8f0;border-radius:10px;overflow:hidden;height:10px;">
+            <div id="postUploadProgressBar" style="background:var(--primary);height:100%;width:0%;transition:width .2s;border-radius:10px;"></div>
+        </div>
+        <div id="postUploadProgressText" style="font-size:12px;color:var(--text-muted);margin-top:5px;text-align:center;font-weight:700;"></div>`;
+
+    // أدخل قبل الـ textarea
+    wrap.insertBefore(progressWrap, composer);
+    wrap.insertBefore(previewContainer, composer);
+
+    // تحديث أزرار الملفات لتقبل أكثر من ملف
+    const fileInputs = wrap.querySelectorAll('input[type="file"]');
+    fileInputs.forEach(inp => {
+        const accept = inp.accept || '';
+        if (accept.includes('image')) {
+            inp.multiple = true;
+            if (!inp.dataset.upgraded) {
+                inp.dataset.upgraded = '1';
+                inp.addEventListener('change', (e) => window.previewMedia(e, 'image'));
+            }
+        } else if (accept.includes('video')) {
+            inp.multiple = true;
+            if (!inp.dataset.upgraded) {
+                inp.dataset.upgraded = '1';
+                inp.addEventListener('change', (e) => window.previewMedia(e, 'video'));
+            }
+        }
+    });
+}
+
+// شغّل بعد تحميل الصفحة وبعد أي تحديث للـ DOM
+document.addEventListener('DOMContentLoaded', () => setTimeout(injectUploadUI, 800));
+window.addEventListener('load', () => setTimeout(injectUploadUI, 1200));
+
 function listenToNewsBotPosts() {
     onValue(query(ref(db, 'newsPosts'), orderByChild('timestamp'), limitToLast(50)), s => {
         window.allNewsPosts = [];
