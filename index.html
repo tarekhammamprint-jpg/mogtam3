@@ -346,15 +346,21 @@
                     <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="avatar-small" id="composerAvatar" />
                     <textarea oninput="window.handleMentionInput(this)" placeholder="بم تفكر؟ @" rows="2" class="composer-input" id="postContent"></textarea>
                 </div>
-                <div style="display:none;position:relative;margin-bottom:10px;" id="postMediaPreviewContainer">
-                    <img style="max-width:100%;max-height:300px;border-radius:12px;object-fit:cover;display:none;" id="postImagePreview" />
-                    <video id="postVideoPreview" controls="" style="max-width:100%;max-height:300px;border-radius:12px;background:#000;display:none;"></video>
-                    <span style="position:absolute;top:8px;right:8px;background:rgba(0,0,0,.7);color:#fff;cursor:pointer;border-radius:50%;width:30px;height:30px;text-align:center;line-height:30px;font-weight:bold;z-index:5;" onclick="window.removeMediaPreview()"><em class="fas fa-times"></em></span>
+                <!-- معاينة الملفات المتعددة -->
+                <div style="display:none;margin-bottom:10px;" id="postMediaPreviewContainer">
+                    <div id="postMediaPreviewGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;"></div>
+                </div>
+                <!-- شريط التحميل -->
+                <div style="display:none;margin-bottom:10px;" id="postUploadProgressWrap">
+                    <div style="background:#e2e8f0;border-radius:10px;overflow:hidden;height:10px;">
+                        <div id="postUploadProgressBar" style="background:var(--primary);height:100%;width:0%;transition:width .2s;border-radius:10px;"></div>
+                    </div>
+                    <div id="postUploadProgressText" style="font-size:12px;color:var(--text-muted);margin-top:5px;text-align:center;font-weight:700;"></div>
                 </div>
                 <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border-color);padding-top:10px;">
                     <div style="display:flex;gap:5px;">
-                        <label class="file-upload-label" style="color:var(--primary);"><em class="fas fa-image"></em> صورة<input onchange="window.previewMedia(event,'image')" style="display:none;" accept="image/*" type="file" /></label>
-                        <label class="file-upload-label" style="color:#eab308;"><em class="fas fa-video"></em> فيديو<input onchange="window.previewMedia(event,'video')" style="display:none;" accept="video/*" type="file" /></label>
+                        <label class="file-upload-label" style="color:var(--primary);"><em class="fas fa-image"></em> صورة<input onchange="window.previewMedia(event,'image')" style="display:none;" accept="image/*" type="file" multiple /></label>
+                        <label class="file-upload-label" style="color:#eab308;"><em class="fas fa-video"></em> فيديو<input onchange="window.previewMedia(event,'video')" style="display:none;" accept="video/*" type="file" multiple /></label>
                         <label class="file-upload-label" style="color:#d946ef;" title="رفع ريل قصير"><em class="fas fa-play-circle"></em> ريلز<input onchange="window.previewMedia(event,'reel')" style="display:none;" accept="video/mp4,video/x-m4v,video/*" type="file" /></label>
                     </div>
                     <button onclick="window.publishPost()" id="publishBtn" class="btn-primary" style="padding:8px 25px;"><em class="fas fa-paper-plane"></em> نشر</button>
@@ -366,8 +372,6 @@
         
         <div class="sidebar-placeholder" id="sidebarAreaContainer" style="display:none;">
             <div id="sidebarArea" class="sidebar">
-                <!-- إعلان ممول في الشريط الجانبي -->
-                <div id="sidebarAdSlot" style="margin-bottom:16px;"></div>
                 <div id="sidebarTopSection" style="margin-bottom:20px;border-bottom:1px solid var(--border-color);padding-bottom:15px;"></div>
                 <div class="sidebar-title"><em class="fas fa-comments"></em> المحادثات والأصدقاء</div>
                 <input type="text" id="chatSearchInput" placeholder="ابحث للمراسلة..." class="comment-input" style="width:100%;margin-bottom:15px;padding:12px 15px;border-radius:12px;box-sizing:border-box;" onkeyup="window.searchChatUsers(this.value)" />
@@ -456,5 +460,26 @@
     <script>window.FontAwesomeConfig = { autoReplaceSvg: false };</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script type="module" src="app.js"></script>
+
+    <style>
+    .fmenu-card{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:.2s;text-decoration:none;color:inherit}
+    .fmenu-card:hover{border-color:#2563eb;background:#f8faff}
+    .fmenu-icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+    .fmenu-txt{flex:1}.fmenu-title{font-size:14px;font-weight:800;color:#0f172a}
+    .fmenu-desc{font-size:12px;color:#64748b;margin-top:2px}
+    .fmenu-badge{font-size:10px;padding:2px 7px;border-radius:10px;font-weight:800;margin-right:4px;color:#fff;vertical-align:middle}
+    </style>
+    <script>
+    window.openFullMenu = () => {
+        let ov = document.getElementById('fullMenuOverlay');
+        if(ov) { ov.style.display='block'; document.body.style.overflow='hidden'; return; }
+    };
+    window.closeFullMenu = () => {
+        let ov = document.getElementById('fullMenuOverlay');
+        if(ov) ov.style.display='none';
+        document.body.style.overflow='';
+    };
+    document.addEventListener('keydown', e => { if(e.key==='Escape') window.closeFullMenu(); });
+    </script>
 </body>
 </html>
