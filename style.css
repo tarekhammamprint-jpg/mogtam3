@@ -998,7 +998,7 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 /* قائمة منشورات البروفايل المطور - تستخدم createPostHTML الكاملة */
 .profile-posts-list {
     display: flex;
-    flex-direction: column;
+    flex-direction: column-reverse;
     gap: 20px;
     padding: 5px 0;
 }
