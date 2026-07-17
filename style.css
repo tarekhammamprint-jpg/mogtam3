@@ -44,8 +44,8 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 .b-nav-item:hover{color:var(--primary)}
 .main-container{display:flex;flex-direction:row;align-items:flex-start;margin:90px auto 0;width:100%;max-width:1400px;gap:20px;padding:0 15px;box-sizing:border-box;justify-content:center}
 .feed-area{flex:1;min-width:0;display:flex;flex-direction:column;gap:25px;width:100%;order:2;}
-.sidebar-placeholder{flex:0 0 300px;position:relative;order:3;}
-.sidebar{position:fixed;left:15px;top:90px;width:300px;height:calc(100vh - 110px);overflow-y:auto;background:var(--card-bg);padding:20px;border-radius:var(--radius-md);box-shadow:var(--shadow-md);border:1px solid var(--border-color);direction:rtl;box-sizing:border-box;z-index:100;}
+.sidebar-placeholder{flex:0 0 280px;position:relative;order:3;}
+.sidebar{position:fixed;left:15px;top:90px;width:280px;height:calc(100vh - 110px);overflow-y:auto;background:var(--card-bg);padding:20px;border-radius:var(--radius-md);box-shadow:var(--shadow-md);border:1px solid var(--border-color);direction:rtl;box-sizing:border-box;z-index:100;}
 .sidebar::-webkit-scrollbar{width:6px}
 .sidebar::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px}
 .new-posts-btn{background:var(--primary);color:#fff;text-align:center;padding:12px 24px;border-radius:var(--radius-pill);font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(37,99,235,.3);transition:transform .2s;font-size:15px;display:none;position:fixed;top:86px;left:50%;transform:translateX(-50%);z-index:2147483050;width:auto;white-space:nowrap}
@@ -409,13 +409,13 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 /* ══════════════════════════════════════
    العمود الأيمن — ثابت مع التمرير
 ══════════════════════════════════════ */
-.right-col-placeholder { flex: 0 0 270px; position: relative; order: 1; }
+.right-col-placeholder { flex: 0 0 280px; position: relative; order: 1; }
 
 .right-col {
     position: fixed;
     right: 15px;
     top: 90px;
-    width: 270px;
+    width: 280px;
     height: calc(100vh - 110px);
     overflow-y: auto;
     overflow-x: hidden;
@@ -998,7 +998,7 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 /* قائمة منشورات البروفايل المطور - تستخدم createPostHTML الكاملة */
 .profile-posts-list {
     display: flex;
-    flex-direction: column-reverse;
+    flex-direction: column;
     gap: 20px;
     padding: 5px 0;
 }
