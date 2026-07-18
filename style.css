@@ -413,7 +413,6 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 
 .right-col {
     position: sticky;
-
     top: 90px;
     width: 270px;
     max-height: calc(100vh - 110px);
@@ -428,6 +427,7 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
     direction: rtl;
     scrollbar-width: thin;
     align-self: flex-start;
+    flex-shrink: 0;
 }
 .right-col::-webkit-scrollbar { width: 4px; }
 .right-col::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -498,9 +498,9 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 
 /* إخفاء على الشاشات الصغيرة */
 @media (max-width: 900px) {
-    .right-col-placeholder { display: none !important; }
-    .right-col { display: none !important; }
-    .feed-area { margin-right: 0 !important; }
+    .right-col-placeholder { display: none !important; width:0 !important; flex:none !important; }
+    .right-col { display: none !important; width:0 !important; position:static !important; }
+    .feed-area { margin-right: 0 !important; max-width:100% !important; }
 }
 
 /* فقط قم بتعديل هذه الأقسام في ملف style.css */
@@ -515,7 +515,7 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
     display: flex;
     flex-direction: column;
     gap: 25px;
-    order: 1;
+    order: 2;
 }
 
 /* شاشات متوسطة */
@@ -523,7 +523,7 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
     .sidebar-placeholder { flex: 0 0 280px; }
     .sidebar { width: 280px; left: 15px; }
     .right-col-placeholder { flex: 0 0 250px; }
-    .right-col { width: 250px; right: 15px; }
+    .right-col { width: 250px; position: sticky; }
     .feed-area { max-width: 650px; }  /* تم التغيير */
 }
 
