@@ -339,7 +339,8 @@ function handleRouting() {
     
     if(hash === '' || hash === '#/') { 
         if(!window.currentUser) return window.location.replace('#/login'); 
-        window.scrollTo({top:0, behavior:'smooth'}); 
+        if (window._skipNextScrollReset) { window._skipNextScrollReset = false; }
+        else { window.scrollTo({top:0, behavior:'smooth'}); }
     } 
     else if(hash.startsWith('#/@')) {
         let user = decodeURIComponent(hash.replace('#/@', ''));
@@ -447,6 +448,9 @@ window.addEventListener('popstate', () => {
             m.classList.remove('show');
         });
         document.body.style.overflow = 'auto';
+        // لو كنا راجعين بس من إغلاق نافذة (منشور مثلاً بعد الضغط على وقته) سيبه في نفس مكانه في الفييد
+        // من غير ما نعيد تحميل الفييد أو نمرر لأعلى الصفحة
+        if (window._skipNextScrollReset) return;
         if (window.currentUser && window.goHome) {
             window.goHome();
         }
