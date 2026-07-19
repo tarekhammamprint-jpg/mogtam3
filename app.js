@@ -563,6 +563,11 @@ window.closeModal = (id) => {
 
 // إضافة مستمع لحدث popstate (الرجوع للخلف)
 window.addEventListener('popstate', () => {
+    // لو شاشة عرض الصورة/الفيديو مفتوحة، زر الرجوع من الهاتف يقفلها فقط ويرجع لنفس المنشور
+    if (document.getElementById('fbMediaViewer')) {
+        window.closeMediaViewer(true);
+        return;
+    }
     let hash = window.location.hash;
     
     if (!hash || hash === '#/' || hash === '') {
@@ -1031,6 +1036,10 @@ window.openMediaViewer = (items, startIdx, post) => {
     window._mvItems = items; window._mvIdx = startIdx || 0; window._mvPost = post;
     window._renderMVContent();
 
+    // نضيف سجل تاريخ وهمي حتى يقوم زر الرجوع (خصوصاً على الهاتف) بإغلاق الشاشة فقط والبقاء في نفس المنشور
+    window._mvHistoryPushed = true;
+    try { history.pushState({ mediaViewer: true }, '', location.href); } catch (e) {}
+
     // سحب اللمس للتنقل على الموبايل
     let mc = document.getElementById('fbMediaContent');
     let ts = 0;
@@ -1122,9 +1131,13 @@ window.openMvCommentsSheet = (focusInput) => {
 window.closeMvCommentsSheet = () => {
     document.getElementById('fbCommentsSheet')?.classList.remove('open');
 };
-window.closeMediaViewer = () => {
+window.closeMediaViewer = (fromPopState) => {
     document.getElementById('fbMediaViewer')?.remove();
     document.body.style.overflow = '';
+    if (window._mvHistoryPushed) {
+        window._mvHistoryPushed = false;
+        if (!fromPopState) { try { history.back(); } catch (e) {} }
+    }
 };
 
 document.addEventListener('keydown', (e) => {
