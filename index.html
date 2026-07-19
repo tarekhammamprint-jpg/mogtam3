@@ -238,6 +238,28 @@
         </div>
     </div>
 
+    <div class="modal" id="editPostModal">
+        <div class="modal-content" style="padding:25px;max-width:550px;">
+            <span onclick="window.closeEditPostModal()" class="close-btn"><em class="fas fa-times"></em></span>
+            <h3 style="margin-top:0;text-align:center;color:var(--text-main);font-weight:800;"><em class="fas fa-edit"></em> تعديل المنشور</h3>
+            <textarea id="editPostContent" class="composer-input" rows="4" placeholder="بم تفكر؟" style="width:100%;box-sizing:border-box;margin-bottom:10px;"></textarea>
+            <div style="display:none;margin-bottom:10px;" id="editPostMediaContainer">
+                <div id="editPostMediaGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;"></div>
+            </div>
+            <div style="display:none;margin-bottom:10px;" id="editPostUploadProgressWrap">
+                <div style="background:#e2e8f0;border-radius:8px;overflow:hidden;height:8px;">
+                    <div id="editPostUploadProgressBar" style="height:100%;width:0%;background:linear-gradient(135deg,#2563eb,#7c3aed);transition:width .2s;"></div>
+                </div>
+                <div id="editPostUploadProgressText" style="font-size:12px;color:var(--text-muted);margin-top:4px;text-align:center;"></div>
+            </div>
+            <div style="display:flex;gap:15px;margin-bottom:18px;">
+                <label class="file-upload-label" style="color:var(--primary);"><em class="fas fa-image"></em> إضافة صورة<input onchange="window.previewEditMedia(event,'image')" style="display:none;" accept="image/*" type="file" multiple /></label>
+                <label class="file-upload-label" style="color:#eab308;"><em class="fas fa-video"></em> إضافة فيديو<input onchange="window.previewEditMedia(event,'video')" style="display:none;" accept="video/*" type="file" multiple /></label>
+            </div>
+            <button onclick="window.saveEditPost()" id="saveEditPostBtn" class="btn-primary" style="width:100%;padding:12px;font-size:16px;"><em class="fas fa-save"></em> حفظ التعديلات</button>
+        </div>
+    </div>
+
     <div class="modal" id="reelsViewerModal">
         <div class="modal-content">
             <span onclick="window.closeReelsViewer()" class="close-btn" style="position:fixed; top:85px; right:20px; background:var(--card-bg); width:45px; height:45px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1px solid var(--border-color); cursor:pointer;"><em class="fas fa-times"></em></span>
