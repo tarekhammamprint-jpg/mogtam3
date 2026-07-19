@@ -1435,7 +1435,113 @@ window.publishPost = async () => {
         bt.innerHTML = ot; bt.disabled = false; showProg('none');
     }
 };
-window.deletePost = (id) => { window.dlgDanger("هل تريد حذف هذا المنشور نهائياً؟").then(ok => { if(ok) { remove(ref(db, `posts/${id}`)); window.location.hash=''; } }); }; window.editPost = (id) => { let p = window.postCache[id]; if(!p) return; window.dlgPrompt("تعديل المنشور:", p.text || '', "اكتب النص الجديد...").then(nt => { if(nt !== null) update(ref(db, `posts/${id}`), {text:nt.trim()}); }); };
+window.deletePost = (id) => { window.dlgDanger("هل تريد حذف هذا المنشور نهائياً؟").then(ok => { if(ok) { remove(ref(db, `posts/${id}`)); window.location.hash=''; } }); };
+
+// ============ تعديل المنشور بكل مشتملاته (نص + صور + فيديوهات) ============
+window.editMediaItems = []; // {kind:'existing', mediaType:'image'|'video', url} أو {kind:'new', type:'image'|'video', file, previewUrl}
+window.editingPostId = null;
+
+window.editPost = (id) => {
+    let p = window.postCache[id]; if (!p) return;
+    if (p.author !== window.currentUser) return;
+    window.editingPostId = id;
+    $('editPostContent').value = p.text || '';
+    window.editMediaItems = [];
+    let imgs = (p.images && p.images.length) ? p.images : (p.image ? [p.image] : []);
+    imgs.forEach(u => window.editMediaItems.push({ kind: 'existing', mediaType: 'image', url: u }));
+    let vids = (p.videos && p.videos.length) ? p.videos : (p.video ? [p.video] : []);
+    vids.forEach(u => window.editMediaItems.push({ kind: 'existing', mediaType: 'video', url: u }));
+    window.renderEditMediaGrid();
+    let epw = $('editPostUploadProgressWrap'); if (epw) epw.style.display = 'none';
+    let bt = $('saveEditPostBtn'); if (bt) { bt.disabled = false; bt.innerHTML = '<em class="fas fa-save"></em> حفظ التعديلات'; }
+    $('editPostModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
+};
+
+window.closeEditPostModal = () => {
+    let m = $('editPostModal'); if (m) m.classList.remove('show');
+    document.body.style.overflow = 'auto';
+    window.editMediaItems = [];
+    window.editingPostId = null;
+};
+
+window.previewEditMedia = (e, type) => {
+    let files = Array.from(e.target.files || []); if (files.length === 0) return;
+    if (type === 'video') { for (let f of files) { if (f.size > 50 * 1024 * 1024) { window.dlgAlert("الفيديو كبير جداً! الحد الأقصى 50 ميجا.", "warning", "تنبيه"); return; } } }
+    files.forEach(f => window.editMediaItems.push({ kind: 'new', type, file: f, previewUrl: URL.createObjectURL(f) }));
+    e.target.value = '';
+    window.renderEditMediaGrid();
+};
+
+window.renderEditMediaGrid = () => {
+    let cont = $('editPostMediaContainer'), grid = $('editPostMediaGrid');
+    if (!cont || !grid) return;
+    if (window.editMediaItems.length === 0) { cont.style.display = 'none'; grid.innerHTML = ''; return; }
+    cont.style.display = 'block';
+    grid.innerHTML = window.editMediaItems.map((m, i) => {
+        let src = m.kind === 'existing' ? m.url : m.previewUrl;
+        let mtype = m.kind === 'existing' ? m.mediaType : m.type;
+        return `<div style="position:relative;border-radius:10px;overflow:hidden;aspect-ratio:1/1;background:#000;">
+            ${mtype === 'image' ? `<img src="${src}" style="width:100%;height:100%;object-fit:cover;">` : `<video src="${src}" style="width:100%;height:100%;object-fit:cover;" muted></video><i class="fas fa-play" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:20px;text-shadow:0 2px 6px rgba(0,0,0,.6);"></i>`}
+            <span onclick="window.removeEditMediaItem(${i})" style="position:absolute;top:5px;left:5px;background:rgba(0,0,0,.7);color:#fff;cursor:pointer;border-radius:50%;width:24px;height:24px;text-align:center;line-height:24px;font-size:12px;"><i class="fas fa-times"></i></span>
+        </div>`;
+    }).join('');
+};
+
+window.removeEditMediaItem = (idx) => { window.editMediaItems.splice(idx, 1); window.renderEditMediaGrid(); };
+
+window.saveEditPost = async () => {
+    let id = window.editingPostId; if (!id) return;
+    let text = $('editPostContent').value.trim();
+    let items = window.editMediaItems;
+    if (!text && items.length === 0) return window.dlgAlert('لا يمكن أن يكون المنشور فارغاً تماماً.', 'warning', 'تنبيه');
+    let bt = $('saveEditPostBtn'), ot = bt.innerHTML;
+    bt.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...'; bt.disabled = true;
+    let progWrap = $('editPostUploadProgressWrap'), progBar = $('editPostUploadProgressBar'), progText = $('editPostUploadProgressText');
+    const setProg = (w, t) => { if (progBar) progBar.style.width = w; if (progText) progText.innerText = t; };
+    const showProg = (v) => { if (progWrap) progWrap.style.display = v; };
+    try {
+        let newItems = items.filter(m => m.kind === 'new');
+        if (newItems.length > 0) { showProg('block'); setProg('0%', 'جاري تحضير الملفات...'); }
+        let finalFiles = [];
+        for (let m of newItems) { let f = m.file; if (m.type === 'image') f = await window.compressImageIfNeeded(m.file); finalFiles.push(f); }
+        let totalBytes = finalFiles.reduce((s, f) => s + (f.size || 0), 0) || 1;
+        let loadedPerFile = new Array(newItems.length).fill(0);
+        let updateOverall = () => { let loaded = loadedPerFile.reduce((s, v) => s + v, 0); let pct = Math.min(100, Math.round((loaded / totalBytes) * 100)); setProg(pct + '%', `جاري رفع ${newItems.length > 1 ? newItems.length + ' ملفات' : 'الملف'}... ${pct}%`); };
+        if (newItems.length > 0) updateOverall();
+        let newUrls = new Array(newItems.length);
+        for (let i = 0; i < newItems.length; i++) {
+            let m = newItems[i], fileToUpload = finalFiles[i], url;
+            try { url = await window.uploadToCloudinary(fileToUpload, m.type, (pct) => { loadedPerFile[i] = (fileToUpload.size || 0) * (pct / 100); updateOverall(); }); }
+            catch (errFirst) { await new Promise(r => setTimeout(r, 800)); url = await window.uploadToCloudinary(fileToUpload, m.type, (pct) => { loadedPerFile[i] = (fileToUpload.size || 0) * (pct / 100); updateOverall(); }); }
+            loadedPerFile[i] = fileToUpload.size || 0; updateOverall();
+            newUrls[i] = url;
+        }
+        if (newItems.length > 0) setProg('100%', 'اكتمل الرفع ✅');
+        // إعادة بناء قوائم الصور والفيديوهات النهائية بنفس ترتيب العرض في نافذة التعديل
+        let images = [], videos = [], newIdx = 0;
+        items.forEach(m => {
+            if (m.kind === 'existing') { if (m.mediaType === 'image') images.push(m.url); else videos.push(m.url); }
+            else { let url = newUrls[newIdx++]; if (m.type === 'image') images.push(url); else videos.push(url); }
+        });
+        // null يحذف الحقل من Firebase في حال لم تعد هناك صور/فيديوهات
+        let d = {
+            text,
+            image: images.length ? images[0] : null,
+            images: images.length > 1 ? images : null,
+            video: videos.length ? videos[0] : null,
+            videos: videos.length > 1 ? videos : null
+        };
+        await update(ref(db, `posts/${id}`), d);
+        bt.innerHTML = ot; bt.disabled = false;
+        window.closeEditPostModal();
+        window.dlgAlert('تم تعديل المنشور بنجاح ✅', 'success', 'تم الحفظ');
+    } catch (e) {
+        console.error('Edit post error:', e);
+        window.dlgAlert("حدث خطأ أثناء حفظ التعديلات: " + (e?.message || 'غير معروف') + " — يرجى المحاولة مجدداً.", "danger", "خطأ");
+        bt.innerHTML = ot; bt.disabled = false; showProg('none');
+    }
+};
 
 window.togglePostOptionsMenu = (id) => {
     let m = document.getElementById(`postOptMenu_${id}`); if(!m) return;
