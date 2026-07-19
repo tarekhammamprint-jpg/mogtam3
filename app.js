@@ -653,7 +653,7 @@ window.goHome = () => {
     window.location.hash = ''; window.scrollTo({top:0, behavior:'smooth'}); $('chatBox').classList.remove('show'); $('floatingChat').style.display='none';
     if(window.chatUnsubscribe){ window.chatUnsubscribe(); window.chatUnsubscribe=null; }
     window.currentChatTarget = null; window.isChatBoxVisible = false;
-    ['notifDropdown','userMenuDropdown','mobileUserMenuDropdown'].forEach(x => { let e=$(x); if(e) e.style.display='none'; });
+    window.closeNotifPanel(); ['userMenuDropdown','mobileUserMenuDropdown'].forEach(x => { let e=$(x); if(e) e.style.display='none'; });
     let sb = $('sidebarArea'); if(sb) sb.classList.remove('mobile-show');
     $('globalSearch').value=''; $('searchResults').style.display='none'; $('chatSearchInput').value=''; $('chatSearchBox').style.display='none'; $('friendsList').style.display='block';
     let rl=$('msgRequestsList'); if(rl&&rl.innerHTML!=='') { $('msgRequestsHeader').style.display='block'; rl.style.display='block'; }
@@ -689,7 +689,64 @@ window.timeAgo = (ts) => {
 
 // باقي دوال النظام
 window.isInitialNotifLoad = true; window.alertedNotifs = new Set();
-function listenToNotifications() { onValue(ref(db, `users/${window.currentUser}/notifications`), s => { let c = 0, h = ''; if(s.exists()) { let n = []; s.forEach(x => { let v = x.val(); if(v && typeof v === 'object' && v.type) n.push({...v, id: x.key}); }); n.sort((a,b) => (b.timestamp||0) - (a.timestamp||0)); n = n.slice(0,50); n.forEach(x => { try { if(x.read === false) c++; let d = window.getDisplayName(x.from), pic = window.allUsersData[x.from]?.profilePic || dA, tH = '', tP = '', icon = ''; if(x.type==='system'){tH=x.text; tP=x.text; icon='<i class="fas fa-bell" style="color:#64748b;"></i>'} else if(x.type==='comment'){tH=`<strong>${d}</strong> علق على منشورك`; tP=`علق ${d} على منشورك`; icon='<i class="fas fa-comment" style="color:#10b981;"></i>'} else if(x.type==='like'){tH=`<strong>${d}</strong> تفاعل مع منشورك`; tP=`تفاعل ${d} مع منشورك`; icon='<i class="fas fa-heart" style="color:#ef4444;"></i>'} else if(x.type==='comment_like'){tH=`<strong>${d}</strong> تفاعل مع تعليقك`; tP=`تفاعل ${d} مع تعليقك`; icon='<i class="fas fa-heart" style="color:#ef4444;"></i>'} else if(x.type==='friend_req'){tH=`<strong>${d}</strong> أرسل طلب صداقة`; tP=`أرسل ${d} طلب صداقة`; icon='<i class="fas fa-user-plus" style="color:#3b82f6;"></i>'} else if(x.type==='accept_req'){tH=`<strong>${d}</strong> وافق على طلب الصداقة`; tP=`وافق ${d} على طلب الصداقة`; icon='<i class="fas fa-user-check" style="color:#10b981;"></i>'} else if(x.type==='share'){tH=`<strong>${d}</strong> شارك منشورك`; tP=`شارك ${d} منشورك`; icon='<i class="fas fa-share" style="color:#8b5cf6;"></i>'} else if(x.type==='reply'){tH=`<strong>${d}</strong> رد على تعليقك`; tP=`رد ${d} على تعليقك`; icon='<i class="fas fa-reply" style="color:#64748b;"></i>'} else if(x.type==='mention'){tH=`<strong>${d}</strong> ذكرك في تعليق`; tP=`ذكرك ${d} في تعليق`; icon='<i class="fas fa-at" style="color:#d946ef;"></i>'} if(!window.isInitialNotifLoad && x.read===false && x.from!==window.currentUser && !window.alertedNotifs.has(x.id)){ window.showToast("إشعار جديد", tP||"تفاعل جديد", pic); } window.alertedNotifs.add(x.id); let uS = x.read === false ? 'background:#eef2ff;' : 'background:#fff;', uD = x.read === false ? `<div style="width:10px;height:10px;background:var(--primary);border-radius:50%;flex-shrink:0;box-shadow:0 0 5px rgba(37,99,235,0.4);"></div>` : '', tm = window.timeAgo(x.timestamp); h += `<div class="notif-item" onclick="window.handleNotifClick('${x.id}','${x.type}','${x.from}','${x.postId}')" style="display:flex; align-items:center; gap:12px; padding:12px 15px; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:all 0.2s; ${uS}"><div style="position:relative; flex-shrink:0;"><img src="${pic}" style="width:45px;height:45px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;"><div style="position:absolute; bottom:-4px; right:-4px; background:#fff; border-radius:50%; padding:3px; font-size:11px; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.15);">${icon}</div></div><div style="flex:1; line-height:1.4; text-align:right;"><div style="font-size:14px; color:var(--text-main);">${tH||"إشعار جديد"}</div><div style="font-size:12px; color:${x.read===false?'var(--primary)':'#64748b'}; font-weight:700; margin-top:4px;">${tm}</div></div>${uD}</div>`; } catch(err) {} }); } window.isInitialNotifLoad = false; let b = $('notifBadge'); if(c > 0) { b.style.display='inline-block'; b.innerText=c; } else b.style.display='none'; let head = `<div style="padding:15px; border-bottom:1px solid #e2e8f0; font-weight:800; font-size:16px; display:flex; justify-content:space-between; align-items:center;"><span>الإشعارات</span><span style="font-size:12px; color:var(--primary); cursor:pointer;" onclick="event.stopPropagation();window.markNotifsAsRead()">تحديد كـ مقروء</span></div>`; $('notifDropdown').innerHTML = head + (h ? `<div style="max-height:350px;overflow-y:auto;overscroll-behavior:contain;">${h}</div>` : '<div style="padding:20px;text-align:center;color:#64748b;font-weight:bold;">لا توجد إشعارات</div>'); }); }
+window._renderNotifications = (rawVal) => {
+    window._lastNotifRaw = rawVal;
+    let dd = $('notifDropdown'); if (!dd) return;
+    let c = 0, h = '';
+    if (rawVal) {
+        let n = [];
+        Object.keys(rawVal).forEach(k => { let v = rawVal[k]; if (v && typeof v === 'object' && v.type) n.push({ ...v, id: k }); });
+        n.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+        n = n.slice(0, 50);
+        n.forEach(x => {
+            try {
+                if (x.read === false) c++;
+                let d = window.getDisplayName(x.from), pic = window.allUsersData[x.from]?.profilePic || dA, tH = '', tP = '', icon = '';
+                if (x.type === 'system') { tH = x.text; tP = x.text; icon = '<i class="fas fa-bell" style="color:#64748b;"></i>'; }
+                else if (x.type === 'comment') { tH = `<strong>${d}</strong> علق على منشورك`; tP = `علق ${d} على منشورك`; icon = '<i class="fas fa-comment" style="color:#10b981;"></i>'; }
+                else if (x.type === 'like') { tH = `<strong>${d}</strong> تفاعل مع منشورك`; tP = `تفاعل ${d} مع منشورك`; icon = '<i class="fas fa-heart" style="color:#ef4444;"></i>'; }
+                else if (x.type === 'comment_like') { tH = `<strong>${d}</strong> تفاعل مع تعليقك`; tP = `تفاعل ${d} مع تعليقك`; icon = '<i class="fas fa-heart" style="color:#ef4444;"></i>'; }
+                else if (x.type === 'friend_req') { tH = `<strong>${d}</strong> أرسل طلب صداقة`; tP = `أرسل ${d} طلب صداقة`; icon = '<i class="fas fa-user-plus" style="color:#3b82f6;"></i>'; }
+                else if (x.type === 'accept_req') { tH = `<strong>${d}</strong> وافق على طلب الصداقة`; tP = `وافق ${d} على طلب الصداقة`; icon = '<i class="fas fa-user-check" style="color:#10b981;"></i>'; }
+                else if (x.type === 'share') { tH = `<strong>${d}</strong> شارك منشورك`; tP = `شارك ${d} منشورك`; icon = '<i class="fas fa-share" style="color:#8b5cf6;"></i>'; }
+                else if (x.type === 'reply') { tH = `<strong>${d}</strong> رد على تعليقك`; tP = `رد ${d} على تعليقك`; icon = '<i class="fas fa-reply" style="color:#64748b;"></i>'; }
+                else if (x.type === 'mention') { tH = `<strong>${d}</strong> ذكرك في تعليق`; tP = `ذكرك ${d} في تعليق`; icon = '<i class="fas fa-at" style="color:#d946ef;"></i>'; }
+                if (!window.isInitialNotifLoad && x.read === false && x.from !== window.currentUser && !window.alertedNotifs.has(x.id)) { window.showToast("إشعار جديد", tP || "تفاعل جديد", pic); }
+                window.alertedNotifs.add(x.id);
+                let uS = x.read === false ? 'background:#eef2ff;' : 'background:#fff;',
+                    uD = x.read === false ? `<div style="width:10px;height:10px;background:var(--primary);border-radius:50%;flex-shrink:0;box-shadow:0 0 5px rgba(37,99,235,0.4);"></div>` : '',
+                    tm = window.timeAgo(x.timestamp);
+                h += `<div class="notif-item" onclick="window.handleNotifClick('${x.id}','${x.type}','${x.from}','${x.postId}')" style="display:flex; align-items:center; gap:14px; padding:14px 18px; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.2s; ${uS}">
+                    <div style="position:relative; flex-shrink:0;">
+                        <img src="${pic}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;">
+                        <div style="position:absolute; bottom:-4px; right:-4px; background:#fff; border-radius:50%; width:24px;height:24px; font-size:12px; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.15);">${icon}</div>
+                    </div>
+                    <div style="flex:1; line-height:1.4; text-align:right;">
+                        <div style="font-size:14.5px; color:var(--text-main);">${tH || "إشعار جديد"}</div>
+                        <div style="font-size:12px; color:${x.read === false ? 'var(--primary)' : '#64748b'}; font-weight:700; margin-top:4px;">${tm}</div>
+                    </div>
+                    ${uD}
+                </div>`;
+            } catch (err) {}
+        });
+    }
+    window.isInitialNotifLoad = false;
+    let b = $('notifBadge'); if (c > 0) { b.style.display = 'inline-block'; b.innerText = c; } else b.style.display = 'none';
+    let head = `<div class="notif-panel-header">
+        <span class="notif-panel-title"><i class="fas fa-bell"></i> الإشعارات</span>
+        <div class="notif-panel-actions">
+            <span class="notif-mark-read" onclick="event.stopPropagation();window.markNotifsAsRead()">تحديد الكل كمقروء</span>
+            <span class="notif-close-btn" onclick="event.stopPropagation();window.closeNotifPanel()"><i class="fas fa-times"></i></span>
+        </div>
+    </div>`;
+    dd.innerHTML = head + (h
+        ? `<div class="notif-list-scroll">${h}</div>`
+        : `<div class="notif-list-scroll"><div class="notif-empty"><i class="far fa-bell-slash"></i>لا توجد إشعارات بعد</div></div>`);
+};
+
+window.rerenderNotifications = () => { if (window.currentUser) window._renderNotifications(window._lastNotifRaw); };
+
+function listenToNotifications() { onValue(ref(db, `users/${window.currentUser}/notifications`), s => { window._renderNotifications(s.exists() ? s.val() : null); }); }
 window.handleNotifClick = (id, t, f, p) => { update(ref(db, `users/${window.currentUser}/notifications/${id}`), {read:true}); $('notifDropdown').style.display='none'; if(t==='friend_req') window.openRequestsModal(); else if(t==='accept_req' || t==='system') window.openProfile(f); else if(['comment','like','share','reply','mention','comment_like'].includes(t) && p && p!=='undefined') window.openPostModal(p); };
 window.markNotifsAsRead = () => { get(ref(db, `users/${window.currentUser}/notifications`)).then(s => { if(s.exists()) { let updates = {}; s.forEach(c => { if(c.val().read === false) updates[`${c.key}/read`] = true; }); if(Object.keys(updates).length > 0) update(ref(db, `users/${window.currentUser}/notifications`), updates); } }); };
 
@@ -697,7 +754,7 @@ function renderSidebarTop() { let h=''; let reqArr = Object.entries(window.curre
 const eRE = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); window.formatMentions = (t) => { if(!t) return ''; let s = t.replace(/</g, "&lt;").replace(/>/g, "&gt;"); if(window.myFriends) { window.myFriends.forEach(f => { s = s.replace(new RegExp('@'+eRE(f)+'(?=\\s|$)', 'g'), `<a href="#/@${f}" style="color:var(--primary);cursor:pointer;background:#eef2ff;padding:2px 5px;border-radius:4px;text-decoration:none;" onclick="event.stopPropagation();">@${f}</a>`); }); } return s; };
 window.handleMentionInput = (e) => { window.activeMentionInput = e; let v = e.value, c = e.selectionStart, tb = v.substring(0,c), la = tb.lastIndexOf('@'), mb = $('globalMentionBox'); if(la !== -1 && (la === 0 || tb[la-1] === ' ')) { let q = tb.substring(la+1), m = window.myFriends.filter(f => f.toLowerCase().includes(q.toLowerCase()) || window.getDisplayName(f).toLowerCase().includes(q.toLowerCase())); if(m.length > 0) { let h = ''; m.forEach(x => { h += `<div class="mention-item" onclick="window.insertMention('${x}')"><img src="${window.allUsersData[x]?.profilePic||dA}"> <span>${window.getDisplayName(x)} (@${x})</span></div>`; }); mb.innerHTML = h; mb.style.display = 'block'; let r = e.getBoundingClientRect(); mb.style.left = r.left + 'px'; mb.style.top = (r.top - mb.offsetHeight - 5) + 'px'; if(r.top < mb.offsetHeight) mb.style.top = (r.bottom + 5) + 'px'; } else mb.style.display = 'none'; } else mb.style.display = 'none'; }; window.insertMention = (f) => { let e = window.activeMentionInput; if(!e) return; let v = e.value, c = e.selectionStart, tb = v.substring(0,c), la = tb.lastIndexOf('@'), ta = v.substring(c); if(la !== -1) { let n = v.substring(0,la) + '@' + f + ' '; e.value = n + ta; e.focus(); e.selectionStart = e.selectionEnd = n.length; } $('globalMentionBox').style.display = 'none'; };
 
-document.addEventListener('click', (e) => { if(!e.target || typeof e.target.closest !== 'function') return; if(!e.target.closest('#globalMentionBox') && !e.target.classList.contains('comment-input') && !e.target.classList.contains('composer-input')) { $('globalMentionBox').style.display = 'none'; } if(!e.target.closest('.search-container')) { $('searchResults').style.display = 'none'; } if(!e.target.closest('.notif-container')) { $('notifDropdown').style.display = 'none'; } if(!e.target.closest('.nav-user-container') && !e.target.closest('.b-nav-item')) { let u = $('userMenuDropdown'), m = $('mobileUserMenuDropdown'); if(u) u.style.display = 'none'; if(m) m.style.display = 'none'; } });
+document.addEventListener('click', (e) => { if(!e.target || typeof e.target.closest !== 'function') return; if(!e.target.closest('#globalMentionBox') && !e.target.classList.contains('comment-input') && !e.target.classList.contains('composer-input')) { $('globalMentionBox').style.display = 'none'; } if(!e.target.closest('.search-container')) { $('searchResults').style.display = 'none'; } if(!e.target.closest('.notif-container')) { window.closeNotifPanel(); } if(!e.target.closest('.nav-user-container') && !e.target.closest('.b-nav-item')) { let u = $('userMenuDropdown'), m = $('mobileUserMenuDropdown'); if(u) u.style.display = 'none'; if(m) m.style.display = 'none'; } });
 // ── القائمة كاملة الشاشة (تستبدل الـ dropdown القديم) ──────
 window.openFullMenu = () => {
     let ov = document.getElementById('fullMenuOverlay');
@@ -819,9 +876,26 @@ window.toggleDropdown = (id) => {
         return;
     }
     let e = $(id); if(!e) return;
+    if (id === 'notifDropdown') {
+        let isOpen = e.style.display === 'flex';
+        window.closeNotifPanel();
+        ['userMenuDropdown','mobileUserMenuDropdown'].forEach(x => { let el=$(x); if(el) el.style.display='none'; });
+        if (!isOpen) {
+            e.style.display = 'flex';
+            if (window.innerWidth <= 768) document.body.style.overflow = 'hidden';
+            if (window.rerenderNotifications) window.rerenderNotifications();
+        }
+        return;
+    }
     let d = e.style.display === 'block';
-    ['notifDropdown','userMenuDropdown','mobileUserMenuDropdown'].forEach(x => { let el=$(x); if(el) el.style.display='none'; });
+    window.closeNotifPanel();
+    ['userMenuDropdown','mobileUserMenuDropdown'].forEach(x => { let el=$(x); if(el) el.style.display='none'; });
     if(!d) e.style.display = 'block';
+};
+
+window.closeNotifPanel = () => {
+    let e = $('notifDropdown'); if(e) e.style.display = 'none';
+    document.body.style.overflow = 'auto';
 };
 
 window.toggleSidebar = () => { let s = $('sidebarArea'); window.innerWidth <= 768 ? s.classList.toggle('mobile-show') : s.classList.toggle('hidden'); }; window.switchProfileTab = (t) => { ['posts','reels','photos','friends','about'].forEach(x => { let e = $('tab-'+x), b = $('btnTab'+x.charAt(0).toUpperCase()+x.slice(1)); if(e) e.style.display = 'none'; if(b) b.classList.remove('active'); }); $('tab-'+t).style.display = 'block'; $('btnTab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.add('active'); };
@@ -2442,7 +2516,7 @@ function listenToReels() {
     });
 }
 
-function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window.allUsersData = s.val(); if(window.isInitialLoad){ listenToPosts(); } if(window.currentUser){ renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); window.initRightSidebar && window.initRightSidebar(); } } }); }
+function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window.allUsersData = s.val(); if(window.isInitialLoad){ listenToPosts(); } if(window.currentUser){ renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); window.initRightSidebar && window.initRightSidebar(); window.rerenderNotifications && window.rerenderNotifications(); } } }); }
 function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ window.feedLim=5; renderFeed(); } }); }
 function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unreadChats`), s => { window.unreadChatsData = s.exists() ? s.val() : {}; let t=0; if(window.currentChatTarget && window.isChatBoxVisible && window.unreadChatsData[window.currentChatTarget]){ remove(ref(db,`users/${window.currentUser}/unreadChats/${window.currentChatTarget}`)); delete window.unreadChatsData[window.currentChatTarget]; } for(let x in window.unreadChatsData){ let c = window.unreadChatsData[x], p = window.previousUnreadChats[x]||0; t+=c; if(c>p && x!==window.currentChatTarget) window.showToast("رسالة جديدة", `أرسل ${window.getDisplayName(x)} رسالة`, window.allUsersData[x]?.profilePic); } window.previousUnreadChats = {...window.unreadChatsData}; let b1=$('chatBadge'), b2=$('chatBadgeMobile'); if(t>0){ b1.style.display='inline-block'; b1.innerText=t; b2.style.display='inline-block'; b2.innerText=t; } else { b1.style.display='none'; b2.style.display='none'; } renderSidebarUsers(); }); }
 function listenToRecentChats(){ onValue(ref(db,`users/${window.currentUser}/recentChats`), s => { window.recentChatsData = s.exists() ? s.val() : {}; renderSidebarUsers(); }); }
