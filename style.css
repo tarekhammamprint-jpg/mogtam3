@@ -64,9 +64,9 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 .b-nav-item{position:relative;font-size:22px;color:var(--text-muted);cursor:pointer;padding:10px;transition:.2s;display:flex;align-items:center;justify-content:center;width:100%}
 .b-nav-item:hover{color:var(--primary)}
 .main-container{display:flex;flex-direction:row;align-items:flex-start;margin:90px auto 0;width:100%;max-width:1400px;gap:20px;padding:0 15px;box-sizing:border-box}
-.feed-area{flex:1;min-width:0;max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:25px;width:100%;order:2;}
-.sidebar-placeholder{flex:0 0 280px;position:relative;order:3;}
-.sidebar{position:sticky;top:90px;width:100%;height:calc(100vh - 110px);overflow-y:auto;background:var(--card-bg);padding:20px;border-radius:var(--radius-md);box-shadow:var(--shadow-md);border:1px solid var(--border-color);direction:rtl;box-sizing:border-box;z-index:100;}
+.feed-area{flex:1;min-width:0;display:flex;flex-direction:column;gap:25px;width:100%;order:2;}
+.sidebar-placeholder{flex:0 0 300px;position:relative;order:3;}
+.sidebar{position:fixed;left:15px;top:90px;width:300px;height:calc(100vh - 110px);overflow-y:auto;background:var(--card-bg);padding:20px;border-radius:var(--radius-md);box-shadow:var(--shadow-md);border:1px solid var(--border-color);direction:rtl;box-sizing:border-box;z-index:100;}
 .sidebar::-webkit-scrollbar{width:6px}
 .sidebar::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px}
 .new-posts-btn{background:var(--primary);color:#fff;text-align:center;padding:12px 24px;border-radius:var(--radius-pill);font-weight:700;cursor:pointer;box-shadow:0 4px 15px rgba(37,99,235,.3);transition:transform .2s;font-size:15px;display:none;position:fixed;top:86px;left:50%;transform:translateX(-50%);z-index:2147483050;width:auto;white-space:nowrap}
@@ -430,12 +430,13 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 /* ══════════════════════════════════════
    العمود الأيمن — ثابت مع التمرير
 ══════════════════════════════════════ */
-.right-col-placeholder { flex: 0 0 280px; position: relative; order: 1; }
+.right-col-placeholder { flex: 0 0 270px; position: relative; order: 1; }
 
 .right-col {
-    position: sticky;
+    position: fixed;
+    right: 15px;
     top: 90px;
-    width: 100%;
+    width: 270px;
     height: calc(100vh - 110px);
     overflow-y: auto;
     overflow-x: hidden;
@@ -523,7 +524,20 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
     .feed-area { margin-right: 0 !important; }
 }
 
-/* منطقة التغذية - عرض متجاوب حسب حجم الشاشة (يعتمد على تعريف .feed-area الأساسي في الأعلى) */
+/* فقط قم بتعديل هذه الأقسام في ملف style.css */
+
+/* منطقة التغذية - المنشورات في المنتصف - زيادة العرض */
+.feed-area{
+    flex: 1;
+    min-width: 0;
+    max-width: 780px;  /* تم التغيير من 580px إلى 780px */
+    width: 100%;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 25px;
+    order: 1;
+}
 
 /* شاشات متوسطة */
 @media (min-width: 901px) and (max-width: 1100px) {
@@ -531,22 +545,22 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
     .sidebar { width: 280px; left: 15px; }
     .right-col-placeholder { flex: 0 0 250px; }
     .right-col { width: 250px; right: 15px; }
-    .feed-area { max-width: 650px; }
+    .feed-area { max-width: 650px; }  /* تم التغيير */
 }
 
 /* شاشات أكبر قليلاً */
 @media (min-width: 1101px) and (max-width: 1300px) {
-    .feed-area { max-width: 700px; }
+    .feed-area { max-width: 700px; }  /* تم التغيير */
 }
 
 /* شاشات كبيرة */
 @media (min-width: 1301px) and (max-width: 1500px) {
-    .feed-area { max-width: 750px; }
+    .feed-area { max-width: 750px; }  /* تم التغيير */
 }
 
 /* شاشات كبيرة جداً */
 @media (min-width: 1501px) {
-    .feed-area { max-width: 820px; }
+    .feed-area { max-width: 820px; }  /* تم التغيير */
 }
 
 /* زيادة عرض المنشور نفسه */
