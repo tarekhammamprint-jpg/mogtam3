@@ -916,7 +916,7 @@ window.closeNotifPanel = () => {
     document.body.style.overflow = 'auto';
 };
 
-window.toggleSidebar = () => { let s = $('sidebarArea'); window.innerWidth <= 768 ? s.classList.toggle('mobile-show') : s.classList.toggle('hidden'); }; window.switchProfileTab = (t) => { ['posts','reels','photos','friends','about'].forEach(x => { let e = $('tab-'+x), b = $('btnTab'+x.charAt(0).toUpperCase()+x.slice(1)); if(e) e.style.display = 'none'; if(b) b.classList.remove('active'); }); $('tab-'+t).style.display = 'block'; $('btnTab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.add('active'); };
+window.toggleSidebar = () => { if (window.innerWidth <= 768) { window.toggleMsgBottomSheet(); return; } let s = $('sidebarArea'); s.classList.toggle('hidden'); }; window.switchProfileTab = (t) => { ['posts','reels','photos','friends','about'].forEach(x => { let e = $('tab-'+x), b = $('btnTab'+x.charAt(0).toUpperCase()+x.slice(1)); if(e) e.style.display = 'none'; if(b) b.classList.remove('active'); }); $('tab-'+t).style.display = 'block'; $('btnTab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.add('active'); };
 window.handleGlobalSearch = (q) => { let r = $('searchResults'); if(!q.trim()){ r.style.display='none'; return; } let h=''; for(let u in window.allUsersData) { let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())) { h += `<a href="#/@${u}" class="search-result-item" onclick="$('searchResults').style.display='none'; $('globalSearch').value='';" style="text-decoration:none; color:inherit;"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"> <div style="display:flex;flex-direction:column;line-height:1.2;"><span>${d}</span><span style="font-size:11px;color:#64748b;">@${u}</span></div></a>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#666;">لا توجد نتائج</div>'; r.style.display='block'; }; window.searchChatUsers = (q) => { let r=$('chatSearchBox'), f=$('friendsList'), rh=$('msgRequestsHeader'), rl=$('msgRequestsList'); if(!q.trim()){ r.style.display='none'; f.style.display='block'; if(rl&&rl.innerHTML!==''){ rh.style.display='block'; rl.style.display='block'; } return; } f.style.display='none'; rh.style.display='none'; rl.style.display='none'; let h=''; for(let u in window.allUsersData){ if(u===window.currentUser) continue; let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())){ h += `<div class="user-row" onclick="window.openChat('${u}')"><div class="user-info"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"><span>${d}</span></div><button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:4px;"><i class="fas fa-comment-dots"></i></button></div>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#64748b;font-size:14px;">لا توجد نتائج</div>'; r.style.display='block'; };
 
 window.renderSuggestedUsersModal = () => { let s = window.getSuggestions ? window.getSuggestions().slice(0,15) : [], h=''; if(s.length===0) h='<p style="text-align:center;color:#666;font-size:14px;padding:20px;">لا يوجد مقترحات حالياً (تظهر فقط للأصدقاء المشتركين أو المقربين).</p>'; else s.forEach(x => { let p=x.data.profilePic||dA, d=window.getDisplayName(x.name), st=x.mutualCount>0?`مشترون: ${x.mutualCount}`:'من منطقتك', rr = window.currentRequests && window.currentRequests[x.name], b=''; if(window.sentRequests && window.sentRequests[x.name]) b=`<button class="btn-secondary" disabled style="padding:6px 12px;font-size:13px;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b=`<button class="btn-primary" style="background:#10b981;padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b=`<button class="btn-primary" data-action="add" data-target="${x.name}" style="padding:6px 12px;font-size:13px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; h += `<div class="req-row"><a href="#/@${x.name}" style="display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none;"><img src="${p}" class="avatar-small"><div style="display:flex;flex-direction:column;cursor:pointer;"><strong style="font-size:15px;color:var(--text-main);text-align:right;">${d}</strong><span style="font-size:12px;color:var(--text-muted);text-align:right;">${st}</span></div></a><div class="req-actions">${b}</div></div>`; }); let u = $('usersList'); if(u) u.innerHTML=h; };
@@ -2377,7 +2377,102 @@ window.openStatsLogic = () => { $('statsModal').classList.add('show'); document.
 function renderRequests() { let c = 0, h = ''; let reqArr = Object.entries(window.currentRequests||{}).map(([k,v]) => ({id:k, time: v===true ? 0 : v})).sort((a,b) => b.time - a.time); for(let req of reqArr) { let s = req.id; c++; h += `<div class="req-row"><a href="#/@${s}" style="display:flex;align-items:center;gap:8px;color:inherit;text-decoration:none;"><img src="${window.allUsersData[s]?.profilePic || dA}" class="avatar-small"><strong>${window.getDisplayName(s)}</strong></a><div class="req-actions"><button class="btn-accept" onclick="window.acceptRequest('${s}')"><i class="fas fa-check"></i></button><button class="btn-reject" onclick="window.rejectRequest('${s}')"><i class="fas fa-times"></i></button></div></div>`; } let b1 = $('reqBadge'), b2 = $('reqBadgeMobile'); if(c > 0) { b1.style.display = 'inline-block'; b1.innerText = c; b2.style.display = 'inline-block'; b2.innerText = c; } else { b1.style.display = 'none'; b2.style.display = 'none'; h = '<p style="color:#666;text-align:center;">لا طلبات.</p>'; } $('requestsList').innerHTML = h; window.renderSidebarTop(); }
 function listenToFriendRequests() { onValue(ref(db, `friendRequests/${window.currentUser}`), s => { window.currentRequests = s.exists() ? s.val() : {}; renderRequests(); }); }
 
-function renderSidebarUsers() { let fh = '', fa = [], rh = '', ra = []; window.myFriends.forEach(f => { if(window.allUsersData[f]) fa.push({name:f, time:window.recentChatsData[f] || 0, uc:window.unreadChatsData[f] || 0, d:window.allUsersData[f]}); }); let cu = new Set([...Object.keys(window.recentChatsData || {}), ...Object.keys(window.unreadChatsData || {})]); cu.forEach(c => { if(!window.myFriends.includes(c) && c !== window.currentUser && window.allUsersData[c]) ra.push({name:c, time:window.recentChatsData[c] || 0, uc:window.unreadChatsData[c] || 0, d:window.allUsersData[c]}); }); fa.sort((a,b) => b.time - a.time); fa.forEach(f => { fh += `<div class="user-row"><a href="#/@${f.name}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${f.d.profilePic||dA}" class="avatar-small"><span>${window.getDisplayName(f.name)}</span></a><div style="display:flex;align-items:center;gap:10px;">${f.uc>0?`<span class="unread-msg-badge">${f.uc}</span>`:''}<button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:4px;" onclick="event.stopPropagation();window.openChat('${f.name}')"><i class="fas fa-comment-dots"></i></button><span class="status-dot ${f.d.online?'online':'offline'}"></span></div></div>`; }); $('friendsList').innerHTML = fh || '<span style="color:#888;font-size:13px;">لا أصدقاء</span>'; ra.sort((a,b) => b.time - a.time); ra.forEach(r => { rh += `<div class="user-row" style="background:#fffbeb;border:1px solid #fde68a;"><a href="#/@${r.name}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${r.d.profilePic||dA}" class="avatar-small"><span>${window.getDisplayName(r.name)}</span></a><div style="display:flex;align-items:center;gap:10px;">${r.uc>0?`<span class="unread-msg-badge">${r.uc}</span>`:''}<button class="btn-primary" style="background:#f59e0b;padding:4px 10px;font-size:12px;border-radius:4px;" onclick="event.stopPropagation();window.openChat('${r.name}')"><i class="fas fa-comment-dots"></i></button></div></div>`; }); let h = $('msgRequestsHeader'); if(ra.length > 0) { h.style.display = 'block'; $('msgRequestsList').innerHTML = rh; } else { h.style.display = 'none'; $('msgRequestsList').innerHTML = ''; } }
+function renderSidebarUsers() { let fh = '', fa = [], rh = '', ra = []; window.myFriends.forEach(f => { if(window.allUsersData[f]) fa.push({name:f, time:window.recentChatsData[f] || 0, uc:window.unreadChatsData[f] || 0, d:window.allUsersData[f]}); }); let cu = new Set([...Object.keys(window.recentChatsData || {}), ...Object.keys(window.unreadChatsData || {})]); cu.forEach(c => { if(!window.myFriends.includes(c) && c !== window.currentUser && window.allUsersData[c]) ra.push({name:c, time:window.recentChatsData[c] || 0, uc:window.unreadChatsData[c] || 0, d:window.allUsersData[c]}); }); fa.sort((a,b) => b.time - a.time); fa.forEach(f => { fh += `<div class="user-row"><a href="#/@${f.name}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${f.d.profilePic||dA}" class="avatar-small"><span>${window.getDisplayName(f.name)}</span></a><div style="display:flex;align-items:center;gap:10px;">${f.uc>0?`<span class="unread-msg-badge">${f.uc}</span>`:''}<button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:4px;" onclick="event.stopPropagation();window.openChat('${f.name}')"><i class="fas fa-comment-dots"></i></button><span class="status-dot ${f.d.online?'online':'offline'}"></span></div></div>`; }); $('friendsList').innerHTML = fh || '<span style="color:#888;font-size:13px;">لا أصدقاء</span>'; ra.sort((a,b) => b.time - a.time); ra.forEach(r => { rh += `<div class="user-row" style="background:#fffbeb;border:1px solid #fde68a;"><a href="#/@${r.name}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${r.d.profilePic||dA}" class="avatar-small"><span>${window.getDisplayName(r.name)}</span></a><div style="display:flex;align-items:center;gap:10px;">${r.uc>0?`<span class="unread-msg-badge">${r.uc}</span>`:''}<button class="btn-primary" style="background:#f59e0b;padding:4px 10px;font-size:12px;border-radius:4px;" onclick="event.stopPropagation();window.openChat('${r.name}')"><i class="fas fa-comment-dots"></i></button></div></div>`; }); let h = $('msgRequestsHeader'); if(ra.length > 0) { h.style.display = 'block'; $('msgRequestsList').innerHTML = rh; } else { h.style.display = 'none'; $('msgRequestsList').innerHTML = ''; }
+    // تحديث قائمة الرسائل السفلية وصفحة كل الرسائل بنسخة الموبايل (لو مفتوحين) عشان يفضلوا محدَّثين لحظياً
+    if (window.renderMsgBottomSheet) { let bs = $('msgBottomSheet'); if (bs && bs.style.display === 'flex') window.renderMsgBottomSheet(); }
+    if (window.renderAllMessagesPage) { let amp = document.getElementById('allMessagesPage'); if (amp && amp.style.display === 'flex') window.renderAllMessagesPage($('allMsgSearchInput') ? $('allMsgSearchInput').value : ''); }
+}
+
+// ============================================================
+// قائمة الرسائل السفلية + صفحة "كل الرسائل" المستقلة (نسخة الهاتف فقط)
+// ============================================================
+window._getConversations = () => {
+    let fa = [], ra = [];
+    (window.myFriends || []).forEach(f => { if (window.allUsersData[f]) fa.push({ name: f, time: window.recentChatsData[f] || 0, uc: window.unreadChatsData[f] || 0, d: window.allUsersData[f] }); });
+    let cu = new Set([...Object.keys(window.recentChatsData || {}), ...Object.keys(window.unreadChatsData || {})]);
+    cu.forEach(c => { if (!(window.myFriends || []).includes(c) && c !== window.currentUser && window.allUsersData[c]) ra.push({ name: c, time: window.recentChatsData[c] || 0, uc: window.unreadChatsData[c] || 0, d: window.allUsersData[c] }); });
+    return [...fa, ...ra].sort((a, b) => b.time - a.time);
+};
+
+function msgRowHTML(u) {
+    return `<div class="user-row" onclick="window.openChatFromMsgList('${u.name}')">
+        <div class="user-info">
+            <span style="position:relative;display:inline-block;">
+                <img src="${u.d.profilePic || dA}" class="avatar-small">
+                <span class="status-dot ${u.d.online ? 'online' : 'offline'}" style="position:absolute;bottom:-2px;left:-2px;"></span>
+            </span>
+            <div style="display:flex;flex-direction:column;line-height:1.3;">
+                <span>${window.getDisplayName(u.name)}</span>
+                <span style="font-size:11px;color:#94a3b8;font-weight:400;">${u.d.online ? 'متصل الآن' : (u.time ? window.timeAgo(u.time) : '')}</span>
+            </div>
+        </div>
+        ${u.uc > 0 ? `<span class="unread-msg-badge">${u.uc}</span>` : ''}
+    </div>`;
+}
+
+window.openChatFromMsgList = (name) => {
+    window.closeMsgBottomSheet();
+    window.closeAllMessagesPage();
+    window.openChat(name);
+};
+
+window.renderMsgBottomSheet = () => {
+    let list = window._getConversations();
+    let online = list.filter(u => u.d.online);
+    let stripEl = $('msgOnlineStrip');
+    if (stripEl) {
+        stripEl.innerHTML = online.length ? online.map(u => `
+            <div onclick="window.openChatFromMsgList('${u.name}')" style="cursor:pointer;text-align:center;width:60px;flex-shrink:0;">
+                <span style="position:relative;display:inline-block;">
+                    <img src="${u.d.profilePic || dA}" style="width:48px;height:48px;border-radius:50%;object-fit:cover;">
+                    <span class="status-dot online" style="position:absolute;bottom:0;left:0;"></span>
+                </span>
+                <div style="font-size:11px;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${window.getDisplayName(u.name)}</div>
+            </div>`).join('') : '<div style="color:#94a3b8;font-size:13px;padding:6px 0;">لا يوجد أصدقاء متصلون الآن</div>';
+    }
+    let listEl = $('msgBottomSheetList');
+    if (listEl) {
+        let top = list.slice(0, 8);
+        listEl.innerHTML = top.length ? top.map(u => msgRowHTML(u)).join('') : '<div style="text-align:center;color:#94a3b8;padding:20px 0;">لا توجد محادثات بعد</div>';
+    }
+};
+
+window.toggleMsgBottomSheet = () => {
+    let el = $('msgBottomSheet');
+    if (!el) return;
+    let isOpen = el.style.display === 'flex';
+    ['userMenuDropdown', 'mobileUserMenuDropdown', 'notifDropdown'].forEach(id => { let e = $(id); if (e) e.style.display = 'none'; });
+    if (isOpen) { window.closeMsgBottomSheet(); return; }
+    window.renderMsgBottomSheet();
+    el.style.display = 'flex';
+};
+window.closeMsgBottomSheet = () => { let el = $('msgBottomSheet'); if (el) el.style.display = 'none'; };
+
+window.openAllMessagesPage = () => {
+    window.closeMsgBottomSheet();
+    let ov = document.getElementById('allMessagesPage');
+    if (!ov) return;
+    ov.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+    window.renderAllMessagesPage();
+};
+
+window.renderAllMessagesPage = (filterText) => {
+    let list = window._getConversations();
+    if (filterText && filterText.trim()) {
+        let q = filterText.trim().toLowerCase();
+        list = list.filter(u => window.getDisplayName(u.name).toLowerCase().includes(q) || u.name.toLowerCase().includes(q));
+    }
+    let el = document.getElementById('allMessagesList');
+    if (!el) return;
+    el.innerHTML = list.length ? list.map(u => msgRowHTML(u)).join('') : '<div style="text-align:center;color:#94a3b8;padding:40px 0;">لا توجد محادثات</div>';
+};
+
+window.closeAllMessagesPage = () => {
+    let ov = document.getElementById('allMessagesPage');
+    if (ov) ov.style.display = 'none';
+    document.body.style.overflow = 'auto';
+};
 
 window.getSuggestions = () => { let ml = window.currentUser ? (window.allUsersData[window.currentUser]?.location || "غير محدد") : "غير محدد", sg = []; for(let u in window.allUsersData) { if(u === window.currentUser || window.myFriends.includes(u)) continue; let d = window.allUsersData[u];  let tf = Object.keys(window.allFriendsData[u] || {}), mc = tf.filter(f => window.myFriends.includes(f)).length, isl = (d.location && d.location === ml && ml !== "غير محدد"); if(mc > 0 || isl) { sg.push({name:u, data:d, mutualCount:mc, isSameLocation:isl}); } } sg.sort((a,b) => { if(b.mutualCount !== a.mutualCount) return b.mutualCount - a.mutualCount; if(b.isSameLocation && !a.isSameLocation) return 1; if(!b.isSameLocation && a.isSameLocation) return -1; return 0; }); return sg; };
 function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;"><i class="fas ${x.mutualCount > 0 ? 'fa-user-friends' : 'fa-map-marker-alt'}"></i> ${x.mutualCount > 0 ? `مشتركون: ${x.mutualCount}` : 'من منطقتك'}</span></a>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
@@ -3015,6 +3110,14 @@ if(window.currentUser){
         fbCommentsSheet: {
             isOpen: (el) => el.classList.contains('open'),
             close: () => { if (window.closeMvCommentsSheet) window.closeMvCommentsSheet(); }
+        },
+        msgBottomSheet: {
+            isOpen: (el) => el.style.display === 'flex',
+            close: () => { if (window.closeMsgBottomSheet) window.closeMsgBottomSheet(); }
+        },
+        allMessagesPage: {
+            isOpen: (el) => el.style.display === 'flex',
+            close: () => { if (window.closeAllMessagesPage) window.closeAllMessagesPage(); }
         }
     };
 
@@ -3030,10 +3133,12 @@ if(window.currentUser){
         if (i !== -1) window._backStack.splice(i, 1);
     }
 
+    let watchedIds = new Set();
     function watch(id, cfg) {
         let el = document.getElementById(id);
-        if (!el) return;
-        let wasOpen = cfg.isOpen(el);
+        if (!el || watchedIds.has(id)) return;
+        watchedIds.add(id);
+        let wasOpen = false; // نفترض دايماً إنها مقفولة وقت أول مراقبة (حتى لو اتولدت وفُتحت في نفس اللحظة)
         new MutationObserver(() => {
             let open = cfg.isOpen(el);
             if (open && !wasOpen) pushLayer(id);
@@ -3042,8 +3147,15 @@ if(window.currentUser){
         }).observe(el, { attributes: true, attributeFilter: ['class', 'style'] });
     }
 
-    function init() {
+    function tryWatchAll() {
         Object.keys(BACK_TARGETS).forEach(id => watch(id, BACK_TARGETS[id]));
+    }
+
+    function init() {
+        tryWatchAll();
+        // بعض النوافذ (زي صفحة كل الرسائل والقائمة الكاملة) بتتولد ديناميكياً بعد تحميل الصفحة،
+        // فبنراقب إضافة عناصر جديدة لـ body عشان نمسكها أول ما تتولد
+        new MutationObserver(() => tryWatchAll()).observe(document.body, { childList: true });
     }
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
     else init();
