@@ -321,7 +321,7 @@
         <div class="nav-actions" id="loggedInNav" style="display:none; align-items:center; gap:10px;">
             <button onclick="window.openAdminStats()" style="display:none;background:#7c3aed;color:#fff;" class="nav-btn hide-on-mobile" id="adminBtn"><em class="fas fa-shield-alt"></em></button>
             <button onclick="window.openCommunitiesModal()" class="nav-btn hide-on-mobile" title="المجتمعات"><em class="fas fa-users-cog"></em></button>
-            <button onclick="window.toggleSidebar()" class="nav-btn hide-on-mobile"><em class="fas fa-comment-dots"></em> <span class="badge" id="chatBadge">0</span></button>
+            <button onclick="window.openMessagesPage()" class="nav-btn hide-on-mobile"><em class="fas fa-comment-dots"></em> <span class="badge" id="chatBadge">0</span></button>
             <button onclick="window.openRequestsModal()" class="nav-btn hide-on-mobile"><em class="fas fa-user-friends"></em> <span class="badge" id="reqBadge">0</span></button>
             <div onclick="window.toggleDropdown('userMenuDropdown')" class="nav-user-container hide-on-mobile">
                 <div class="nav-user">
@@ -429,6 +429,48 @@
             <label style="cursor:pointer;color:#eab308;font-size:22px;padding:5px 5px;"><em class="fas fa-video"></em><input type="file" style="display:none;" accept="video/*" onchange="window.sendChatMedia(event,'video')" /></label>
             <input oninput="window.handleChatInput()" onkeypress="if(event.key==='Enter') window.sendMessage()" placeholder="رسالة..." class="chat-input" id="chatInput" type="text" style="padding:10px 15px;" />
             <button onclick="window.sendMessage()" class="chat-send"><em class="fas fa-paper-plane"></em></button>
+        </div>
+    </div>
+
+    <!-- صفحة الرسائل (نسخة الكمبيوتر فقط، على غرار فيسبوك) -->
+    <div id="messagesPageModal" class="modal messages-page-modal">
+        <div class="messages-page-inner">
+            <div class="messages-page-list-col">
+                <div class="messages-page-list-header">
+                    <h3><em class="fas fa-comment-dots"></em> الرسائل</h3>
+                    <span class="close-btn" onclick="window.closeMessagesPage()"><em class="fas fa-times"></em></span>
+                </div>
+                <div class="messages-page-search-wrap">
+                    <em class="fas fa-search"></em>
+                    <input type="text" id="messagesPageSearchInput" placeholder="بحث في الماسنجر" oninput="window.searchMessagesPageList(this.value)" />
+                </div>
+                <div id="messagesPageConvList" class="messages-page-conv-list"></div>
+            </div>
+            <div class="messages-page-thread-col">
+                <div id="messagesPageEmpty" class="messages-page-empty">
+                    <em class="fas fa-comments"></em>
+                    <h4>رسائلك</h4>
+                    <p>اختر محادثة من القائمة لبدء المراسلة أو متابعة محادثة سابقة.</p>
+                </div>
+                <div id="messagesPageThread" class="messages-page-thread" style="display:none;">
+                    <div class="messages-page-thread-header">
+                        <div class="mp-thread-user" onclick="window.openProfile(window.mpCurrentTarget)">
+                            <img id="mpThreadAvatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="avatar-small" />
+                            <div>
+                                <span id="mpThreadName">الاسم</span>
+                                <span id="mpThreadStatus" class="mp-typing-status">يكتب الآن</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="mpMessages" class="messages-page-messages"></div>
+                    <div class="messages-page-input-area">
+                        <label class="mp-media-btn" style="color:var(--primary);"><em class="fas fa-image"></em><input type="file" style="display:none;" accept="image/*" onchange="window.sendMessagesPageMedia(event,'image')" /></label>
+                        <label class="mp-media-btn" style="color:#eab308;"><em class="fas fa-video"></em><input type="file" style="display:none;" accept="video/*" onchange="window.sendMessagesPageMedia(event,'video')" /></label>
+                        <input oninput="window.handleMessagesPageInput()" onkeypress="if(event.key==='Enter') window.sendMessagesPageMessage()" placeholder="رسالة..." class="chat-input" id="mpChatInput" type="text" />
+                        <button onclick="window.sendMessagesPageMessage()" class="chat-send"><em class="fas fa-paper-plane"></em></button>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
