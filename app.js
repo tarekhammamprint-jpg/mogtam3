@@ -754,7 +754,7 @@ function renderSidebarTop() { let h=''; let reqArr = Object.entries(window.curre
 const eRE = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); window.formatMentions = (t) => { if(!t) return ''; let s = t.replace(/</g, "&lt;").replace(/>/g, "&gt;"); if(window.myFriends) { window.myFriends.forEach(f => { s = s.replace(new RegExp('@'+eRE(f)+'(?=\\s|$)', 'g'), `<a href="#/@${f}" style="color:var(--primary);cursor:pointer;background:#eef2ff;padding:2px 5px;border-radius:4px;text-decoration:none;" onclick="event.stopPropagation();">@${f}</a>`); }); } return s; };
 window.handleMentionInput = (e) => { window.activeMentionInput = e; let v = e.value, c = e.selectionStart, tb = v.substring(0,c), la = tb.lastIndexOf('@'), mb = $('globalMentionBox'); if(la !== -1 && (la === 0 || tb[la-1] === ' ')) { let q = tb.substring(la+1), m = window.myFriends.filter(f => f.toLowerCase().includes(q.toLowerCase()) || window.getDisplayName(f).toLowerCase().includes(q.toLowerCase())); if(m.length > 0) { let h = ''; m.forEach(x => { h += `<div class="mention-item" onclick="window.insertMention('${x}')"><img src="${window.allUsersData[x]?.profilePic||dA}"> <span>${window.getDisplayName(x)} (@${x})</span></div>`; }); mb.innerHTML = h; mb.style.display = 'block'; let r = e.getBoundingClientRect(); mb.style.left = r.left + 'px'; mb.style.top = (r.top - mb.offsetHeight - 5) + 'px'; if(r.top < mb.offsetHeight) mb.style.top = (r.bottom + 5) + 'px'; } else mb.style.display = 'none'; } else mb.style.display = 'none'; }; window.insertMention = (f) => { let e = window.activeMentionInput; if(!e) return; let v = e.value, c = e.selectionStart, tb = v.substring(0,c), la = tb.lastIndexOf('@'), ta = v.substring(c); if(la !== -1) { let n = v.substring(0,la) + '@' + f + ' '; e.value = n + ta; e.focus(); e.selectionStart = e.selectionEnd = n.length; } $('globalMentionBox').style.display = 'none'; };
 
-document.addEventListener('click', (e) => { if(!e.target || typeof e.target.closest !== 'function') return; if(!e.target.closest('#globalMentionBox') && !e.target.classList.contains('comment-input') && !e.target.classList.contains('composer-input')) { $('globalMentionBox').style.display = 'none'; } if(!e.target.closest('.search-container')) { $('searchResults').style.display = 'none'; } if(!e.target.closest('.notif-container')) { window.closeNotifPanel(); } if(!e.target.closest('.nav-user-container') && !e.target.closest('.b-nav-item')) { let u = $('userMenuDropdown'), m = $('mobileUserMenuDropdown'); if(u) u.style.display = 'none'; if(m) m.style.display = 'none'; } });
+document.addEventListener('click', (e) => { if(!e.target || typeof e.target.closest !== 'function') return; if(!e.target.closest('#globalMentionBox') && !e.target.classList.contains('comment-input') && !e.target.classList.contains('composer-input')) { $('globalMentionBox').style.display = 'none'; } if(!e.target.closest('.search-container')) { $('searchResults').style.display = 'none'; } if(!e.target.closest('.notif-container') && !e.target.closest('#notifDropdown')) { window.closeNotifPanel(); } if(!e.target.closest('.nav-user-container') && !e.target.closest('.b-nav-item')) { let u = $('userMenuDropdown'), m = $('mobileUserMenuDropdown'); if(u) u.style.display = 'none'; if(m) m.style.display = 'none'; } });
 // ── القائمة كاملة الشاشة (تستبدل الـ dropdown القديم) ──────
 window.openFullMenu = () => {
     let ov = document.getElementById('fullMenuOverlay');
@@ -881,6 +881,14 @@ window.toggleDropdown = (id) => {
         window.closeNotifPanel();
         ['userMenuDropdown','mobileUserMenuDropdown'].forEach(x => { let el=$(x); if(el) el.style.display='none'; });
         if (!isOpen) {
+            // على الموبايل: الـnavbar فيه backdrop-filter، وده بيخلي أي عنصر ابن بداخله بـposition:fixed
+            // ينحبس جوه حدود الـnavbar بدل ما ياخد الشاشة كلها. الحل: ننقل القائمة مؤقتاً لتكون
+            // مباشرة جوه body وقت الفتح، ونرجعها لمكانها الأصلي جوه notif-container وقت الإغلاق.
+            if (window.innerWidth <= 768 && e.parentElement !== document.body) {
+                window._notifOriginalParent = e.parentElement;
+                window._notifOriginalNext = e.nextSibling;
+                document.body.appendChild(e);
+            }
             e.style.display = 'flex';
             if (window.innerWidth <= 768) document.body.style.overflow = 'hidden';
             if (window.rerenderNotifications) window.rerenderNotifications();
@@ -894,7 +902,17 @@ window.toggleDropdown = (id) => {
 };
 
 window.closeNotifPanel = () => {
-    let e = $('notifDropdown'); if(e) e.style.display = 'none';
+    let e = $('notifDropdown');
+    if(e) {
+        e.style.display = 'none';
+        if (window._notifOriginalParent && e.parentElement === document.body) {
+            if (window._notifOriginalNext && window._notifOriginalNext.parentElement === window._notifOriginalParent) {
+                window._notifOriginalParent.insertBefore(e, window._notifOriginalNext);
+            } else {
+                window._notifOriginalParent.appendChild(e);
+            }
+        }
+    }
     document.body.style.overflow = 'auto';
 };
 
