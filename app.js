@@ -2974,3 +2974,86 @@ if(window.currentUser){
 } else {
     window.rU();
 }
+
+// ============================================================
+// نظام عام وموحّد لزر الرجوع (الهاتف/المتصفح) لكل النوافذ المنبثقة
+// اللي مش مربوطة أصلاً بنظام الـ hash (مثل: الشات، مشاركة منشور،
+// تعديل منشور، القائمة الكاملة للموبايل، قوائم الإشعارات/المستخدم).
+// الصفحات المربوطة بالفعل بـ hash (البروفايل، المنشور، المجتمعات،
+// الريلز، الإحصائيات...) شغالة من قبل عن طريق نظام الراوتينج فوق
+// ومش محتاجة تتكرر هنا حتى ما تتسجلش خطوتين في تاريخ المتصفح لكل فتحة.
+(function () {
+    const BACK_TARGETS = {
+        chatBox: {
+            isOpen: (el) => el.classList.contains('show'),
+            close: () => { if (window.minimizeChat) window.minimizeChat({ stopPropagation() {} }); }
+        },
+        shareModal: {
+            isOpen: (el) => el.classList.contains('show'),
+            close: () => { let el = document.getElementById('shareModal'); if (el) el.classList.remove('show'); document.body.style.overflow = 'auto'; }
+        },
+        editPostModal: {
+            isOpen: (el) => el.classList.contains('show'),
+            close: () => { if (window.closeEditPostModal) window.closeEditPostModal(); }
+        },
+        notifDropdown: {
+            isOpen: (el) => el.style.display === 'flex',
+            close: () => { if (window.closeNotifPanel) window.closeNotifPanel(); }
+        },
+        userMenuDropdown: {
+            isOpen: (el) => el.style.display && el.style.display !== 'none',
+            close: () => { let el = document.getElementById('userMenuDropdown'); if (el) el.style.display = 'none'; }
+        },
+        mobileUserMenuDropdown: {
+            isOpen: (el) => el.style.display && el.style.display !== 'none',
+            close: () => { let el = document.getElementById('mobileUserMenuDropdown'); if (el) el.style.display = 'none'; }
+        },
+        fullMenuOverlay: {
+            isOpen: (el) => el.style.display && el.style.display !== 'none',
+            close: () => { if (window.closeFullMenu) window.closeFullMenu(); }
+        },
+        fbCommentsSheet: {
+            isOpen: (el) => el.classList.contains('open'),
+            close: () => { if (window.closeMvCommentsSheet) window.closeMvCommentsSheet(); }
+        }
+    };
+
+    window._backStack = window._backStack || [];
+
+    function pushLayer(id) {
+        if (window._backStack.includes(id)) return;
+        window._backStack.push(id);
+        try { history.pushState({ _uiLayer: id }, '', location.href); } catch (e) {}
+    }
+    function popLayer(id) {
+        let i = window._backStack.indexOf(id);
+        if (i !== -1) window._backStack.splice(i, 1);
+    }
+
+    function watch(id, cfg) {
+        let el = document.getElementById(id);
+        if (!el) return;
+        let wasOpen = cfg.isOpen(el);
+        new MutationObserver(() => {
+            let open = cfg.isOpen(el);
+            if (open && !wasOpen) pushLayer(id);
+            else if (!open && wasOpen) popLayer(id);
+            wasOpen = open;
+        }).observe(el, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+
+    function init() {
+        Object.keys(BACK_TARGETS).forEach(id => watch(id, BACK_TARGETS[id]));
+    }
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+    else init();
+
+    // زر الرجوع (فعلي من المتصفح/الهاتف) بيقفل آخر طبقة مفتوحة بس ولا يخرج من الصفحة نهائياً
+    window.addEventListener('popstate', () => {
+        if (!window._backStack.length) return;
+        let topId = window._backStack[window._backStack.length - 1];
+        let cfg = BACK_TARGETS[topId];
+        popLayer(topId);
+        if (cfg) cfg.close();
+    });
+})();
