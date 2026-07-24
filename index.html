@@ -6,7 +6,7 @@
     <title>مجتمعنا - منصة تواصل</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=20260722" />
+    <link rel="stylesheet" href="style.css?v=20260724" />
     <style>
         .interests-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; max-height: 300px; overflow-y: auto; padding: 10px; }
         .interest-chip { background: #f1f5f9; border: 2px solid #e2e8f0; color: #475569; padding: 10px 18px; border-radius: 999px; font-weight: 700; cursor: pointer; transition: 0.2s; user-select: none; }
@@ -409,6 +409,29 @@
         <span class="floating-badge" id="floatingChatBadge">0</span>
     </div>
 
+    <!-- قائمة الرسائل المنبثقة من أسفل الشاشة (نسخة الهاتف فقط) -->
+    <div class="dropdown-menu bottom-up-menu" id="msgBottomSheet" style="padding:0;overflow:hidden;display:none;flex-direction:column;">
+        <div style="padding:16px 18px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+            <span style="font-weight:800;font-size:16px;"><em class="fas fa-comment-dots"></em> الرسائل</span>
+            <span onclick="window.closeMsgBottomSheet()" style="cursor:pointer;width:32px;height:32px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;"><em class="fas fa-times"></em></span>
+        </div>
+        <div id="msgOnlineStrip" style="display:flex;gap:14px;overflow-x:auto;padding:14px 15px 6px;flex-shrink:0;"></div>
+        <div id="msgBottomSheetList" style="overflow-y:auto;padding:4px 15px 10px;flex:1;min-height:0;"></div>
+        <div style="padding:12px 15px;border-top:1px solid #e2e8f0;flex-shrink:0;">
+            <button class="btn-primary" style="width:100%;" onclick="window.openAllMessagesPage()"><em class="fas fa-comments"></em> عرض كل الرسائل</button>
+        </div>
+    </div>
+
+    <!-- صفحة "كل الرسائل" المستقلة (نسخة الهاتف فقط) -->
+    <div id="allMessagesPage" style="position:fixed;inset:0;background:#fff;z-index:2147483300;display:none;flex-direction:column;direction:rtl;">
+        <div style="padding:16px 18px;border-bottom:1px solid #e2e8f0;display:flex;align-items:center;gap:14px;flex-shrink:0;background:#fff;">
+            <span onclick="window.closeAllMessagesPage()" style="cursor:pointer;width:34px;height:34px;border-radius:50%;background:#f1f5f9;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><em class="fas fa-arrow-right"></em></span>
+            <span style="font-weight:800;font-size:18px;">الرسائل</span>
+        </div>
+        <input type="text" id="allMsgSearchInput" placeholder="ابحث في المحادثات..." class="comment-input" style="margin:14px 18px 6px;padding:12px 15px;border-radius:12px;box-sizing:border-box;" oninput="window.renderAllMessagesPage(this.value)" />
+        <div id="allMessagesList" style="flex:1;overflow-y:auto;padding:6px 10px 20px;"></div>
+    </div>
+
     <div id="chatBox" class="chat-box">
         <div class="chat-header">
             <div onclick="window.openProfile(window.currentChatTarget)" style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer;">
@@ -480,8 +503,8 @@
 
     <script>window.FontAwesomeConfig = { autoReplaceSvg: false };</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
-    <script type="module" src="video-call.js?v=20260722"></script>
-    <script type="module" src="app.js?v=20260723"></script>
+    <script type="module" src="video-call.js?v=20260724"></script>
+    <script type="module" src="app.js?v=20260724"></script>
 
     <style>
     .fmenu-card{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:.2s;text-decoration:none;color:inherit}
