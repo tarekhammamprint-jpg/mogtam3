@@ -24,6 +24,16 @@ const db = getDatabase(app);
 const CLOUDINARY_CLOUD = "diwaqfsap";
 const CLOUDINARY_PRESET = "ml_default";
 
+// نفس قائمة الاهتمامات المستخدمة فعلياً عند تسجيل الأعضاء (auth.js)
+// حتى يكون استهداف الإعلان مطابقاً لبيانات المستخدمين الحقيقية
+const PLATFORM_INTERESTS = [
+    "أخبار وسياسة", "رياضة وكرة قدم", "طبخ ووصفات", "دين وإسلاميات",
+    "تكنولوجيا وتقنية", "سيارات ومحركات", "كوميديا ومقالب", "صحة وطب",
+    "فنون وتصميم", "تعليم وثقافة", "موضة وتجميل", "سفر وسياحة",
+    "ألعاب فيديو", "تاريخ وحضارات", "علوم وطبيعة", "اقتصاد وأعمال",
+    "عقارات واستثمار", "أدب وشعر", "تنمية بشرية", "حيوانات أليفة"
+];
+
 const savedUser = localStorage.getItem('savedUser');
 if (!savedUser) { alert('يجب تسجيل الدخول أولاً'); window.location.href = 'index.html'; }
 
@@ -51,12 +61,40 @@ let adData = {
     createdAt: Date.now()
 };
 
+window.adData = adData; // نتيح الوصول لبيانات الإعلان من خارج الوحدة (module) عند الحاجة
+
 window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('adOwner').innerText = savedUser;
+    document.getElementById('adOwnerAv').innerText = (savedUser || '').charAt(0).toUpperCase();
     document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
+    document.getElementById('startDate').min = new Date().toISOString().split('T')[0];
     adData.startDate = document.getElementById('startDate').value;
+    renderInterestChips();
+    renderLocations();
     renderStep(1);
 });
+
+// يحدّث عرض الميزانية الإجمالية والتلميحات بشكل صحيح حسب نوع الميزانية (يومية/إجمالية)
+function updateBudgetDisplay() {
+    const total = calcTotal();
+    const totalEl = document.getElementById('totalBudgetDisplay');
+    const labelEl = document.getElementById('budgetTotalLabel');
+    const budgetLabelEl = document.getElementById('budgetLabel');
+    const budgetHintEl = document.getElementById('budgetHint');
+    if (totalEl) totalEl.innerText = total + ' ج.م';
+    if (labelEl) labelEl.innerText = `إجمالي الإنفاق المتوقع طوال ${adData.duration} ${adData.duration === 1 ? 'يوم' : 'أيام'}`;
+    if (adData.budgetType === 'daily') {
+        if (budgetLabelEl) budgetLabelEl.innerText = 'الميزانية اليومية (بالجنيه المصري)';
+        if (budgetHintEl) budgetHintEl.innerText = `سيتم إنفاق ${adData.budget} ج.م تقريباً كل يوم طوال مدة الإعلان`;
+    } else {
+        if (budgetLabelEl) budgetLabelEl.innerText = 'الميزانية الإجمالية (بالجنيه المصري)';
+        if (budgetHintEl) budgetHintEl.innerText = `سيتم توزيع ${adData.budget} ج.م على كامل مدة الإعلان (${adData.duration} ${adData.duration === 1 ? 'يوم' : 'أيام'})`;
+    }
+    const startTs = adData.startDate ? new Date(adData.startDate).getTime() : Date.now();
+    const endTs = startTs + adData.duration * 86400000;
+    const schedEl = document.getElementById('scheduleHint');
+    if (schedEl) schedEl.innerText = `سيبدأ الإعلان بالظهور في ${new Date(startTs).toLocaleDateString('ar-EG')} ويتوقف تلقائياً في ${new Date(endTs).toLocaleDateString('ar-EG')}`;
+}
 
 function renderStep(n) {
     adData.step = n;
@@ -67,6 +105,7 @@ function renderStep(n) {
         d.classList.toggle('done', i + 1 < n);
     });
     updatePreview();
+    if (n === 5) updateBudgetDisplay();
 }
 
 window.nextStep = (n) => {
@@ -94,26 +133,35 @@ window.updateField = (field, val) => {
     adData[field] = field === 'budget' || field === 'ageMin' || field === 'ageMax' || field === 'duration'
         ? parseInt(val) || 0 : val;
     updatePreview();
+    if (['budget', 'duration', 'budgetType', 'startDate'].includes(field)) updateBudgetDisplay();
 };
 
-window.addInterest = () => {
-    const inp = document.getElementById('interestInput');
-    const val = inp.value.trim();
-    if (!val || adData.interests.includes(val)) { inp.value = ''; return; }
-    adData.interests.push(val);
-    inp.value = '';
-    renderInterests();
-};
-window.removeInterest = (i) => { adData.interests.splice(i, 1); renderInterests(); };
-function renderInterests() {
-    document.getElementById('interestTags').innerHTML = adData.interests.map((t, i) =>
-        `<span class="tag">${t} <i class="fas fa-times" onclick="window.removeInterest(${i})"></i></span>`).join('');
+// شرائح الاهتمامات الحقيقية القابلة للاختيار (نفس فئات المنصة)
+function renderInterestChips() {
+    const wrap = document.getElementById('interestChips');
+    if (!wrap) return;
+    wrap.innerHTML = PLATFORM_INTERESTS.map(cat => {
+        const sel = adData.interests.includes(cat);
+        return `<div class="int-chip ${sel ? 'selected' : ''}" onclick="window.toggleAdInterest('${cat}', this)">${cat}</div>`;
+    }).join('');
+    const hint = document.getElementById('interestHint');
+    if (hint) hint.innerText = adData.interests.length
+        ? `سيظهر الإعلان لمن اختاروا هذه الاهتمامات عند إنشاء حسابهم (${adData.interests.length} محدد)`
+        : 'لم تحدد اهتمامات بعد — سيظهر الإعلان لجميع الأعمار والمناطق المطابقة بغض النظر عن الاهتمام';
 }
+window.toggleAdInterest = (cat, el) => {
+    const i = adData.interests.indexOf(cat);
+    if (i === -1) adData.interests.push(cat); else adData.interests.splice(i, 1);
+    el.classList.toggle('selected');
+    renderInterestChips();
+};
 
 window.addLocation = () => {
     const inp = document.getElementById('locationInput');
     const val = inp.value.trim();
     if (!val) return;
+    const norm = val.toLowerCase();
+    if (adData.locations.some(l => l.toLowerCase() === norm)) { inp.value = ''; return; }
     adData.locations.push(val);
     inp.value = '';
     renderLocations();
@@ -122,6 +170,10 @@ window.removeLocation = (i) => { adData.locations.splice(i, 1); renderLocations(
 function renderLocations() {
     document.getElementById('locationTags').innerHTML = adData.locations.map((t, i) =>
         `<span class="tag">${t} <i class="fas fa-times" onclick="window.removeLocation(${i})"></i></span>`).join('');
+    const hint = document.getElementById('locationHint');
+    if (hint) hint.innerText = adData.locations.length
+        ? `سيظهر الإعلان فقط لمن كتبوا موقعاً مطابقاً لهذه المناطق في بروفايلهم (${adData.locations.length} منطقة)`
+        : 'اتركها فارغة ليظهر الإعلان لكل المناطق الجغرافية';
 }
 
 window.uploadAdMedia = async (e) => {
@@ -170,6 +222,8 @@ window.submitAd = async () => {
         adData.status = 'pending_review';
         adData.totalBudget = calcTotal();
         adData.createdAt = Date.now();
+        adData.startTimestamp = adData.startDate ? new Date(adData.startDate).setHours(0, 0, 0, 0) : Date.now();
+        adData.endTimestamp = adData.startTimestamp + (adData.duration || 1) * 86400000;
         const newRef = push(ref(db, 'ads'));
         await set(newRef, { ...adData, id: newRef.key });
         document.getElementById('step5').style.display = 'none';
@@ -264,6 +318,11 @@ body{font-family:Cairo,sans-serif;background:#f1f5f9;color:#0f172a;min-height:10
 .tag{background:#eff6ff;color:#2563eb;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;display:inline-flex;align-items:center;gap:6px;margin:3px}
 .tag i{cursor:pointer;opacity:.7}
 .tag i:hover{opacity:1}
+.int-chips-wrap{display:flex;flex-wrap:wrap;gap:8px}
+.int-chip{border:2px solid #e2e8f0;border-radius:20px;padding:7px 14px;font-size:12.5px;font-weight:700;color:#475569;cursor:pointer;transition:.2s;user-select:none}
+.int-chip:hover{border-color:#7c3aed}
+.int-chip.selected{border-color:#7c3aed;background:#f5f3ff;color:#7c3aed}
+.targeting-hint{font-size:11.5px;color:#94a3b8;margin-top:8px;line-height:1.6}
 .budget-toggle{display:flex;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden;margin-bottom:12px}
 .budget-toggle button{flex:1;padding:10px;border:none;background:#fff;cursor:pointer;font-family:Cairo,sans-serif;font-size:13px;font-weight:700;color:#64748b;transition:.2s}
 .budget-toggle button.active{background:#2563eb;color:#fff}
@@ -438,6 +497,7 @@ body{font-family:Cairo,sans-serif;background:#f1f5f9;color:#0f172a;min-height:10
                 <input type="range" min="13" max="65" value="65" oninput="window.updateField('ageMax',this.value);document.getElementById('ageMaxVal').innerText=this.value">
             </div>
         </div>
+        <div class="targeting-hint">يعتمد على تاريخ الميلاد المسجل في بروفايل المستخدم؛ من لم يحدده سيظل مؤهلاً لرؤية الإعلان</div>
     </div>
     <div class="form-group">
         <label>الجنس</label>
@@ -446,22 +506,21 @@ body{font-family:Cairo,sans-serif;background:#f1f5f9;color:#0f172a;min-height:10
             <button class="gender-btn" onclick="window.selectGender('male',this)">ذكور فقط</button>
             <button class="gender-btn" onclick="window.selectGender('female',this)">إناث فقط</button>
         </div>
+        <div class="targeting-hint">يعتمد على الجنس المسجل في بروفايل المستخدم (اختياري)؛ من لم يحدده سيظل مؤهلاً لرؤية الإعلان</div>
     </div>
     <div class="form-group">
         <label>المناطق الجغرافية</label>
         <div style="display:flex;gap:8px;">
-            <input type="text" id="locationInput" placeholder="أضف مدينة أو دولة..." style="flex:1;" onkeypress="if(event.key==='Enter')window.addLocation()">
+            <input type="text" id="locationInput" placeholder="أضف مدينة أو دولة كما يكتبها المستخدمون في بروفايلهم..." style="flex:1;" onkeypress="if(event.key==='Enter')window.addLocation()">
             <button onclick="window.addLocation()" style="background:#2563eb;color:#fff;border:none;padding:10px 16px;border-radius:10px;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700;">+ إضافة</button>
         </div>
         <div id="locationTags" style="margin-top:8px;"></div>
+        <div id="locationHint" class="targeting-hint"></div>
     </div>
     <div class="form-group">
         <label>الاهتمامات</label>
-        <div style="display:flex;gap:8px;">
-            <input type="text" id="interestInput" placeholder="مثال: تقنية، طبخ، رياضة..." style="flex:1;" onkeypress="if(event.key==='Enter')window.addInterest()">
-            <button onclick="window.addInterest()" style="background:#7c3aed;color:#fff;border:none;padding:10px 16px;border-radius:10px;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700;">+ إضافة</button>
-        </div>
-        <div id="interestTags" style="margin-top:8px;"></div>
+        <div id="interestChips" class="int-chips-wrap"></div>
+        <div id="interestHint" class="targeting-hint"></div>
     </div>
 </div>
 <button class="btn-back" onclick="window.prevStep(3)"><i class="fas fa-arrow-right"></i> السابق</button>
@@ -477,11 +536,12 @@ body{font-family:Cairo,sans-serif;background:#f1f5f9;color:#0f172a;min-height:10
         <button onclick="this.parentElement.querySelectorAll('button').forEach(b=>b.classList.remove('active'));this.classList.add('active');window.updateField('budgetType','total')">ميزانية إجمالية</button>
     </div>
     <div class="form-group">
-        <label>الميزانية (بالجنيه المصري)</label>
+        <label id="budgetLabel">الميزانية اليومية (بالجنيه المصري)</label>
         <div class="range-wrap">
             <input type="range" min="10" max="5000" step="10" value="50" oninput="window.updateField('budget',this.value);document.getElementById('budgetVal').innerText=this.value">
             <span class="range-val" id="budgetVal">50</span> ج.م
         </div>
+        <div class="targeting-hint" id="budgetHint">سيتم إنفاق هذا المبلغ كل يوم طوال مدة الإعلان</div>
     </div>
     <div class="form-group">
         <label>مدة الإعلان (بالأيام)</label>
@@ -496,7 +556,8 @@ body{font-family:Cairo,sans-serif;background:#f1f5f9;color:#0f172a;min-height:10
     </div>
     <div class="budget-display">
         <div class="budget-total" id="totalBudgetDisplay">350 ج.م</div>
-        <div class="budget-label">إجمالي الإنفاق المتوقع</div>
+        <div class="budget-label" id="budgetTotalLabel">إجمالي الإنفاق المتوقع طوال 7 أيام</div>
+        <div class="targeting-hint" id="scheduleHint" style="margin-top:8px;"></div>
     </div>
 </div>
 
@@ -563,22 +624,5 @@ body{font-family:Cairo,sans-serif;background:#f1f5f9;color:#0f172a;min-height:10
 
 <div class="msg-toast" id="msgToast"></div>
 
-<script>
-// تحديث إجمالي الميزانية ديناميكياً
-setInterval(() => {
-    const total = (parseInt(document.getElementById('budgetVal')?.innerText||50)) * (parseInt(document.getElementById('durationVal')?.innerText||7));
-    const el = document.getElementById('totalBudgetDisplay');
-    if (el) el.innerText = total + ' ج.م';
-    const av = document.getElementById('adOwnerAv');
-    const owner = document.getElementById('adOwner');
-    if (av && owner) av.innerText = (owner.innerText||'').charAt(0).toUpperCase();
-    const dots = document.querySelectorAll('.step-dot');
-    const step = parseInt(window.adData?.step || 1);
-    dots.forEach((d, i) => {
-        d.classList.toggle('active', i+1 === step);
-        d.classList.toggle('done', i+1 < step);
-    });
-}, 300);
-</script>
 </body>
 </html>
