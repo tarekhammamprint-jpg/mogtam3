@@ -4,6 +4,7 @@ import "./auth.js";
 import "./communities.js";
 import "./chat.js";
 import "./video-call.js";
+import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js";
 
 // =============== ربط الدوال الداخلية بالنافذة لاستدعائها من auth.js ===============
 // يجب أن تكون هذه الربط في بداية الملف قبل تعريف الدوال
@@ -1703,7 +1704,109 @@ window.reportPost = (postId, postAuthor) => {
         }).catch(() => window.dlgAlert('حدث خطأ، حاول مرة أخرى.', 'danger', 'خطأ'));
     });
 };
-window.openEditProfileLogic = () => { let d = window.allUsersData[window.currentUser] || {}; $('editModalPicPreview').src = d.profilePic || dA; $('editPicBase64').value = d.profilePic || ''; $('editBio').value = d.bio || ''; $('editLocation').value = d.location || ''; $('editJob').value = d.job || ''; $('editEducation').value = d.education || ''; $('editHobbies').value = d.hobbies || ''; $('editDobProfile').value = d.birthdate || ''; $('editGender').value = d.gender || ''; $('editProfileModal').classList.add('show'); document.body.style.overflow = 'hidden'; };
+// ── الدول والمحافظات (استهداف جغرافي حقيقي) ──────────────────────────────────
+window.populateCountrySelect = (selectEl, selectedCountry) => {
+    if (!selectEl || selectEl.dataset.filled === '1') { if (selectedCountry) selectEl.value = selectedCountry; return; }
+    COUNTRY_NAMES.forEach(c => {
+        let opt = document.createElement('option');
+        opt.value = c; opt.innerText = c;
+        selectEl.appendChild(opt);
+    });
+    selectEl.dataset.filled = '1';
+    if (selectedCountry) selectEl.value = selectedCountry;
+};
+window.populateGovernorateSelect = (selectEl, country, selectedGov) => {
+    selectEl.innerHTML = '<option value="">المحافظة/الولاية (اختياري)</option>';
+    let list = (COUNTRIES_DATA[country] || []);
+    if (!country || list.length === 0) { selectEl.disabled = true; return; }
+    selectEl.disabled = false;
+    list.forEach(g => {
+        let opt = document.createElement('option');
+        opt.value = g; opt.innerText = g;
+        selectEl.appendChild(opt);
+    });
+    if (selectedGov) selectEl.value = selectedGov;
+};
+window.onEditCountryChange = () => {
+    let country = $('editCountrySelect').value;
+    window.populateGovernorateSelect($('editGovernorateSelect'), country);
+    $('editLocation').value = country || '';
+};
+window.onEditGovernorateChange = () => {
+    let country = $('editCountrySelect').value, gov = $('editGovernorateSelect').value;
+    $('editLocation').value = gov ? `${country} - ${gov}` : country;
+};
+// يفكك نص الموقع المخزن "الدولة" أو "الدولة - المحافظة" إلى جزأين
+window.parseLocationValue = (val) => {
+    if (!val) return { country: '', gov: '' };
+    let parts = val.split(' - ');
+    return { country: parts[0] || '', gov: parts[1] || '' };
+};
+
+// يزيل الكلمات الشائعة (محافظة/إمارة/ولاية...) لتسهيل مقارنة الأسماء القادمة من خدمة تحديد المواقع
+function normalizeLocName(s) {
+    return (s || '').toString().trim()
+        .replace(/^(محافظة|إمارة|ولاية|منطقة|مدينة|إقليم)\s+/g, '')
+        .replace(/\s+(governorate|province|region|emirate|state)$/i, '')
+        .trim().toLowerCase();
+}
+
+// تحديد الموقع الجغرافي الفعلي للعضو بدقة عبر GPS المتصفح + خدمة تحويل الإحداثيات لاسم مدينة/محافظة
+// (بديل مجاني عن خرائط جوجل لا يحتاج مفتاح API، مناسب لموقع مستضاف على GitHub Pages)
+window.detectMyLocation = () => {
+    const statusEl = $('geoLocStatus');
+    const setStatus = (msg) => { if (statusEl) statusEl.innerText = msg; };
+
+    if (!navigator.geolocation) { setStatus('متصفحك لا يدعم تحديد الموقع الجغرافي'); return; }
+    setStatus('جارِ تحديد موقعك بدقة... يرجى السماح بالوصول للموقع');
+
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+            const { latitude, longitude } = pos.coords;
+            const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=ar`);
+            if (!res.ok) throw new Error('geo-service-failed');
+            const data = await res.json();
+
+            const detectedCountry = (data.countryName || '').trim();
+            const detectedRegion = (data.principalSubdivision || '').trim();
+            const detectedCity = (data.city || data.locality || '').trim();
+
+            // مطابقة الدولة المكتشفة مع قائمتنا الرسمية
+            let matchedCountry = COUNTRY_NAMES.find(c => c === detectedCountry)
+                || COUNTRY_NAMES.find(c => detectedCountry && (c.includes(detectedCountry) || detectedCountry.includes(c)));
+
+            if (!matchedCountry) {
+                setStatus(`تم تحديد موقعك (${detectedCity || detectedRegion || detectedCountry || 'غير معروف'})، لكن الدولة غير مدرجة بعد — الرجاء الاختيار يدوياً`);
+                return;
+            }
+
+            $('editCountrySelect').value = matchedCountry;
+            window.populateGovernorateSelect($('editGovernorateSelect'), matchedCountry);
+
+            // محاولة مطابقة المحافظة/الولاية الفعلية بناءً على الاسم المكتشف
+            let govList = COUNTRIES_DATA[matchedCountry] || [];
+            let matchedGov = govList.find(g => normalizeLocName(g) === normalizeLocName(detectedRegion))
+                || govList.find(g => detectedRegion && normalizeLocName(detectedRegion).includes(normalizeLocName(g)))
+                || govList.find(g => detectedRegion && normalizeLocName(g).includes(normalizeLocName(detectedRegion)))
+                || govList.find(g => detectedCity && (normalizeLocName(g).includes(normalizeLocName(detectedCity)) || normalizeLocName(detectedCity).includes(normalizeLocName(g))));
+
+            if (matchedGov) {
+                $('editGovernorateSelect').value = matchedGov;
+                $('editLocation').value = `${matchedCountry} - ${matchedGov}`;
+                setStatus(`✓ تم تحديد موقعك بدقة: ${matchedCountry} - ${matchedGov}`);
+            } else {
+                $('editLocation').value = matchedCountry;
+                setStatus(`✓ تم تحديد الدولة: ${matchedCountry}${detectedCity ? ' (بالقرب من ' + detectedCity + ')' : ''} — اختر المحافظة يدوياً من القائمة`);
+            }
+        } catch (e) {
+            setStatus('تعذر الوصول لخدمة تحديد المدينة، يمكنك الاختيار يدوياً');
+        }
+    }, (err) => {
+        setStatus(err.code === 1 ? 'تم رفض إذن الوصول للموقع — يمكنك الاختيار يدوياً من القائمة' : 'تعذر تحديد موقعك، حاول مجدداً أو اختر يدوياً');
+    }, { enableHighAccuracy: true, timeout: 12000 });
+};
+
+window.openEditProfileLogic = () => { let d = window.allUsersData[window.currentUser] || {}; $('editModalPicPreview').src = d.profilePic || dA; $('editPicBase64').value = d.profilePic || ''; $('editBio').value = d.bio || ''; $('editJob').value = d.job || ''; $('editEducation').value = d.education || ''; $('editHobbies').value = d.hobbies || ''; $('editDobProfile').value = d.birthdate || ''; $('editGender').value = d.gender || ''; if ($('geoLocStatus')) $('geoLocStatus').innerText = ''; let loc = window.parseLocationValue(d.location); window.populateCountrySelect($('editCountrySelect'), loc.country); window.populateGovernorateSelect($('editGovernorateSelect'), loc.country, loc.gov); $('editLocation').value = d.location || ''; $('editProfileModal').classList.add('show'); document.body.style.overflow = 'hidden'; };
 
 // =============== دوال البروفايل المطور (عامودين) ===============
 
@@ -2580,7 +2683,6 @@ window.calcAge = (birthdateStr) => {
 // يحدد هل هذا الإعلان مستهدف فعلياً للمستخدم الحالي بناءً على بياناته الحقيقية
 // (العمر، الجنس، الموقع، الاهتمامات) وليس بشكل عشوائي
 window.isAdEligibleForCurrentUser = (ad) => {
-    if (window.currentUser && ad.owner === window.currentUser) return false; // لا نعرض للمعلن إعلانه الخاص
     let d = window.currentUser ? (window.allUsersData[window.currentUser] || {}) : {};
 
     // الفئة العمرية: نستبعد فقط إذا كان لدى المستخدم تاريخ ميلاد حقيقي يقع خارج النطاق
@@ -2597,13 +2699,15 @@ window.isAdEligibleForCurrentUser = (ad) => {
         if (window.currentUser && d.gender && d.gender !== ad.gender) return false;
     }
 
-    // المناطق الجغرافية: مطابقة نصية بين موقع المستخدم الفعلي ومناطق استهداف الإعلان
+    // المناطق الجغرافية: مطابقة دقيقة بين موقع المستخدم المُهيكل (دولة أو دولة - محافظة) ومناطق استهداف الإعلان
     if (ad.locations && ad.locations.length > 0) {
         if (!window.currentUser || !d.location) return false;
-        let ul = d.location.trim().toLowerCase();
+        let ul = d.location.trim();
         let matched = ad.locations.some(loc => {
-            let l = String(loc).trim().toLowerCase();
-            return l && (ul.includes(l) || l.includes(ul));
+            let l = String(loc).trim();
+            if (l === ul) return true; // تطابق دقيق (نفس الدولة أو نفس المحافظة)
+            if (!l.includes(' - ') && ul.split(' - ')[0] === l) return true; // الإعلان يستهدف دولة كاملة، والمستخدم من أي محافظة فيها
+            return false;
         });
         if (!matched) return false;
     }
