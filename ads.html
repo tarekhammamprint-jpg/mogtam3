@@ -9,6 +9,7 @@
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getDatabase, ref, push, set, get } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js";
 
 const app = initializeApp({
     apiKey: "AIzaSyAD5-oCqWmvrjKD24uSRNqqxoijQnsnqA4",
@@ -70,6 +71,7 @@ window.addEventListener('DOMContentLoaded', () => {
     document.getElementById('startDate').min = new Date().toISOString().split('T')[0];
     adData.startDate = document.getElementById('startDate').value;
     renderInterestChips();
+    populateCountrySelect();
     renderLocations();
     renderStep(1);
 });
@@ -112,6 +114,7 @@ window.nextStep = (n) => {
     if (n === 2 && !adData.objective) return showMsg('اختر هدف الإعلان أولاً', 'error');
     if (n === 3 && (!adData.headline || !adData.description)) return showMsg('أدخل عنوان ووصف الإعلان', 'error');
     if (n === 4 && !adData.mediaUrl) return showMsg('يجب رفع صورة أو فيديو للإعلان', 'error');
+    if (n === 5 && (!adData.locations || adData.locations.length === 0)) return showMsg('حدد دولة أو محافظة واحدة على الأقل — الاستهداف الجغرافي أساسي لتفعيل الإعلان', 'error');
     renderStep(n);
 };
 window.prevStep = (n) => renderStep(n);
@@ -156,24 +159,63 @@ window.toggleAdInterest = (cat, el) => {
     renderInterestChips();
 };
 
-window.addLocation = () => {
-    const inp = document.getElementById('locationInput');
-    const val = inp.value.trim();
-    if (!val) return;
-    const norm = val.toLowerCase();
-    if (adData.locations.some(l => l.toLowerCase() === norm)) { inp.value = ''; return; }
-    adData.locations.push(val);
-    inp.value = '';
-    renderLocations();
+// اختيار الدولة والمحافظة/الولاية للاستهداف الجغرافي الحقيقي
+function populateCountrySelect() {
+    const sel = document.getElementById('countrySelect');
+    if (!sel || sel.dataset.filled === '1') return;
+    COUNTRY_NAMES.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c; opt.innerText = c;
+        sel.appendChild(opt);
+    });
+    sel.dataset.filled = '1';
+}
+window.onCountrySelected = () => {
+    const country = document.getElementById('countrySelect').value;
+    const govSel = document.getElementById('governorateSelect');
+    const wholeBtn = document.getElementById('addWholeCountryBtn');
+    govSel.innerHTML = '<option value="">اختر المحافظة/الولاية...</option>';
+    const list = COUNTRIES_DATA[country] || [];
+    if (country && list.length > 0) {
+        govSel.disabled = false;
+        list.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g; opt.innerText = g;
+            govSel.appendChild(opt);
+        });
+    } else {
+        govSel.disabled = true;
+    }
+    if (wholeBtn) {
+        wholeBtn.style.display = country ? 'inline-flex' : 'none';
+        wholeBtn.innerHTML = `<i class="fas fa-globe-africa"></i> استهدف كل ${country}`;
+    }
 };
+window.addWholeCountryTarget = () => {
+    const country = document.getElementById('countrySelect').value;
+    if (!country) return;
+    addLocationTag(country);
+};
+window.addGovernorateTarget = () => {
+    const country = document.getElementById('countrySelect').value;
+    const gov = document.getElementById('governorateSelect').value;
+    if (!country || !gov) return;
+    addLocationTag(`${country} - ${gov}`);
+    document.getElementById('governorateSelect').value = '';
+};
+function addLocationTag(val) {
+    if (adData.locations.includes(val)) return;
+    adData.locations.push(val);
+    renderLocations();
+}
 window.removeLocation = (i) => { adData.locations.splice(i, 1); renderLocations(); };
 function renderLocations() {
     document.getElementById('locationTags').innerHTML = adData.locations.map((t, i) =>
         `<span class="tag">${t} <i class="fas fa-times" onclick="window.removeLocation(${i})"></i></span>`).join('');
     const hint = document.getElementById('locationHint');
     if (hint) hint.innerText = adData.locations.length
-        ? `سيظهر الإعلان فقط لمن كتبوا موقعاً مطابقاً لهذه المناطق في بروفايلهم (${adData.locations.length} منطقة)`
-        : 'اتركها فارغة ليظهر الإعلان لكل المناطق الجغرافية';
+        ? `سيظهر الإعلان فقط لمن حدد إحدى هذه المناطق فعلياً في بروفايله (${adData.locations.length} منطقة مستهدفة)`
+        : 'مطلوب: حدد دولة واحدة على الأقل ليتم تفعيل استهداف الإعلان جغرافياً';
 }
 
 window.uploadAdMedia = async (e) => {
@@ -486,6 +528,22 @@ body{font-family:Cairo,sans-serif;background:#f1f5f9;color:#0f172a;min-height:10
 <div class="card">
     <h3><i class="fas fa-users"></i> تحديد الجمهور المستهدف</h3>
     <div class="form-group">
+        <label>المناطق الجغرافية <span style="color:#ef4444">*</span></label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <select id="countrySelect" onchange="window.onCountrySelected()" style="flex:1;min-width:160px;">
+                <option value="">اختر الدولة...</option>
+            </select>
+            <select id="governorateSelect" onchange="window.addGovernorateTarget()" style="flex:1;min-width:160px;" disabled>
+                <option value="">اختر المحافظة/الولاية...</option>
+            </select>
+        </div>
+        <button type="button" id="addWholeCountryBtn" onclick="window.addWholeCountryTarget()" style="display:none;margin-top:8px;background:#0f172a;color:#fff;border:none;padding:8px 16px;border-radius:10px;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700;font-size:12.5px;align-items:center;gap:6px;">
+            <i class="fas fa-globe-africa"></i> استهدف الدولة كاملة
+        </button>
+        <div id="locationTags" style="margin-top:8px;"></div>
+        <div id="locationHint" class="targeting-hint"></div>
+    </div>
+    <div class="form-group">
         <label>الفئة العمرية</label>
         <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;">
             <div style="flex:1;">
@@ -507,15 +565,6 @@ body{font-family:Cairo,sans-serif;background:#f1f5f9;color:#0f172a;min-height:10
             <button class="gender-btn" onclick="window.selectGender('female',this)">إناث فقط</button>
         </div>
         <div class="targeting-hint">يعتمد على الجنس المسجل في بروفايل المستخدم (اختياري)؛ من لم يحدده سيظل مؤهلاً لرؤية الإعلان</div>
-    </div>
-    <div class="form-group">
-        <label>المناطق الجغرافية</label>
-        <div style="display:flex;gap:8px;">
-            <input type="text" id="locationInput" placeholder="أضف مدينة أو دولة كما يكتبها المستخدمون في بروفايلهم..." style="flex:1;" onkeypress="if(event.key==='Enter')window.addLocation()">
-            <button onclick="window.addLocation()" style="background:#2563eb;color:#fff;border:none;padding:10px 16px;border-radius:10px;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700;">+ إضافة</button>
-        </div>
-        <div id="locationTags" style="margin-top:8px;"></div>
-        <div id="locationHint" class="targeting-hint"></div>
     </div>
     <div class="form-group">
         <label>الاهتمامات</label>
