@@ -121,7 +121,19 @@
             <div style="text-align:right;margin-bottom:5px;font-weight:bold;color:var(--text-muted);">النبذة التعريفية:</div>
             <input type="text" id="editBio" class="modal-input" placeholder="اكتب نبذة قصيرة عنك..." />
             <div style="text-align:right;margin-bottom:5px;font-weight:bold;color:var(--text-muted);">الموقع/البلد:</div>
-            <input type="text" id="editLocation" class="modal-input" placeholder="المدينة، البلد..." />
+            <button type="button" onclick="window.detectMyLocation()" style="width:100%;margin-bottom:8px;background:#eff6ff;color:#2563eb;border:2px solid #bfdbfe;padding:10px;border-radius:10px;cursor:pointer;font-family:'Cairo',sans-serif;font-weight:700;font-size:13.5px;display:flex;align-items:center;justify-content:center;gap:8px;">
+                <em class="fas fa-location-crosshairs"></em> تحديد موقعي تلقائيًا (أدق نتيجة)
+            </button>
+            <div id="geoLocStatus" style="text-align:center;font-size:11.5px;color:var(--text-muted);margin-bottom:8px;min-height:14px;"></div>
+            <div style="display:flex;gap:8px;">
+                <select id="editCountrySelect" class="modal-input" style="flex:1;" onchange="window.onEditCountryChange()">
+                    <option value="">اختر الدولة...</option>
+                </select>
+                <select id="editGovernorateSelect" class="modal-input" style="flex:1;" onchange="window.onEditGovernorateChange()" disabled>
+                    <option value="">المحافظة/الولاية (اختياري)</option>
+                </select>
+            </div>
+            <input type="hidden" id="editLocation" />
             <div style="text-align:right;margin-bottom:5px;font-weight:bold;color:var(--text-muted);">تاريخ الميلاد:</div>
             <input type="date" id="editDobProfile" class="modal-input" />
             <div style="text-align:right;margin-bottom:5px;font-weight:bold;color:var(--text-muted);">الجنس:</div>
