@@ -58,6 +58,30 @@
         </div>
     </div>
 
+    <div class="modal" id="locationStepModal" style="background: rgba(15, 23, 42, 0.9);">
+        <div class="modal-content" style="max-width:460px;text-align:center;padding:30px 25px;">
+            <div style="font-size:48px;color:var(--primary);margin-bottom:8px;"><em class="fas fa-map-marker-alt"></em></div>
+            <h2 style="margin:0 0 8px;color:var(--primary);">حدد موقعك الجغرافي</h2>
+            <p style="color:var(--text-muted); font-weight:600; font-size:14px; line-height:1.8; margin-bottom:20px;">
+                نستخدم موقعك لعرض محتوى وإعلانات مناسبة لمنطقتك فقط. هذه خطوة مطلوبة مرة واحدة لإكمال إعداد حسابك.
+            </p>
+            <div id="locStepStatus" style="font-size:13px;color:var(--text-muted);margin-bottom:16px;min-height:20px;display:flex;align-items:center;justify-content:center;gap:8px;">
+                <em class="fas fa-spinner fa-spin"></em> جارِ محاولة تحديد موقعك تلقائيًا...
+            </div>
+            <div id="locStepManualWrap" style="display:none;margin-bottom:14px;">
+                <div style="display:flex;gap:8px;">
+                    <select id="locStepCountry" class="modal-input" style="flex:1;" onchange="window.onLocStepCountryChange()">
+                        <option value="">اختر الدولة...</option>
+                    </select>
+                    <select id="locStepGov" class="modal-input" style="flex:1;" onchange="window.onLocStepGovChange()" disabled>
+                        <option value="">المحافظة (اختياري)</option>
+                    </select>
+                </div>
+            </div>
+            <button id="locStepContinueBtn" onclick="window.confirmLocationStep()" disabled class="btn-primary" style="width:100%; padding:15px; font-size:16px; opacity:.5; cursor:not-allowed;">متابعة</button>
+        </div>
+    </div>
+
     <div class="modal" id="statsModal">
         <div style="padding:25px;" class="modal-content">
             <span onclick="window.closeModal('statsModal')" class="close-btn"><em class="fas fa-times"></em></span>
