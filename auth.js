@@ -430,12 +430,8 @@ window.fL = function(u, d) {
         console.error("Error setting online status:", e);
     }
     
-    // عرض نافذة الاهتمامات إذا لزم الأمر
-    if(!d.interests || d.interests.length === 0) { 
-        setTimeout(() => {
-            if(window.renderInterestsModal) window.renderInterestsModal();
-        }, 1000); 
-    }
+    // عرض خطوات الإعداد المطلوبة (الاهتمامات ثم تحديد الموقع الجغرافي) إذا لزم الأمر
+    if(window.runOnboardingChecks) window.runOnboardingChecks(d);
     
     // بدء المستمعين - نستخدم setTimeout للتأكد من تحميل كل شيء
     setTimeout(() => {
