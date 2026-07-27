@@ -941,7 +941,7 @@ window.renderSuggestedUsersModal = () => { let s = window.getSuggestions ? windo
 
 window.renderInterestsModal = () => { window.selectedInterests = new Set(); let c = $('interestsContainer'), h = ''; if(c) { window.PLATFORM_INTERESTS?.forEach(cat => { h += `<div class="interest-chip" onclick="window.toggleInterest(this, '${cat}')">${cat}</div>`; }); c.innerHTML = h; $('interestsModal').classList.add('show'); document.body.style.overflow = 'hidden'; } };
 window.toggleInterest = (el, cat) => { if(window.selectedInterests.has(cat)) { window.selectedInterests.delete(cat); el.classList.remove('selected'); } else { window.selectedInterests.add(cat); el.classList.add('selected'); } };
-window.saveUserInterests = () => { if(window.selectedInterests.size < 3) return window.dlgAlert("الرجاء اختيار 3 اهتمامات على الأقل ليتم تخصيص المنصة لك.", "warning", "تنبيه"); let arr = Array.from(window.selectedInterests); let btn = $('saveInterestsBtn'), ot = btn.innerText; btn.innerText = "جاري الحفظ..."; btn.disabled = true; update(ref(db, `users/${window.currentUser}`), { interests: arr }).then(() => { $('interestsModal').classList.remove('show'); document.body.style.overflow = 'auto'; btn.innerText = ot; btn.disabled = false; window.dlgAlert("تم تخصيص تجربتك بنجاح! ✨", "success", "تم الحفظ"); }).catch(e => { window.dlgAlert("حدث خطأ، يرجى المحاولة مجدداً.", "danger", "خطأ"); btn.innerText = ot; btn.disabled = false; }); };
+window.saveUserInterests = () => { if(window.selectedInterests.size < 3) return window.dlgAlert("الرجاء اختيار 3 اهتمامات على الأقل ليتم تخصيص المنصة لك.", "warning", "تنبيه"); let arr = Array.from(window.selectedInterests); let btn = $('saveInterestsBtn'), ot = btn.innerText; btn.innerText = "جاري الحفظ..."; btn.disabled = true; update(ref(db, `users/${window.currentUser}`), { interests: arr }).then(async () => { $('interestsModal').classList.remove('show'); document.body.style.overflow = 'auto'; btn.innerText = ot; btn.disabled = false; await window.dlgAlert("تم تخصيص تجربتك بنجاح! ✨", "success", "تم الحفظ"); if (window.pendingLocationStep) { window.pendingLocationStep = false; if (window.renderLocationStepModal) window.renderLocationStepModal(); } }).catch(e => { window.dlgAlert("حدث خطأ، يرجى المحاولة مجدداً.", "danger", "خطأ"); btn.innerText = ot; btn.disabled = false; }); };
 
 function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(500)), s => { let l = []; if(s.exists()){ s.forEach(c => { let p=c.val(); p.id=c.key; window.postCache[p.id]=p; if(!p.isNewsBot) l.push(p); }); l.sort((a,b) => b.timestamp - a.timestamp); } window.allPosts = l; window.renderReelsTopBar(); if(window.isInitialLoad){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); window.isInitialLoad=false; handleRouting(); } else { let hash = window.location.hash; if(hash.startsWith('#/post/')){ let up = window.postCache[decodeURIComponent(hash.replace('#/post/', ''))]; if(up) window.openPostLogic(up.id); } let nc = l.filter(p=>!window.renderedPostIds.has(p.id)).length, mp = l.some(p=>p.author===window.currentUser&&!window.renderedPostIds.has(p.id)); if(mp){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); $('newPostsBtn').style.display='none'; } else if(nc>=1){ $('newPostsBtn').style.display='block'; $('newPostsBtn').innerHTML=`<i class='fas fa-arrow-up'></i> ${nc} منشور جديد — انقر للتحديث`; $('newPostsBtn').style.display='flex'; } else { let ci=new Set(l.map(p=>p.id)); for(let id of window.renderedPostIds) if(!ci.has(id)) window.renderedPostIds.delete(id); } } if(window.location.hash.startsWith('#/@')) try { renderProfilePosts(decodeURIComponent(window.location.hash.replace('#/@', ''))) } catch(e){} }); }
 window.showNewPosts = () => { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim=5; renderFeed(); $('newPostsBtn').style.display='none'; window.scrollTo({top:0, behavior:'smooth'}); };
@@ -1751,59 +1751,129 @@ function normalizeLocName(s) {
         .trim().toLowerCase();
 }
 
-// تحديد الموقع الجغرافي الفعلي للعضو بدقة عبر GPS المتصفح + خدمة تحويل الإحداثيات لاسم مدينة/محافظة
+// دالة مشتركة: تحاول تحديد الموقع عبر GPS المتصفح وتحويله لاسم دولة/محافظة مطابق لقائمتنا الرسمية
 // (بديل مجاني عن خرائط جوجل لا يحتاج مفتاح API، مناسب لموقع مستضاف على GitHub Pages)
-window.detectMyLocation = () => {
+// ترجع Promise بـ {country, gov, city} عند النجاح، أو null عند الفشل/الرفض
+function attemptGeoDetection() {
+    return new Promise((resolve) => {
+        if (!navigator.geolocation) return resolve(null);
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            try {
+                const { latitude, longitude } = pos.coords;
+                const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=ar`);
+                if (!res.ok) return resolve(null);
+                const data = await res.json();
+                const detectedCountry = (data.countryName || '').trim();
+                const detectedRegion = (data.principalSubdivision || '').trim();
+                const detectedCity = (data.city || data.locality || '').trim();
+
+                let matchedCountry = COUNTRY_NAMES.find(c => c === detectedCountry)
+                    || COUNTRY_NAMES.find(c => detectedCountry && (c.includes(detectedCountry) || detectedCountry.includes(c)));
+                if (!matchedCountry) return resolve({ country: '', gov: '', city: detectedCity || detectedRegion || detectedCountry });
+
+                let govList = COUNTRIES_DATA[matchedCountry] || [];
+                let matchedGov = govList.find(g => normalizeLocName(g) === normalizeLocName(detectedRegion))
+                    || govList.find(g => detectedRegion && normalizeLocName(detectedRegion).includes(normalizeLocName(g)))
+                    || govList.find(g => detectedRegion && normalizeLocName(g).includes(normalizeLocName(detectedRegion)))
+                    || govList.find(g => detectedCity && (normalizeLocName(g).includes(normalizeLocName(detectedCity)) || normalizeLocName(detectedCity).includes(normalizeLocName(g))));
+
+                resolve({ country: matchedCountry, gov: matchedGov || '', city: detectedCity });
+            } catch (e) { resolve(null); }
+        }, () => resolve(null), { enableHighAccuracy: true, timeout: 12000 });
+    });
+}
+
+// تحديد الموقع الجغرافي الفعلي للعضو (يُستخدم من زر "تحديد موقعي تلقائيًا" في تعديل البروفايل)
+window.detectMyLocation = async () => {
     const statusEl = $('geoLocStatus');
     const setStatus = (msg) => { if (statusEl) statusEl.innerText = msg; };
-
     if (!navigator.geolocation) { setStatus('متصفحك لا يدعم تحديد الموقع الجغرافي'); return; }
     setStatus('جارِ تحديد موقعك بدقة... يرجى السماح بالوصول للموقع');
 
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-        try {
-            const { latitude, longitude } = pos.coords;
-            const res = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=ar`);
-            if (!res.ok) throw new Error('geo-service-failed');
-            const data = await res.json();
+    const result = await attemptGeoDetection();
+    if (!result) { setStatus('تم رفض إذن الموقع أو تعذر تحديده — يمكنك الاختيار يدوياً من القائمة'); return; }
+    if (!result.country) { setStatus(`تم تحديد موقعك (${result.city || 'غير معروف'})، لكن الدولة غير مدرجة بعد — الرجاء الاختيار يدوياً`); return; }
 
-            const detectedCountry = (data.countryName || '').trim();
-            const detectedRegion = (data.principalSubdivision || '').trim();
-            const detectedCity = (data.city || data.locality || '').trim();
+    $('editCountrySelect').value = result.country;
+    window.populateGovernorateSelect($('editGovernorateSelect'), result.country);
+    if (result.gov) {
+        $('editGovernorateSelect').value = result.gov;
+        $('editLocation').value = `${result.country} - ${result.gov}`;
+        setStatus(`✓ تم تحديد موقعك بدقة: ${result.country} - ${result.gov}`);
+    } else {
+        $('editLocation').value = result.country;
+        setStatus(`✓ تم تحديد الدولة: ${result.country}${result.city ? ' (بالقرب من ' + result.city + ')' : ''} — اختر المحافظة يدوياً من القائمة`);
+    }
+};
 
-            // مطابقة الدولة المكتشفة مع قائمتنا الرسمية
-            let matchedCountry = COUNTRY_NAMES.find(c => c === detectedCountry)
-                || COUNTRY_NAMES.find(c => detectedCountry && (c.includes(detectedCountry) || detectedCountry.includes(c)));
+// ═══════════ خطوة تحديد الموقع الإجبارية بعد التسجيل ═══════════
+window.pendingLocationStep = false;
 
-            if (!matchedCountry) {
-                setStatus(`تم تحديد موقعك (${detectedCity || detectedRegion || detectedCountry || 'غير معروف'})، لكن الدولة غير مدرجة بعد — الرجاء الاختيار يدوياً`);
-                return;
-            }
+// ينسّق خطوات الإعداد المطلوبة بعد تسجيل الدخول: الاهتمامات أولاً ثم الموقع الجغرافي
+window.runOnboardingChecks = (d) => {
+    let needsInterests = !d.interests || d.interests.length === 0;
+    let needsLocation = !d.location;
+    window.pendingLocationStep = needsLocation;
+    if (needsInterests) {
+        setTimeout(() => { if (window.renderInterestsModal) window.renderInterestsModal(); }, 1000);
+    } else if (needsLocation) {
+        setTimeout(() => { if (window.renderLocationStepModal) window.renderLocationStepModal(); }, 1000);
+    }
+};
 
-            $('editCountrySelect').value = matchedCountry;
-            window.populateGovernorateSelect($('editGovernorateSelect'), matchedCountry);
+window.renderLocationStepModal = () => {
+    $('locStepStatus').innerHTML = '<em class="fas fa-spinner fa-spin"></em> جارِ محاولة تحديد موقعك تلقائيًا...';
+    $('locStepManualWrap').style.display = 'none';
+    $('locStepContinueBtn').disabled = true;
+    $('locStepContinueBtn').style.opacity = '.5';
+    $('locStepContinueBtn').style.cursor = 'not-allowed';
+    window.locStepResult = null;
+    window.populateCountrySelect($('locStepCountry'));
+    $('locationStepModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
 
-            // محاولة مطابقة المحافظة/الولاية الفعلية بناءً على الاسم المكتشف
-            let govList = COUNTRIES_DATA[matchedCountry] || [];
-            let matchedGov = govList.find(g => normalizeLocName(g) === normalizeLocName(detectedRegion))
-                || govList.find(g => detectedRegion && normalizeLocName(detectedRegion).includes(normalizeLocName(g)))
-                || govList.find(g => detectedRegion && normalizeLocName(g).includes(normalizeLocName(detectedRegion)))
-                || govList.find(g => detectedCity && (normalizeLocName(g).includes(normalizeLocName(detectedCity)) || normalizeLocName(detectedCity).includes(normalizeLocName(g))));
-
-            if (matchedGov) {
-                $('editGovernorateSelect').value = matchedGov;
-                $('editLocation').value = `${matchedCountry} - ${matchedGov}`;
-                setStatus(`✓ تم تحديد موقعك بدقة: ${matchedCountry} - ${matchedGov}`);
-            } else {
-                $('editLocation').value = matchedCountry;
-                setStatus(`✓ تم تحديد الدولة: ${matchedCountry}${detectedCity ? ' (بالقرب من ' + detectedCity + ')' : ''} — اختر المحافظة يدوياً من القائمة`);
-            }
-        } catch (e) {
-            setStatus('تعذر الوصول لخدمة تحديد المدينة، يمكنك الاختيار يدوياً');
+    attemptGeoDetection().then(result => {
+        if (result && result.country) {
+            window.locStepResult = `${result.country}${result.gov ? ' - ' + result.gov : ''}`;
+            $('locStepCountry').value = result.country;
+            window.populateGovernorateSelect($('locStepGov'), result.country, result.gov);
+            $('locStepStatus').innerHTML = `<em class="fas fa-check-circle" style="color:#16a34a;"></em> تم تحديد موقعك تلقائيًا: ${window.locStepResult}`;
+            $('locStepManualWrap').style.display = 'block';
+            window.enableLocStepContinue();
+        } else {
+            $('locStepStatus').innerHTML = `<em class="fas fa-info-circle"></em> تعذر التحديد التلقائي (قد يكون الإذن مرفوضاً) — اختر موقعك يدوياً من فضلك`;
+            $('locStepManualWrap').style.display = 'block';
         }
-    }, (err) => {
-        setStatus(err.code === 1 ? 'تم رفض إذن الوصول للموقع — يمكنك الاختيار يدوياً من القائمة' : 'تعذر تحديد موقعك، حاول مجدداً أو اختر يدوياً');
-    }, { enableHighAccuracy: true, timeout: 12000 });
+    });
+};
+
+window.onLocStepCountryChange = () => {
+    let country = $('locStepCountry').value;
+    window.populateGovernorateSelect($('locStepGov'), country);
+    window.locStepResult = country || null;
+    if (country) window.enableLocStepContinue(); else window.disableLocStepContinue();
+};
+window.onLocStepGovChange = () => {
+    let country = $('locStepCountry').value, gov = $('locStepGov').value;
+    window.locStepResult = gov ? `${country} - ${gov}` : country;
+};
+window.enableLocStepContinue = () => { let b = $('locStepContinueBtn'); b.disabled = false; b.style.opacity = '1'; b.style.cursor = 'pointer'; };
+window.disableLocStepContinue = () => { let b = $('locStepContinueBtn'); b.disabled = true; b.style.opacity = '.5'; b.style.cursor = 'not-allowed'; };
+
+window.confirmLocationStep = () => {
+    if (!window.locStepResult || !window.currentUser) return;
+    let btn = $('locStepContinueBtn'), ot = btn.innerText;
+    btn.innerText = 'جارِ الحفظ...'; btn.disabled = true;
+    update(ref(db, `users/${window.currentUser}`), { location: window.locStepResult }).then(() => {
+        if (window.allUsersData[window.currentUser]) window.allUsersData[window.currentUser].location = window.locStepResult;
+        $('locationStepModal').classList.remove('show');
+        document.body.style.overflow = 'auto';
+        btn.innerText = ot; btn.disabled = false;
+        window.refreshEligibleAds && window.refreshEligibleAds();
+    }).catch(() => {
+        btn.innerText = ot; btn.disabled = false;
+        window.dlgAlert('حدث خطأ أثناء الحفظ، يرجى المحاولة مجدداً.', 'danger', 'خطأ');
+    });
 };
 
 window.openEditProfileLogic = () => { let d = window.allUsersData[window.currentUser] || {}; $('editModalPicPreview').src = d.profilePic || dA; $('editPicBase64').value = d.profilePic || ''; $('editBio').value = d.bio || ''; $('editJob').value = d.job || ''; $('editEducation').value = d.education || ''; $('editHobbies').value = d.hobbies || ''; $('editDobProfile').value = d.birthdate || ''; $('editGender').value = d.gender || ''; if ($('geoLocStatus')) $('geoLocStatus').innerText = ''; let loc = window.parseLocationValue(d.location); window.populateCountrySelect($('editCountrySelect'), loc.country); window.populateGovernorateSelect($('editGovernorateSelect'), loc.country, loc.gov); $('editLocation').value = d.location || ''; $('editProfileModal').classList.add('show'); document.body.style.overflow = 'hidden'; };
@@ -2700,14 +2770,17 @@ window.isAdEligibleForCurrentUser = (ad) => {
     }
 
     // المناطق الجغرافية: مطابقة دقيقة بين موقع المستخدم المُهيكل (دولة أو دولة - محافظة) ومناطق استهداف الإعلان
+    // مع دعم توافقي للبيانات القديمة (نصوص حرة أُدخلت قبل اعتماد قائمة الدول/المحافظات الرسمية)
     if (ad.locations && ad.locations.length > 0) {
         if (!window.currentUser || !d.location) return false;
         let ul = d.location.trim();
+        let ulLower = ul.toLowerCase();
         let matched = ad.locations.some(loc => {
             let l = String(loc).trim();
             if (l === ul) return true; // تطابق دقيق (نفس الدولة أو نفس المحافظة)
             if (!l.includes(' - ') && ul.split(' - ')[0] === l) return true; // الإعلان يستهدف دولة كاملة، والمستخدم من أي محافظة فيها
-            return false;
+            let lLower = l.toLowerCase();
+            return lLower && (ulLower.includes(lLower) || lLower.includes(ulLower)); // توافق مع بيانات نصية قديمة
         });
         if (!matched) return false;
     }
@@ -3012,11 +3085,7 @@ window.fL = function(u, d) {
         console.error("Error setting online status:", e);
     }
     
-    if(!d.interests || d.interests.length === 0) { 
-        setTimeout(() => {
-            if(window.renderInterestsModal) window.renderInterestsModal();
-        }, 1000); 
-    }
+    window.runOnboardingChecks && window.runOnboardingChecks(d);
     
     if(!window.usersListenerActive) { 
         window.usersListenerActive = true; 
