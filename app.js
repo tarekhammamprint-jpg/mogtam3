@@ -1865,7 +1865,9 @@ window.confirmLocationStep = () => {
     let btn = $('locStepContinueBtn'), ot = btn.innerText;
     btn.innerText = 'جارِ الحفظ...'; btn.disabled = true;
     update(ref(db, `users/${window.currentUser}`), { location: window.locStepResult, locationPrecise: true }).then(() => {
-        if (window.allUsersData[window.currentUser]) { window.allUsersData[window.currentUser].location = window.locStepResult; window.allUsersData[window.currentUser].locationPrecise = true; }
+        if (!window.allUsersData[window.currentUser]) window.allUsersData[window.currentUser] = {};
+        window.allUsersData[window.currentUser].location = window.locStepResult;
+        window.allUsersData[window.currentUser].locationPrecise = true;
         $('locationStepModal').classList.remove('show');
         document.body.style.overflow = 'auto';
         btn.innerText = ot; btn.disabled = false;
@@ -2798,6 +2800,26 @@ window.isAdEligibleForCurrentUser = (ad) => {
 window.refreshEligibleAds = () => {
     window.activeAds = (window.allAdsRaw || []).filter(window.isAdEligibleForCurrentUser);
     renderSidebarAd();
+};
+
+// أداة تشخيص: افتح Console المتصفح (F12) واكتب window.debugMyAds()
+// عشان تعرف بالظبط ليه إعلان معين بيظهرلك أو لأ (الموقع/الاهتمامات/العمر/الجنس/الحالة)
+window.debugMyAds = () => {
+    let d = window.allUsersData[window.currentUser] || {};
+    console.log('%cبيانات موقعك الحالية المستخدمة في المطابقة:', 'font-weight:bold;color:#2563eb;font-size:13px;', {
+        location: d.location, locationPrecise: d.locationPrecise, gender: d.gender, birthdate: d.birthdate, interests: d.interests
+    });
+    if (!window.allAdsRaw || window.allAdsRaw.length === 0) {
+        console.log('%cمفيش أي إعلان status=active حاليًا (تأكد إن الإعلان معتمد من لوحة التحكم)', 'color:#dc2626;');
+        return;
+    }
+    window.allAdsRaw.forEach(ad => {
+        let eligible = window.isAdEligibleForCurrentUser(ad);
+        console.log(`%c— إعلان [${ad.id}] "${ad.headline || ''}" | مؤهل لك؟ ${eligible ? '✓ نعم' : '✗ لا'}`, `color:${eligible ? '#16a34a' : '#dc2626'};font-weight:bold;`, {
+            locations: ad.locations, interests: ad.interests, ageMin: ad.ageMin, ageMax: ad.ageMax, gender: ad.gender, status: ad.status
+        });
+    });
+    console.log(`%cإجمالي الإعلانات النشطة: ${window.allAdsRaw.length} | المؤهلة لك فعليًا: ${(window.activeAds || []).length}`, 'font-weight:bold;');
 };
 
 function createAdHTML(ad) {
