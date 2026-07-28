@@ -1,10 +1,10 @@
 import { ref, set, get, update, push, remove, onValue, query, orderByChild, limitToLast, equalTo, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
-import "./auth.js?v=20260728d";
-import "./communities.js?v=20260728d";
-import "./chat.js?v=20260728d";
-import "./video-call.js?v=20260728d";
-import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js?v=20260728d";
+import "./auth.js?v=20260728e";
+import "./communities.js?v=20260728e";
+import "./chat.js?v=20260728e";
+import "./video-call.js?v=20260728e";
+import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js?v=20260728e";
 
 // =============== ربط الدوال الداخلية بالنافذة لاستدعائها من auth.js ===============
 // يجب أن تكون هذه الربط في بداية الملف قبل تعريف الدوال
@@ -2754,27 +2754,34 @@ window.calcAge = (birthdateStr) => {
 
 // يحدد هل هذا الإعلان مستهدف فعلياً للمستخدم الحالي بناءً على بياناته الحقيقية
 // (العمر، الجنس، الموقع، الاهتمامات) وليس بشكل عشوائي
-window.isAdEligibleForCurrentUser = (ad) => {
+// نفس منطق الأهلية، لكن يرجع السبب الدقيق للرفض (يُستخدم في أداة التشخيص)
+window.explainAdEligibility = (ad) => {
     let d = window.currentUser ? (window.allUsersData[window.currentUser] || {}) : {};
 
     // الفئة العمرية: نستبعد فقط إذا كان لدى المستخدم تاريخ ميلاد حقيقي يقع خارج النطاق
     if (window.currentUser && d.birthdate) {
         let age = window.calcAge(d.birthdate);
         if (age != null) {
-            if (ad.ageMin && age < ad.ageMin) return false;
-            if (ad.ageMax && age > ad.ageMax) return false;
+            if (ad.ageMin && age < ad.ageMin) return { eligible: false, reason: `عمرك (${age}) أقل من الحد الأدنى المستهدف (${ad.ageMin})` };
+            if (ad.ageMax && age > ad.ageMax) return { eligible: false, reason: `عمرك (${age}) أكبر من الحد الأقصى المستهدف (${ad.ageMax})` };
         }
     }
 
     // الجنس: نطابق فقط عند وجود بيانات جنس حقيقية مسجّلة للمستخدم
     if (ad.gender && ad.gender !== 'all') {
-        if (window.currentUser && d.gender && d.gender !== ad.gender) return false;
+        if (window.currentUser && d.gender && d.gender !== ad.gender) return { eligible: false, reason: `الإعلان يستهدف جنس (${ad.gender}) وأنت مسجّل (${d.gender})` };
     }
+
+    // حالة الإعلان نفسه
+    if (ad.status !== 'active') return { eligible: false, reason: `حالة الإعلان "${ad.status || 'غير معروفة'}" وليست active` };
+    let now = Date.now();
+    if (ad.startTimestamp && ad.startTimestamp > now) return { eligible: false, reason: 'موعد بدء الإعلان لم يحن بعد' };
+    if (ad.endTimestamp && ad.endTimestamp <= now) return { eligible: false, reason: 'مدة الإعلان انتهت' };
 
     // المناطق الجغرافية: مطابقة دقيقة بين موقع المستخدم المُهيكل (دولة أو دولة - محافظة) ومناطق استهداف الإعلان
     // مع دعم توافقي للبيانات القديمة (نصوص حرة أُدخلت قبل اعتماد قائمة الدول/المحافظات الرسمية)
     if (ad.locations && ad.locations.length > 0) {
-        if (!window.currentUser || !d.location) return false;
+        if (!window.currentUser || !d.location) return { eligible: false, reason: 'لا يوجد موقع محفوظ لحسابك' };
         let ul = d.location.trim();
         let ulLower = ul.toLowerCase();
         let matched = ad.locations.some(loc => {
@@ -2784,17 +2791,19 @@ window.isAdEligibleForCurrentUser = (ad) => {
             let lLower = l.toLowerCase();
             return lLower && (ulLower.includes(lLower) || lLower.includes(ulLower)); // توافق مع بيانات نصية قديمة
         });
-        if (!matched) return false;
+        if (!matched) return { eligible: false, reason: `موقعك "${ul}" غير مطابق لمناطق الإعلان (${ad.locations.join('، ')})` };
     }
 
     // الاهتمامات: تطابق فعلي مع الاهتمامات التي اختارها المستخدم عند التسجيل
     if (ad.interests && ad.interests.length > 0) {
-        if (!window.currentUser || !d.interests || !d.interests.length) return false;
-        if (!ad.interests.some(i => d.interests.includes(i))) return false;
+        if (!window.currentUser || !d.interests || !d.interests.length) return { eligible: false, reason: 'لا يوجد اهتمامات محفوظة لحسابك' };
+        if (!ad.interests.some(i => d.interests.includes(i))) return { eligible: false, reason: `اهتماماتك لا تتقاطع مع اهتمامات الإعلان (${ad.interests.join('، ')})` };
     }
 
-    return true;
+    return { eligible: true, reason: '' };
 };
+
+window.isAdEligibleForCurrentUser = (ad) => window.explainAdEligibility(ad).eligible;
 
 // يعيد حساب قائمة الإعلانات المؤهلة فعلياً للمستخدم الحالي (تُستدعى عند تغيّر بيانات المستخدم أو الإعلانات)
 window.refreshEligibleAds = () => {
@@ -2825,14 +2834,13 @@ window.debugMyAds = async () => {
         return;
     }
 
-    // الشاشة 2: سطر واحد مختصر جداً لكل إعلان (بدون تفاصيل زيادة) عشان تفضل قصيرة وماتحتاجش تمرير
+    // الشاشة 2: سطر واحد مختصر جداً لكل إعلان، مع السبب الدقيق للرفض إن وجد
     let rows = window.allAdsRaw.map(ad => {
-        let eligible = window.isAdEligibleForCurrentUser(ad);
-        let locs = (ad.locations && ad.locations.length) ? ad.locations.join('، ') : 'الكل';
+        let { eligible, reason } = window.explainAdEligibility(ad);
         return `<div style="text-align:right;font-size:12px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
             <b style="color:${eligible ? '#16a34a' : '#dc2626'};">${eligible ? '✓' : '✗'}</b>
             <b>${ad.headline || '(بدون عنوان)'}</b><br>
-            <span style="color:#64748b;">يستهدف: ${locs}</span>
+            <span style="color:${eligible ? '#16a34a' : '#dc2626'};">${eligible ? 'مؤهل' : reason}</span>
         </div>`;
     }).join('');
 
