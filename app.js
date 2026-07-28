@@ -1,10 +1,10 @@
 import { ref, set, get, update, push, remove, onValue, query, orderByChild, limitToLast, equalTo, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
-import "./auth.js?v=20260728b";
-import "./communities.js?v=20260728b";
-import "./chat.js?v=20260728b";
-import "./video-call.js?v=20260728b";
-import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js?v=20260728b";
+import "./auth.js?v=20260728c";
+import "./communities.js?v=20260728c";
+import "./chat.js?v=20260728c";
+import "./video-call.js?v=20260728c";
+import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js?v=20260728c";
 
 // =============== ربط الدوال الداخلية بالنافذة لاستدعائها من auth.js ===============
 // يجب أن تكون هذه الربط في بداية الملف قبل تعريف الدوال
@@ -2805,24 +2805,37 @@ window.refreshEligibleAds = () => {
     if (typeof renderFeed === 'function' && document.getElementById('postsFeed')) renderFeed();
 };
 
-// أداة تشخيص: افتح Console المتصفح (F12) واكتب window.debugMyAds()
-// عشان تعرف بالظبط ليه إعلان معين بيظهرلك أو لأ (الموقع/الاهتمامات/العمر/الجنس/الحالة)
+// أداة تشخيص: تعرض تقرير مرئي (بدون الحاجة لـ Console/DevTools، تشتغل حتى جوه تطبيقات
+// الـ WebView زي AppCreator24) يوضح بالظبط ليه إعلان معين بيظهرلك أو لأ
 window.debugMyAds = () => {
     let d = window.allUsersData[window.currentUser] || {};
     console.log('%cبيانات موقعك الحالية المستخدمة في المطابقة:', 'font-weight:bold;color:#2563eb;font-size:13px;', {
         location: d.location, locationPrecise: d.locationPrecise, gender: d.gender, birthdate: d.birthdate, interests: d.interests
     });
+
+    let userInfo = `<div style="text-align:right;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;line-height:1.9;">
+        <b>بياناتك الحالية:</b><br>
+        الموقع: <b>${d.location || '<span style="color:#dc2626;">غير محدد</span>'}</b> ${d.locationPrecise ? '✓ مؤكد بدقة' : '<span style="color:#dc2626;">(غير مؤكد بالنظام الجديد)</span>'}<br>
+        الجنس: ${d.gender || '<span style="color:#94a3b8;">غير محدد</span>'} | تاريخ الميلاد: ${d.birthdate || '<span style="color:#94a3b8;">غير محدد</span>'}<br>
+        الاهتمامات: ${(d.interests && d.interests.length) ? d.interests.join('، ') : '<span style="color:#94a3b8;">لا يوجد</span>'}
+    </div>`;
+
     if (!window.allAdsRaw || window.allAdsRaw.length === 0) {
-        console.log('%cمفيش أي إعلان status=active حاليًا (تأكد إن الإعلان معتمد من لوحة التحكم)', 'color:#dc2626;');
+        window.dlgAlert(userInfo + '<div style="color:#dc2626;font-weight:700;">مفيش أي إعلان status=active وصل للتطبيق أصلاً (تأكد إن الإعلان معتمد status=active، أو إن تحميل الإعلانات نجح).</div>', 'warning', 'تشخيص الإعلانات');
         return;
     }
-    window.allAdsRaw.forEach(ad => {
+
+    let rows = window.allAdsRaw.map(ad => {
         let eligible = window.isAdEligibleForCurrentUser(ad);
-        console.log(`%c— إعلان [${ad.id}] "${ad.headline || ''}" | مؤهل لك؟ ${eligible ? '✓ نعم' : '✗ لا'}`, `color:${eligible ? '#16a34a' : '#dc2626'};font-weight:bold;`, {
-            locations: ad.locations, interests: ad.interests, ageMin: ad.ageMin, ageMax: ad.ageMax, gender: ad.gender, status: ad.status
-        });
-    });
-    console.log(`%cإجمالي الإعلانات النشطة: ${window.allAdsRaw.length} | المؤهلة لك فعليًا: ${(window.activeAds || []).length}`, 'font-weight:bold;');
+        return `<div style="text-align:right;border:1px solid ${eligible ? '#bbf7d0' : '#fecaca'};background:${eligible ? '#f0fdf4' : '#fef2f2'};border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px;line-height:1.8;">
+            <b style="color:${eligible ? '#16a34a' : '#dc2626'};">${eligible ? '✓ مؤهل' : '✗ غير مؤهل'}</b> — ${ad.headline || '(بدون عنوان)'} | status=${ad.status || '?'}<br>
+            المناطق: ${(ad.locations && ad.locations.length) ? ad.locations.join('، ') : 'الكل'} |
+            الاهتمامات: ${(ad.interests && ad.interests.length) ? ad.interests.join('، ') : 'الكل'} |
+            العمر: ${ad.ageMin || '؟'}-${ad.ageMax || '؟'} | الجنس: ${ad.gender || 'الكل'}
+        </div>`;
+    }).join('');
+
+    window.dlgAlert(userInfo + rows + `<div style="font-weight:700;margin-top:6px;">الإجمالي: ${window.allAdsRaw.length} إعلان نشط | المؤهل لك فعليًا: ${(window.activeAds || []).length}</div>`, 'info', 'تشخيص الإعلانات');
 };
 
 function createAdHTML(ad) {
