@@ -2800,6 +2800,9 @@ window.isAdEligibleForCurrentUser = (ad) => {
 window.refreshEligibleAds = () => {
     window.activeAds = (window.allAdsRaw || []).filter(window.isAdEligibleForCurrentUser);
     renderSidebarAd();
+    // نعيد رسم الفيد المعروض حالياً حتى لو كان قد اتُبني قبل توفر بيانات الموقع/الاستهداف
+    // (مثال: حساب جديد لسه بيكمل خطوة تحديد الموقع بعد ما الفيد اتعرض أول مرة)
+    if (typeof renderFeed === 'function' && document.getElementById('postsFeed')) renderFeed();
 };
 
 // أداة تشخيص: افتح Console المتصفح (F12) واكتب window.debugMyAds()
