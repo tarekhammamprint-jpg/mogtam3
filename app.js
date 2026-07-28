@@ -1,10 +1,10 @@
 import { ref, set, get, update, push, remove, onValue, query, orderByChild, limitToLast, equalTo, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
-import "./auth.js?v=20260728c";
-import "./communities.js?v=20260728c";
-import "./chat.js?v=20260728c";
-import "./video-call.js?v=20260728c";
-import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js?v=20260728c";
+import "./auth.js?v=20260728d";
+import "./communities.js?v=20260728d";
+import "./chat.js?v=20260728d";
+import "./video-call.js?v=20260728d";
+import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js?v=20260728d";
 
 // =============== ربط الدوال الداخلية بالنافذة لاستدعائها من auth.js ===============
 // يجب أن تكون هذه الربط في بداية الملف قبل تعريف الدوال
@@ -2807,35 +2807,36 @@ window.refreshEligibleAds = () => {
 
 // أداة تشخيص: تعرض تقرير مرئي (بدون الحاجة لـ Console/DevTools، تشتغل حتى جوه تطبيقات
 // الـ WebView زي AppCreator24) يوضح بالظبط ليه إعلان معين بيظهرلك أو لأ
-window.debugMyAds = () => {
+window.debugMyAds = async () => {
     let d = window.allUsersData[window.currentUser] || {};
     console.log('%cبيانات موقعك الحالية المستخدمة في المطابقة:', 'font-weight:bold;color:#2563eb;font-size:13px;', {
         location: d.location, locationPrecise: d.locationPrecise, gender: d.gender, birthdate: d.birthdate, interests: d.interests
     });
 
-    let userInfo = `<div style="text-align:right;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;line-height:1.9;">
-        <b>بياناتك الحالية:</b><br>
-        الموقع: <b>${d.location || '<span style="color:#dc2626;">غير محدد</span>'}</b> ${d.locationPrecise ? '✓ مؤكد بدقة' : '<span style="color:#dc2626;">(غير مؤكد بالنظام الجديد)</span>'}<br>
-        الجنس: ${d.gender || '<span style="color:#94a3b8;">غير محدد</span>'} | تاريخ الميلاد: ${d.birthdate || '<span style="color:#94a3b8;">غير محدد</span>'}<br>
-        الاهتمامات: ${(d.interests && d.interests.length) ? d.interests.join('، ') : '<span style="color:#94a3b8;">لا يوجد</span>'}
-    </div>`;
+    // الشاشة 1: الموقع فقط، بخط كبير، مضمون إنه يظهر كامل بدون أي حاجة تحتاج تمرير
+    await window.dlgAlert(
+        `<div style="font-size:20px;font-weight:800;color:${d.location ? '#0f172a' : '#dc2626'};margin-bottom:8px;">${d.location || 'لا يوجد موقع محفوظ إطلاقاً'}</div>
+         <div style="font-size:13px;color:${d.locationPrecise ? '#16a34a' : '#dc2626'};font-weight:700;">${d.locationPrecise ? '✓ مؤكد بالنظام الدقيق' : '✗ غير مؤكد بالنظام الجديد'}</div>`,
+        d.location ? 'info' : 'danger', 'موقعك المحفوظ بالضبط'
+    );
 
     if (!window.allAdsRaw || window.allAdsRaw.length === 0) {
-        window.dlgAlert(userInfo + '<div style="color:#dc2626;font-weight:700;">مفيش أي إعلان status=active وصل للتطبيق أصلاً (تأكد إن الإعلان معتمد status=active، أو إن تحميل الإعلانات نجح).</div>', 'warning', 'تشخيص الإعلانات');
+        window.dlgAlert('مفيش أي إعلان status=active وصل أصلاً (تأكد إن الإعلان معتمد، أو إن تحميل الإعلانات نجح).', 'warning', 'تشخيص الإعلانات');
         return;
     }
 
+    // الشاشة 2: سطر واحد مختصر جداً لكل إعلان (بدون تفاصيل زيادة) عشان تفضل قصيرة وماتحتاجش تمرير
     let rows = window.allAdsRaw.map(ad => {
         let eligible = window.isAdEligibleForCurrentUser(ad);
-        return `<div style="text-align:right;border:1px solid ${eligible ? '#bbf7d0' : '#fecaca'};background:${eligible ? '#f0fdf4' : '#fef2f2'};border-radius:10px;padding:8px 12px;margin-bottom:8px;font-size:12px;line-height:1.8;">
-            <b style="color:${eligible ? '#16a34a' : '#dc2626'};">${eligible ? '✓ مؤهل' : '✗ غير مؤهل'}</b> — ${ad.headline || '(بدون عنوان)'} | status=${ad.status || '?'}<br>
-            المناطق: ${(ad.locations && ad.locations.length) ? ad.locations.join('، ') : 'الكل'} |
-            الاهتمامات: ${(ad.interests && ad.interests.length) ? ad.interests.join('، ') : 'الكل'} |
-            العمر: ${ad.ageMin || '؟'}-${ad.ageMax || '؟'} | الجنس: ${ad.gender || 'الكل'}
+        let locs = (ad.locations && ad.locations.length) ? ad.locations.join('، ') : 'الكل';
+        return `<div style="text-align:right;font-size:12px;padding:6px 0;border-bottom:1px solid #f1f5f9;">
+            <b style="color:${eligible ? '#16a34a' : '#dc2626'};">${eligible ? '✓' : '✗'}</b>
+            <b>${ad.headline || '(بدون عنوان)'}</b><br>
+            <span style="color:#64748b;">يستهدف: ${locs}</span>
         </div>`;
     }).join('');
 
-    window.dlgAlert(userInfo + rows + `<div style="font-weight:700;margin-top:6px;">الإجمالي: ${window.allAdsRaw.length} إعلان نشط | المؤهل لك فعليًا: ${(window.activeAds || []).length}</div>`, 'info', 'تشخيص الإعلانات');
+    window.dlgAlert(rows + `<div style="font-weight:700;margin-top:8px;font-size:12.5px;">مؤهل لك: ${(window.activeAds || []).length} من ${window.allAdsRaw.length}</div>`, 'info', 'نتيجة المطابقة لكل إعلان');
 };
 
 function createAdHTML(ad) {
