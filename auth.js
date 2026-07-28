@@ -221,6 +221,11 @@ window.registerUser = () => {
     
     if(!d || !dbv || !p || !sh) return window.dlgAlert("الرجاء إكمال جميع البيانات المطلوبة.", "warning", "بيانات ناقصة"); 
     if(p.length < 6) return window.dlgAlert("كلمة المرور يجب أن تكون 6 أحرف على الأقل.", "warning", "كلمة مرور ضعيفة");
+
+    let regAge = window.calcAge ? window.calcAge(dbv) : null;
+    if(regAge == null || isNaN(regAge)) return window.dlgAlert("تاريخ الميلاد غير صحيح.", "warning", "تاريخ ميلاد غير صالح");
+    if(regAge < 13) return window.dlgAlert("يجب أن يكون عمرك 13 سنة على الأقل لإنشاء حساب.", "warning", "العمر غير كافٍ");
+    if(regAge > 100) return window.dlgAlert("تاريخ الميلاد المُدخل غير منطقي، يرجى التأكد منه.", "warning", "تاريخ ميلاد غير صالح");
     
     let btn = $('regBtn'), ot = btn.innerText; 
     btn.innerText = "جاري..."; 
