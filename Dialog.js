@@ -23,8 +23,11 @@
       background: #fff;
       border-radius: 22px;
       width: 100%; max-width: 420px;
+      max-height: 85vh;
       box-shadow: 0 24px 80px rgba(0,0,0,0.22);
       overflow: hidden;
+      display: flex;
+      flex-direction: column;
       transform: scale(.88) translateY(20px);
       transition: transform .25s cubic-bezier(.34,1.56,.64,1);
       font-family: 'Cairo', sans-serif;
@@ -35,6 +38,7 @@
     #dlg-icon-wrap {
       padding: 28px 28px 0;
       display: flex; justify-content: center;
+      flex-shrink: 0;
     }
     .dlg-icon-circle {
       width: 66px; height: 66px; border-radius: 50%;
@@ -48,7 +52,7 @@
     .dlg-icon-circle.question{ background:#f5f3ff; color:#7c3aed; }
     .dlg-icon-circle.input   { background:#f0f9ff; color:#0284c7; }
 
-    #dlg-body { padding: 18px 28px 24px; text-align: center; }
+    #dlg-body { padding: 18px 28px 24px; text-align: center; overflow-y: auto; flex: 1; min-height: 0; }
     #dlg-title {
       font-size: 18px; font-weight: 800; color: #0f172a;
       margin-bottom: 8px; line-height: 1.4;
@@ -72,6 +76,7 @@
     #dlg-footer {
       padding: 0 20px 22px;
       display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+      flex-shrink: 0;
     }
     .dlg-btn {
       flex: 1; min-width: 100px; max-width: 180px;
