@@ -1,10 +1,10 @@
 import { ref, set, get, update, push, remove, onValue, query, orderByChild, limitToLast, equalTo, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
-import "./auth.js";
-import "./communities.js";
-import "./chat.js";
-import "./video-call.js";
-import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js";
+import "./auth.js?v=20260728b";
+import "./communities.js?v=20260728b";
+import "./chat.js?v=20260728b";
+import "./video-call.js?v=20260728b";
+import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js?v=20260728b";
 
 // =============== ربط الدوال الداخلية بالنافذة لاستدعائها من auth.js ===============
 // يجب أن تكون هذه الربط في بداية الملف قبل تعريف الدوال
