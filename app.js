@@ -1,10 +1,10 @@
 import { ref, set, get, update, push, remove, onValue, query, orderByChild, limitToLast, equalTo, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
-import "./auth.js?v=20260729a";
-import "./communities.js?v=20260729a";
-import "./chat.js?v=20260729a";
-import "./video-call.js?v=20260729a";
-import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js?v=20260729a";
+import "./auth.js?v=20260728f";
+import "./communities.js?v=20260728f";
+import "./chat.js?v=20260728f";
+import "./video-call.js?v=20260728f";
+import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js?v=20260728f";
 
 // حدود تاريخ الميلاد المسموح بها في نماذج التسجيل وتعديل البروفايل (13 سنة كحد أدنى، 100 سنة كحد أقصى منطقي)
 (function setBirthdateInputLimits() {
@@ -423,16 +423,6 @@ function handleRouting() {
             if (window.mpTypingUnsubscribe) { window.mpTypingUnsubscribe(); window.mpTypingUnsubscribe = null; }
         }
     }
-
-    // إغلاق صفحة اربح نقاط وإيقاف مستمع الرصيد عند مغادرتها
-    if (hash !== '#/earn') {
-        let em = $('earnModal');
-        if (em && em.classList.contains('show')) {
-            em.classList.remove('show');
-            document.body.style.overflow = 'auto';
-            if (window.earnBalanceUnsubscribe) { window.earnBalanceUnsubscribe(); window.earnBalanceUnsubscribe = null; }
-        }
-    }
     
     // معالج صفحة المجتمع
     if (hash.startsWith('#/community/')) {
@@ -520,9 +510,6 @@ function handleRouting() {
     }
     else if(hash === '#/messages') {
         if (window.openMessagesLogic) window.openMessagesLogic();
-    }
-    else if(hash === '#/earn') {
-        if (window.openEarnLogic) window.openEarnLogic();
     }
 }
 
@@ -2745,119 +2732,6 @@ window.sendMessagesPageMedia = async (e, type) => {
     } catch (err) {
         window.dlgAlert('فشل رفع الملف، يرجى المحاولة مجدداً.', 'danger', 'خطأ');
     }
-};
-
-// =============== نظام الربح (اربح نقاط) عبر CPAGrip Content Locker ===============
-// اللوكر بمعرف id=1906881 محمّل بالفعل في <head> الصفحة (index.html).
-
-window.POINTS_PER_EGP = 100; // 100 نقطة = 1 جنيه مصري (قابل للتعديل من هنا فقط)
-window.MIN_WITHDRAW_POINTS = 5000; // الحد الأدنى للسحب (يعادل 50 جنيه بالسعر الحالي)
-
-window.openEarnLogic = () => {
-    if (!window.currentUser) { window.location.hash = ''; return window.showRegisterModal(); }
-    document.querySelectorAll('.modal').forEach(m => { if (m.id !== 'earnModal') m.classList.remove('show'); });
-    $('earnModal').classList.add('show');
-    document.body.style.overflow = 'hidden';
-    $('earnMinWithdrawLabel').innerText = window.MIN_WITHDRAW_POINTS.toLocaleString('ar-EG');
-
-    if (window.earnBalanceUnsubscribe) window.earnBalanceUnsubscribe();
-    window.earnBalanceUnsubscribe = onValue(ref(db, `users/${window.currentUser}/walletPoints`), s => {
-        let pts = s.exists() ? (s.val() || 0) : 0;
-        $('earnPointsBalance').innerText = pts.toLocaleString('ar-EG');
-        $('earnPointsCashValue').innerText = `= ${(pts / window.POINTS_PER_EGP).toFixed(2)} ج.م`;
-    });
-
-    window.renderEarnHistory();
-    window.renderWithdrawHistory();
-};
-
-// ملاحظة: هذا اللوكر (Content Locker) بمعرف id=1906881 محمّل بالفعل في <head> الصفحة.
-// دالة الاستدعاء call_locker() هي الاسم القياسي المستخدم في لوكرات CPAGrip.
-window.openEarnOfferWall = async () => {
-    if (typeof call_locker !== 'function') {
-        return window.dlgAlert('نظام الربح قيد التجهيز حالياً وهيتفعّل قريباً، تابعنا! 🚀', 'info', 'قريباً');
-    }
-
-    // تحذير أمان إجباري قبل فتح أي عرض — نعرضه مرة واحدة لكل جلسة تصفح
-    if (!window.earnWarningShown) {
-        let confirmed = await window.dlgConfirm(
-            `<div style="text-align:right;line-height:1.9;font-size:13.5px;">
-                <b style="color:#dc2626;">قبل ما تكمل:</b><br>
-                • بعض العروض ممكن تطلب رقم تليفونك وتبعتلك كود — <b>ده اشتراك مدفوع متكرر، متدخلش الكود ده أبداً</b>.<br>
-                • متدخلش أي بيانات بطاقة بنكية أو دفع.<br>
-                • لو أي عرض طلب منك تأكيد اشتراك أو دفع، اقفله فورًا ومتكملش.<br>
-                • اختار بس العروض اللي واضح إنها استبيان أو تسجيل بريد إلكتروني عادي.
-            </div>`,
-            'تنبيه هام قبل الربح', 'warning', 'فهمت، كمّل'
-        );
-        if (!confirmed) return;
-        window.earnWarningShown = true;
-    }
-
-    // نضيف اسم المستخدم كـ subid في رابط الصفحة الفعلي (قبل الـ #) قبل فتح اللوكر
-    // عشان CPAGrip يقدر يربط أي عرض مكتمل بصاحبه بدقة وقت إرسال الـ Postback.
-    // ⚠️ لازم تتأكد من إعدادات "SubID Tracking" جوه Content Locker على لوحة CPAGrip
-    // إنها متفعّلة وشايفة الباراميتر ده بنفس الاسم subid.
-    try {
-        let base = window.location.href.split('?')[0].split('#')[0];
-        let newUrl = `${base}?subid=${encodeURIComponent(window.currentUser)}${window.location.hash}`;
-        history.replaceState(null, '', newUrl);
-    } catch (e) { /* لو فشل تعديل الرابط، اللوكر هيفتح برضه بدون subid */ }
-    call_locker();
-};
-
-window.renderEarnHistory = () => {
-    let list = $('earnHistoryList');
-    list.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12px;padding:10px;">جارِ التحميل...</div>';
-    get(query(ref(db, `earnings/${window.currentUser}`), orderByChild('timestamp'), limitToLast(20))).then(s => {
-        if (!s.exists()) { list.innerHTML = '<div style="text-align:center;color:var(--text-muted);font-size:12.5px;padding:16px 0;">لسه معملتش أي أرباح. دوس "ابدأ الربح الآن" وابدأ!</div>'; return; }
-        let items = []; s.forEach(c => items.push(c.val())); items.reverse();
-        list.innerHTML = items.map(e => `
-            <div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid #f1f5f9;font-size:12.5px;">
-                <div><b style="color:#16a34a;">+${(e.pointsEarned || 0).toLocaleString('ar-EG')} نقطة</b><br><span style="color:var(--text-muted);font-size:11px;">${new Date(e.timestamp).toLocaleString('ar-EG')}</span></div>
-                <div style="color:var(--text-muted);font-size:11px;">عرض #${e.offerId || '—'}</div>
-            </div>`).join('');
-    });
-};
-
-window.renderWithdrawHistory = () => {
-    let list = $('withdrawHistoryList');
-    get(query(ref(db, 'withdrawRequests'), orderByChild('uid'), equalTo(window.currentUser))).then(s => {
-        if (!s.exists()) { list.innerHTML = ''; return; }
-        let items = []; s.forEach(c => items.push({ id: c.key, ...c.val() }));
-        items.sort((a, b) => b.timestamp - a.timestamp);
-        let statusLabel = { pending: ['قيد المراجعة', '#f59e0b'], approved: ['تم التحويل ✓', '#16a34a'], rejected: ['مرفوض (تم استرجاع النقاط)', '#dc2626'] };
-        list.innerHTML = `<h4 style="font-size:13px;margin:10px 0 6px;">طلبات السحب السابقة</h4>` + items.map(w => {
-            let st = statusLabel[w.status] || ['قيد المراجعة', '#f59e0b'];
-            return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">
-                <div>${w.points.toLocaleString('ar-EG')} نقطة (${w.method})</div>
-                <div style="color:${st[1]};font-weight:700;">${st[0]}</div>
-            </div>`;
-        }).join('');
-    });
-};
-
-window.submitWithdrawRequest = () => {
-    let pts = parseInt($('withdrawPointsInput').value) || 0;
-    let method = $('withdrawMethodSelect').value;
-    let details = $('withdrawDetailsInput').value.trim();
-    let currentPts = window.allUsersData[window.currentUser]?.walletPoints || 0;
-
-    if (pts < window.MIN_WITHDRAW_POINTS) return window.dlgAlert(`الحد الأدنى للسحب ${window.MIN_WITHDRAW_POINTS.toLocaleString('ar-EG')} نقطة.`, 'warning', 'تنبيه');
-    if (pts > currentPts) return window.dlgAlert('رصيدك الحالي أقل من عدد النقاط المطلوب سحبها.', 'warning', 'رصيد غير كافٍ');
-    if (!method) return window.dlgAlert('اختر طريقة استلام الأموال.', 'warning', 'تنبيه');
-    if (!details) return window.dlgAlert('من فضلك أدخل رقم المحفظة/الحساب اللي هيستلم عليه المبلغ.', 'warning', 'تنبيه');
-
-    update(ref(db, `users/${window.currentUser}`), { walletPoints: currentPts - pts }).then(() => {
-        push(ref(db, 'withdrawRequests'), {
-            uid: window.currentUser, points: pts, cashValue: +(pts / window.POINTS_PER_EGP).toFixed(2),
-            method, details, status: 'pending', timestamp: Date.now()
-        }).then(() => {
-            $('withdrawPointsInput').value = ''; $('withdrawMethodSelect').value = ''; $('withdrawDetailsInput').value = '';
-            window.dlgAlert('تم إرسال طلب السحب بنجاح، هيتم التحويل خلال أيام العمل القادمة.', 'success', 'تم الإرسال ✓');
-            window.renderWithdrawHistory();
-        });
-    });
 };
 
 function createSuggestedFriendsWidget() { let s = window.getSuggestions().slice(0,10); if(s.length === 0) return ''; let ch = ''; s.forEach(x => { let rr = window.currentRequests && window.currentRequests[x.name], b = ''; if(window.sentRequests && window.sentRequests[x.name]) b = `<button disabled style="background:#e2e8f0;color:#0f172a;"><i class="fas fa-clock"></i> أرسل</button>`; else if(rr) b = `<button style="background:#10b981;color:white;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${x.name}')"><i class="fas fa-check"></i> قبول</button>`; else b = `<button data-action="add" data-target="${x.name}" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${x.name}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; ch += `<div class="suggested-card"><a href="#/@${x.name}" style="color:inherit; text-decoration:none;"><img src="${x.data.profilePic||dA}"><span class="s-name" style="display:block;">${window.getDisplayName(x.name)}</span><span class="s-mutual" style="display:block;margin-bottom:5px;"><i class="fas ${x.mutualCount > 0 ? 'fa-user-friends' : 'fa-map-marker-alt'}"></i> ${x.mutualCount > 0 ? `مشتركون: ${x.mutualCount}` : 'من منطقتك'}</span></a>${b}</div>`; }); return `<div class="suggested-widget"><h4><i class="fas fa-users"></i> مقترحات</h4><div class="suggested-carousel">${ch}</div></div>`; }
