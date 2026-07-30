@@ -1,10 +1,10 @@
 import { ref, set, get, update, push, remove, onValue, query, orderByChild, limitToLast, equalTo, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
-import "./auth.js?v=20260728i";
-import "./communities.js?v=20260728i";
-import "./chat.js?v=20260728i";
-import "./video-call.js?v=20260728i";
-import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js?v=20260728i";
+import "./auth.js?v=20260729a";
+import "./communities.js?v=20260729a";
+import "./chat.js?v=20260729a";
+import "./video-call.js?v=20260729a";
+import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js?v=20260729a";
 
 // حدود تاريخ الميلاد المسموح بها في نماذج التسجيل وتعديل البروفايل (13 سنة كحد أدنى، 100 سنة كحد أقصى منطقي)
 (function setBirthdateInputLimits() {
