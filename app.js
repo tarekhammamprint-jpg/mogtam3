@@ -842,14 +842,6 @@ window.openFullMenu = () => {
                 </div>
                 <i class="fas fa-chevron-left fmenu-chevron"></i>
             </a>
-            <div class="fmenu-card" onclick="window.closeFullMenu();window.openRewardsModal()">
-                <div class="fmenu-icon" style="background:#f5f3ff"><i class="fas fa-gem" style="color:#7c3aed"></i></div>
-                <div class="fmenu-txt">
-                    <div class="fmenu-title" style="color:#7c3aed">اربح نقاط <span class="fmenu-badge" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">جديد</span></div>
-                    <div class="fmenu-desc">أكمل عروض AdGem واربح نقاط فورية</div>
-                </div>
-                <i class="fas fa-chevron-left fmenu-chevron"></i>
-            </div>
             <div class="fmenu-card" onclick="window.closeFullMenu();window.dlgAlert('ميزة الربح من المنشورات قريباً! 🚀','info','قريباً')">
                 <div class="fmenu-icon" style="background:#f5f3ff"><i class="fas fa-money-bill-wave" style="color:#7c3aed"></i></div>
                 <div class="fmenu-txt">
@@ -1286,6 +1278,18 @@ function createPostHTML(p, cp, it=false, im=false) {
     let tbg = it ? `<span style="background:#ff9800;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;margin-right:10px;font-weight:bold;"><i class="fas fa-fire"></i> رائج</span>` : '', ch = `<div class="post-options-wrap"><button class="post-options-btn" onclick="event.stopPropagation();window.togglePostOptionsMenu('${p.id}')"><i class="fas fa-ellipsis-h"></i></button><div class="post-options-menu" id="postOptMenu_${p.id}">${ism ? `<div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.editPost('${p.id}')"><i class="fas fa-edit"></i> تعديل المنشور</div><div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.deletePost('${p.id}')"><i class="fas fa-trash"></i> حذف المنشور</div><div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.copyPostLink('${p.id}')"><i class="fas fa-link"></i> نسخ رابط المنشور</div>` : `<div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.reportPost('${p.id}','${p.author}')"><i class="fas fa-flag"></i> الإبلاغ عن المنشور</div>`}</div></div>`;
     let hl = window.currentUser ? (p.likes && p.likes[window.currentUser]) : false, hi = hl ? '<i class="fas fa-heart" style="color:#ef4444;"></i>' : '<i class="far fa-heart" style="color:#64748b;"></i>', lc = p.likes ? Object.keys(p.likes).length : 0, lt = lc > 0 ? `<span style="font-size:14px;margin-right:5px;color:#64748b;">${lc}</span>` : `<span style="font-size:14px;margin-right:5px;color:#64748b;">إعجاب</span>`;
     let autoActionText = p.isProfilePicUpdate ? 'قام بتحديث صورته الشخصية' : (p.isCoverUpdate ? 'قام بتحديث صورة الغلاف' : '');
+    // صورة المقال الأصلي للقنوات الإخبارية
+    let newsImageHTML = '';
+    if (window.allUsersData[p.author]?.isNewsBot && p.ogImage && !p.image && !p.images) {
+        newsImageHTML = `<div style="margin:8px 0;border-radius:12px;overflow:hidden;cursor:pointer;" onclick="window.open('${p.sourceUrl||'#'}','_blank')">
+            <img src="${p.ogImage}" style="width:100%;max-height:280px;object-fit:cover;display:block;" 
+                 onerror="this.parentElement.style.display='none'">
+            ${p.sourceName ? `<div style="padding:8px 12px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;display:flex;align-items:center;gap:6px;">
+                <i class="fas fa-newspaper"></i> ${p.sourceName}
+                ${p.sourceUrl ? `<i class="fas fa-external-link-alt" style="margin-right:auto;"></i>` : ''}
+            </div>` : ''}
+        </div>`;
+    }
     let st = autoActionText || window.formatMentions(p.text), pb = '', ca = im ? '' : `onclick="window.openPostModal('${p.id}')"`; let isLongP = p.text && (p.text.length > 200 || p.text.split('\n').length > 3); let pTxt = `<div class="post-content ${isLongP && !im ? 'collapsed' : ''}" id="ptxt_${p.id}" style="${autoActionText ? 'font-weight:700;' : ''}">${st}</div>`; if(isLongP && !im) pTxt += `<div class="show-more-btn" onclick="document.getElementById('ptxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`;
     let headerLeft = `<div style="display:flex; gap:10px; align-items:center;"><a href="#/@${p.author}"><img src="${ap}" class="avatar-small"></a><div style="display:flex; flex-direction:column; line-height:1.2;"><div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px;"><a href="#/@${p.author}" class="post-author" style="color:inherit; text-decoration:none;">${ad}</a>${ah} ${abg} ${af} ${tbg}</div><a href="#/post/${p.id}" class="post-time" title="${dtFull}" style="color:inherit; text-decoration:none; margin-top:3px;">${dt}</a></div></div>`;
     if(p.isShare && p.sharedData) { let sap = window.allUsersData[p.sharedData.author]?.profilePic || dA, sst = window.formatMentions(p.sharedData.text), sd = window.getDisplayName(p.sharedData.author); let isLongS = p.sharedData.text && (p.sharedData.text.length > 200 || p.sharedData.text.split('\n').length > 3); let sTxt = `<div class="post-content ${isLongS && !im ? 'collapsed' : ''}" id="stxt_${p.id}" style="font-size:14px;">${sst}</div>`; if(isLongS && !im) sTxt += `<div class="show-more-btn" onclick="document.getElementById('stxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`; pb = `<div class="post-clickable" ${ca}>${pTxt}<div class="shared-post-box" onclick="event.stopPropagation();window.openProfile('${p.sharedData.author}')"><div class="post-header" style="margin-bottom:8px;"><a href="#/@${p.sharedData.author}"><img src="${sap}" class="avatar-small"></a><div style="display:flex; flex-direction:column; line-height:1.2; margin-right:8px;"><a href="#/@${p.sharedData.author}" class="post-author" style="color:inherit; text-decoration:none;">${sd} <span style="font-size:11px;color:#64748b;">@${p.sharedData.author}</span></a><span class="post-time" title="${window.fullDateTime(p.sharedData.timestamp)}">${window.timeAgo(p.sharedData.timestamp)}</span></div></div>${sTxt}${p.sharedData.image || p.sharedData.video ? window.renderMediaGallery(p.sharedData) : ''}</div></div>`; } else { pb = `<div class="post-clickable" ${ca}>${pTxt}${window.renderMediaGallery(p)}</div>`; }
@@ -1299,7 +1303,16 @@ function renderFeed() {
     let pf = document.getElementById('postsFeed'); if(!window.currentUser) { if(pf) pf.innerHTML = ''; return; }
     let h='', sg=window.getSuggestions?window.getSuggestions():[], iN=window.currentUser?window.myFriends.length===0:true, vp=[], reg=[], tr=[];
     let myFollowing = (window.allUsersData[window.currentUser]?.following) || {};
-    (window.allNewsPosts || []).filter(p => myFollowing[p.author]).forEach(p => vp.push({p:p, it:false}));
+    // القنوات: كل قناة تعرض محتواها الخاص فقط (حسب category)
+    (window.allNewsPosts || []).filter(p => {
+        if (!myFollowing[p.author]) return false;
+        // لو القناة محددة category، نتحقق إن المنشور من نفس الـ category
+        let channelData = window.allUsersData[p.author];
+        if (channelData && channelData.channelCategory && p.category) {
+            return p.category === channelData.channelCategory;
+        }
+        return true; // لو مفيش category محدد، اعرضه عادي
+    }).forEach(p => vp.push({p:p, it:false}));
     window.allPosts.forEach(p => {
         if(!window.renderedPostIds.has(p.id)) return;
         let im = p.author === window.currentUser;
@@ -2980,6 +2993,37 @@ function injectUploadUI() {
 document.addEventListener('DOMContentLoaded', () => setTimeout(injectUploadUI, 800));
 window.addEventListener('load', () => setTimeout(injectUploadUI, 1200));
 
+// ============================================================
+//  حذف أخبار القنوات بعد 7 أيام تلقائياً
+// ============================================================
+async function cleanOldNewsPosts() {
+    try {
+        const { get: fbGet, remove: fbRemove, query: fbQuery, 
+                ref: fbRef, orderByChild, endAt } = await import(
+            "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js"
+        );
+        const { db: database } = await import("./firebase-config.js");
+        
+        const sevenDaysAgo = Date.now() - (7 * 24 * 60 * 60 * 1000);
+        const oldPostsQuery = fbQuery(
+            fbRef(database, 'newsPosts'),
+            orderByChild('timestamp'),
+            endAt(sevenDaysAgo)
+        );
+        const snap = await fbGet(oldPostsQuery);
+        if (!snap.exists()) return;
+        
+        const deletePromises = [];
+        snap.forEach(child => {
+            deletePromises.push(fbRemove(child.ref));
+        });
+        await Promise.all(deletePromises);
+        console.log(`✅ تم حذف ${deletePromises.length} خبر قديم (أكثر من 7 أيام)`);
+    } catch(e) {
+        console.warn('cleanOldNewsPosts error:', e);
+    }
+}
+
 function listenToNewsBotPosts() {
     onValue(query(ref(db, 'newsPosts'), orderByChild('timestamp'), limitToLast(50)), s => {
         window.allNewsPosts = [];
@@ -2990,6 +3034,9 @@ function listenToNewsBotPosts() {
         if (window.currentUser && !window.isInitialLoad) { window.feedLim = 5; renderFeed(); }
     });
 }
+
+// استدعاء التنظيف مرة واحدة عند تحميل الصفحة
+setTimeout(cleanOldNewsPosts, 5000);
 
 function listenToReels() {
     onValue(query(ref(db, 'posts'), orderByChild('timestamp'), limitToLast(200)), s => {
@@ -3009,7 +3056,7 @@ function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unre
 function listenToRecentChats(){ onValue(ref(db,`users/${window.currentUser}/recentChats`), s => { window.recentChatsData = s.exists() ? s.val() : {}; renderSidebarUsers(); let mpm = $('messagesPageModal'); if(mpm && mpm.classList.contains('show')) window.renderMessagesPageList(); }); }
 function listenToCommunities() { onValue(ref(db, 'communities'), s => { window.allCommunities = s.exists() ? s.val() : {}; if($('communitiesModal') && $('communitiesModal').classList.contains('show')) { window.renderCommunitiesList(); } window.renderRightSidebarCommunities && window.renderRightSidebarCommunities(); if (window.currentUser && typeof window.startCallListener === "function") window.startCallListener(); }); }
 
-window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); if(window.initRewardsSystem) window.initRewardsSystem(); };
+window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); };
 
 window.showBanScreen = function(d) {
     let now = Date.now();
