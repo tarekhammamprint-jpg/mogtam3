@@ -1,5 +1,5 @@
 // ============================================================
-//  نظام "اربح نقاط" — AdGem Offerwall Integration
+//  نظام "اربح نقاط" — CPX Research Integration
 //  أضف هذا الملف في index.html:
 //  <script src="./adgem-rewards.js" defer></script>
 //  أو ادمج محتواه في app.js
@@ -8,7 +8,8 @@
 import { ref, get, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
 
-const ADGEM_APP_ID = "33111";
+const CPX_APP_ID   = "34983";
+const CPX_SECRET   = "V1l4T40yPe3k7GBYKZ6MnDzxz99JSffj";
 
 // ============================================================
 //  إضافة CSS
@@ -346,10 +347,7 @@ function createRewardsModal() {
             <strong id="rewardsCurrentPoints">0</strong> <span style="font-size:12px;">نقطة</span>
           </div>
         </div>
-        <div class="rewards-split-badge">
-          <i class="fas fa-percentage"></i>
-          60% لك · 40% للمنصة
-        </div>
+
       </div>
 
       <!-- تبويبات -->
@@ -422,10 +420,9 @@ function createRewardsModal() {
           </div>
           <div class="rewards-info-box">
             <p>
-              💡 <strong>نظام تقاسم الأرباح:</strong><br>
-              من كل مكافأة تجنيها، تحصل على <strong>60%</strong> كنقاط في رصيدك،
-              و<strong>40%</strong> تذهب لدعم تشغيل المنصة وتطويرها.<br><br>
-              📌 <strong>معدل التحويل:</strong> كل 1$ = 1000 نقطة
+              💡 <strong>كيف تُحسب نقاطك؟</strong><br>
+              تُضاف النقاط فور إكمال أي استبيان أو عرض مباشرةً لرصيدك.<br><br>
+              📌 <strong>ملاحظة:</strong> قيمة النقاط تختلف حسب كل عرض
             </p>
           </div>
         </div>
@@ -458,7 +455,7 @@ window.openRewardsModal = async () => {
   loadCurrentPoints();
 
   // تحميل الـ Offerwall
-  loadAdgemOfferwall();
+  loadCPXOfferwall();
 };
 
 window.closeRewardsModal = () => {
@@ -470,14 +467,14 @@ window.closeRewardsModal = () => {
 // ============================================================
 //  تحميل الـ Offerwall في iframe
 // ============================================================
-function loadAdgemOfferwall() {
+function loadCPXOfferwall() {
   const iframe  = document.getElementById('adgemIframe');
   const loading = document.getElementById('rewardsLoadingOverlay');
   if (!iframe) return;
 
   // AdGem Offerwall URL
   // player_id = username العضو (يُستخدم في الـ Postback)
-  const offerwallUrl = `https://api.adgem.com/v1/wall?appid=${ADGEM_APP_ID}&playerid=${encodeURIComponent(window.currentUser)}`;
+  const offerwallUrl = `https://offers.cpx-research.com/index.php?app_id=${CPX_APP_ID}&ext_user_id=${encodeURIComponent(window.currentUser)}&username=${encodeURIComponent(window.currentUser)}`;
 
   iframe.src = offerwallUrl;
   iframe.style.display = 'none';
@@ -520,9 +517,9 @@ function showOfferwallFallback(url, loading, iframe) {
   div.style.cssText = 'padding:40px 20px;text-align:center;';
   div.innerHTML = `
     <div style="font-size:60px;margin-bottom:16px;">🎯</div>
-    <h3 style="color:var(--text-main);margin:0 0 8px;font-size:18px;">عروض AdGem</h3>
+    <h3 style="color:var(--text-main);margin:0 0 8px;font-size:18px;">استبيانات مدفوعة</h3>
     <p style="color:var(--text-muted);font-size:14px;line-height:1.7;margin-bottom:24px;">
-      اضغط الزر أدناه لفتح صفحة العروض وكسب النقاط.<br>
+      اضغط الزر أدناه لفتح صفحة الاستبيانات وكسب النقاط.<br>
       بعد إكمال أي عرض، ستُضاف نقاطك تلقائياً لرصيدك.
     </p>
     <a href="${url}" target="_blank" rel="noopener"
@@ -671,7 +668,7 @@ window.listenToPointsNotifications = () => {
     if (!snap.exists()) return;
     snap.forEach(child => {
       const n = child.val();
-      if (n.type === 'adgem_reward' && !n.read && n.points) {
+      if (n.type === 'cpx_reward' && !n.read && n.points) {
         window.showPointsToast(n.points, n.offerName || 'AdGem');
         if (window.showToast) {
           window.showToast(
