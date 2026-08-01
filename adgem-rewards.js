@@ -439,6 +439,18 @@ function createRewardsModal() {
 }
 
 // ============================================================
+//  تخزين ربط username ↔ cpxUserId في Firebase
+// ============================================================
+async function storeCPXMapping(username) {
+  const cpxId = await makeCPXUserId(username);
+  try {
+    const { ref: fbRef, set } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js");
+    const { db: database } = await import("./firebase-config.js");
+    await set(fbRef(database, `cpx_users/${cpxId}`), username);
+  } catch(e) { console.warn('CPX mapping store failed:', e); }
+}
+
+// ============================================================
 //  فتح Modal اربح نقاط
 // ============================================================
 window.openRewardsModal = async () => {
@@ -454,8 +466,8 @@ window.openRewardsModal = async () => {
   // تحميل الرصيد الحالي
   loadCurrentPoints();
 
-  // تحميل الـ Offerwall
-  loadCPXOfferwall();
+  // تخزين CPX mapping وتحميل الـ Offerwall
+  storeCPXMapping(window.currentUser).then(() => loadCPXOfferwall());
 };
 
 window.closeRewardsModal = () => {
@@ -467,7 +479,17 @@ window.closeRewardsModal = () => {
 // ============================================================
 //  تحميل الـ Offerwall في iframe
 // ============================================================
-function loadCPXOfferwall() {
+// تحويل username عربي لـ ID رقمي ثابت مقبول من CPX
+async function makeCPXUserId(username) {
+  const encoder = new TextEncoder();
+  const data    = encoder.encode(username);
+  const hashBuf = await crypto.subtle.digest('SHA-256', data);
+  const hashArr = Array.from(new Uint8Array(hashBuf));
+  // نأخذ أول 12 رقم hex = ID فريد وثابت لكل مستخدم
+  return hashArr.map(b => b.toString(16).padStart(2,'0')).join('').substring(0, 12);
+}
+
+async function loadCPXOfferwall() {
   const iframe  = document.getElementById('adgemIframe');
   const loading = document.getElementById('rewardsLoadingOverlay');
   if (!iframe) return;
@@ -478,10 +500,10 @@ function loadCPXOfferwall() {
   const uid = window.currentUser || '';
   if (!uid) { showOfferwallFallback('', loading, iframe); return; }
 
-  // CPX Research يقبل user_id أو ext_user_id
-  const offerwallUrl = `https://offers.cpx-research.com/index.php?app_id=${CPX_APP_ID}&user_id=${encodeURIComponent(uid)}&ext_user_id=${encodeURIComponent(uid)}&subid=${encodeURIComponent(uid)}&username=${encodeURIComponent(uid)}`;
-  
-  console.log('CPX URL:', offerwallUrl); // للتشخيص
+  // CPX لا يقبل عربي — نحوّل الاسم لـ hash رقمي ثابت
+  const cpxUserId = await makeCPXUserId(uid);
+
+  const offerwallUrl = `https://offers.cpx-research.com/index.php?app_id=${CPX_APP_ID}&user_id=${cpxUserId}&ext_user_id=${cpxUserId}&subid=${encodeURIComponent(uid)}`;
 
   if (!uid) return;
   iframe.src = offerwallUrl;
