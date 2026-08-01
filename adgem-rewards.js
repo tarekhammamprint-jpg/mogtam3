@@ -477,22 +477,64 @@ function loadAdgemOfferwall() {
 
   // AdGem Offerwall URL
   // player_id = username العضو (يُستخدم في الـ Postback)
-  const offerwallUrl =
-    `https://wall.adgem.com/?app_id=${ADGEM_APP_ID}&player_id=${encodeURIComponent(window.currentUser)}`;
+  // AdGem Offerwall — جرب كل URL حتى يشتغل
+  const offerwallUrl = `https://adgem.com/offers?app_id=${ADGEM_APP_ID}&player_id=${encodeURIComponent(window.currentUser)}&mobile=false`;
 
   iframe.src = offerwallUrl;
   iframe.style.display = 'none';
 
+  // فحص إذا كان الـ iframe يعمل
   iframe.onload = () => {
     if (loading) loading.style.display = 'none';
     iframe.style.display = 'block';
   };
 
-  // timeout احتياطي
+  iframe.onerror = () => {
+    // fallback: افتح في نافذة جديدة
+    showOfferwallFallback(offerwallUrl, loading, iframe);
+  };
+
+  // timeout: لو 6 ثوان ومفيش تحميل → fallback
   setTimeout(() => {
-    if (loading) loading.style.display = 'none';
-    iframe.style.display = 'block';
-  }, 5000);
+    if (iframe.style.display === 'none') {
+      showOfferwallFallback(offerwallUrl, loading, iframe);
+    }
+  }, 6000);
+}
+
+// ============================================================
+//  Fallback لو iframe لم يعمل
+// ============================================================
+function showOfferwallFallback(url, loading, iframe) {
+  if (loading) loading.style.display = 'none';
+  if (iframe) iframe.style.display = 'none';
+  
+  const container = document.getElementById('rewardsOfferwallTab');
+  if (!container) return;
+  
+  // إزالة الـ fallback القديم لو موجود
+  const old = container.querySelector('.offerwall-fallback');
+  if (old) old.remove();
+  
+  const div = document.createElement('div');
+  div.className = 'offerwall-fallback';
+  div.style.cssText = 'padding:40px 20px;text-align:center;';
+  div.innerHTML = `
+    <div style="font-size:60px;margin-bottom:16px;">🎯</div>
+    <h3 style="color:var(--text-main);margin:0 0 8px;font-size:18px;">عروض AdGem</h3>
+    <p style="color:var(--text-muted);font-size:14px;line-height:1.7;margin-bottom:24px;">
+      اضغط الزر أدناه لفتح صفحة العروض وكسب النقاط.<br>
+      بعد إكمال أي عرض، ستُضاف نقاطك تلقائياً لرصيدك.
+    </p>
+    <a href="${url}" target="_blank" rel="noopener"
+       style="display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:14px 28px;border-radius:14px;font-weight:800;font-size:15px;text-decoration:none;box-shadow:0 4px 20px rgba(99,102,241,0.4);">
+      <i class="fas fa-external-link-alt"></i> فتح صفحة العروض
+    </a>
+    <p style="color:var(--text-muted);font-size:12px;margin-top:16px;">
+      ستُفتح الصفحة في نافذة جديدة — ارجع هنا بعد الانتهاء لمشاهدة نقاطك
+    </p>
+  `;
+  container.appendChild(div);
 }
 
 // ============================================================
