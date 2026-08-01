@@ -1,29 +1,26 @@
 // ============================================================
-//  نظام "اربح نقاط" — CPX Research Integration
-//  أضف هذا الملف في index.html:
-//  <script src="./adgem-rewards.js" defer></script>
-//  أو ادمج محتواه في app.js
+//  نظام "اربح نقاط" — AdGem Offerwall
+//  الملف: adgem-rewards.js
+//  ضعه في نفس مجلد app.js على GitHub
 // ============================================================
 
-import { ref, get, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+import { ref, get, onValue, set } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
 
-const CPX_APP_ID   = "34983";
-const CPX_SECRET   = "V1l4T40yPe3k7GBYKZ6MnDzxz99JSffj";
+const ADGEM_APP_ID = "33111";
 
 // ============================================================
-//  إضافة CSS
+//  CSS
 // ============================================================
 (function injectStyles() {
   const style = document.createElement('style');
   style.textContent = `
-    /* ── Modal اربح نقاط ── */
     #rewardsModal {
       display: none;
       position: fixed;
       inset: 0;
       z-index: 99990;
-      background: rgba(15,23,42,0.6);
+      background: rgba(15,23,42,0.65);
       backdrop-filter: blur(6px);
       align-items: center;
       justify-content: center;
@@ -35,15 +32,15 @@ const CPX_SECRET   = "V1l4T40yPe3k7GBYKZ6MnDzxz99JSffj";
       background: var(--bg-main, #fff);
       border-radius: 20px;
       width: 100%;
-      max-width: 700px;
+      max-width: 720px;
       max-height: 90vh;
       overflow: hidden;
       display: flex;
       flex-direction: column;
       box-shadow: 0 24px 80px rgba(0,0,0,0.25);
-      animation: rewardsSlideIn 0.3s cubic-bezier(.34,1.56,.64,1);
+      animation: rwSlideIn 0.3s cubic-bezier(.34,1.56,.64,1);
     }
-    @keyframes rewardsSlideIn {
+    @keyframes rwSlideIn {
       from { transform: scale(0.88) translateY(30px); opacity: 0; }
       to   { transform: scale(1) translateY(0); opacity: 1; }
     }
@@ -52,15 +49,14 @@ const CPX_SECRET   = "V1l4T40yPe3k7GBYKZ6MnDzxz99JSffj";
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 18px 20px;
-      border-bottom: 1px solid var(--border-color, #e2e8f0);
-      background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+      padding: 16px 20px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
       color: #fff;
       flex-shrink: 0;
     }
     #rewardsHeader h3 {
       margin: 0;
-      font-size: 18px;
+      font-size: 17px;
       font-weight: 800;
       display: flex;
       align-items: center;
@@ -70,246 +66,164 @@ const CPX_SECRET   = "V1l4T40yPe3k7GBYKZ6MnDzxz99JSffj";
       background: rgba(255,255,255,0.2);
       border: none;
       color: #fff;
-      width: 34px;
-      height: 34px;
+      width: 32px; height: 32px;
       border-radius: 50%;
-      font-size: 16px;
+      font-size: 15px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.2s;
     }
     #rewardsCloseBtn:hover { background: rgba(255,255,255,0.35); }
 
-    /* بطاقة الرصيد */
     #rewardsBalanceBar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 14px 20px;
+      padding: 12px 20px;
       background: var(--bg-secondary, #f8fafc);
       border-bottom: 1px solid var(--border-color, #e2e8f0);
       flex-shrink: 0;
       flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
     }
-    .rewards-balance-card {
+    .rw-balance-card {
       display: flex;
       align-items: center;
       gap: 10px;
     }
-    .rewards-balance-icon {
-      width: 44px;
-      height: 44px;
+    .rw-balance-icon {
+      width: 42px; height: 42px;
       border-radius: 12px;
       background: linear-gradient(135deg, #f59e0b, #ef4444);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: #fff;
-      font-size: 20px;
-    }
-    .rewards-balance-info span {
-      display: block;
-      font-size: 11px;
-      color: var(--text-muted, #64748b);
-    }
-    .rewards-balance-info strong {
-      font-size: 20px;
-      font-weight: 900;
-      color: var(--text-main, #0f172a);
-    }
-    .rewards-split-badge {
-      background: #f0fdf4;
-      border: 1px solid #86efac;
-      border-radius: 20px;
-      padding: 6px 14px;
-      font-size: 12px;
-      font-weight: 700;
-      color: #15803d;
-      display: flex;
-      align-items: center;
-      gap: 6px;
-    }
-
-    /* تبويبات */
-    #rewardsTabs {
-      display: flex;
-      border-bottom: 1px solid var(--border-color, #e2e8f0);
-      flex-shrink: 0;
-      background: var(--bg-main, #fff);
-    }
-    .rewards-tab {
-      flex: 1;
-      padding: 12px;
-      text-align: center;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      color: var(--text-muted, #64748b);
-      border-bottom: 3px solid transparent;
-      transition: all 0.2s;
-    }
-    .rewards-tab.active {
-      color: #6366f1;
-      border-bottom-color: #6366f1;
-    }
-
-    /* محتوى التبويبات */
-    #rewardsContent {
-      flex: 1;
-      overflow-y: auto;
-      min-height: 0;
-    }
-
-    /* تبويب الـ Offerwall */
-    #rewardsOfferwallTab {
-      height: 100%;
-      min-height: 480px;
-    }
-    #adgemIframe {
-      width: 100%;
-      height: 100%;
-      min-height: 480px;
-      border: none;
-      display: block;
-    }
-    #rewardsLoadingOverlay {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      background: var(--bg-main, #fff);
-      z-index: 2;
-    }
-    .rewards-spinner {
-      width: 48px;
-      height: 48px;
-      border: 4px solid #e2e8f0;
-      border-top-color: #6366f1;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-
-    /* تبويب السجل */
-    #rewardsHistoryTab { padding: 16px; }
-    .history-item {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      padding: 12px;
-      border-radius: 14px;
-      background: var(--bg-secondary, #f8fafc);
-      margin-bottom: 10px;
-      border: 1px solid var(--border-color, #e2e8f0);
-    }
-    .history-icon {
-      width: 42px;
-      height: 42px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
       display: flex;
       align-items: center;
       justify-content: center;
       color: #fff;
       font-size: 18px;
+    }
+    .rw-balance-info span { display: block; font-size: 11px; color: var(--text-muted,#64748b); }
+    .rw-balance-info strong { font-size: 20px; font-weight: 900; color: var(--text-main,#0f172a); }
+
+    #rewardsTabs {
+      display: flex;
+      border-bottom: 1px solid var(--border-color,#e2e8f0);
       flex-shrink: 0;
+      background: var(--bg-main,#fff);
     }
-    .history-info { flex: 1; min-width: 0; }
-    .history-info .offer { font-size: 13px; font-weight: 700; color: var(--text-main,#0f172a); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .history-info .date  { font-size: 11px; color: var(--text-muted,#64748b); margin-top: 2px; }
-    .history-points {
-      font-size: 15px;
-      font-weight: 900;
-      color: #16a34a;
-      white-space: nowrap;
-    }
-    .history-empty {
+    .rw-tab {
+      flex: 1;
+      padding: 11px;
       text-align: center;
-      padding: 40px 20px;
-      color: var(--text-muted, #64748b);
-      font-size: 14px;
-    }
-    .history-empty i { font-size: 40px; margin-bottom: 12px; display: block; opacity: 0.4; }
-
-    /* تبويب كيف يعمل */
-    #rewardsHowTab { padding: 20px; }
-    .how-step {
-      display: flex;
-      gap: 14px;
-      margin-bottom: 20px;
-      align-items: flex-start;
-    }
-    .how-step-num {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: #fff;
-      font-weight: 900;
-      font-size: 15px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-    .how-step-text h4 { margin: 0 0 4px; font-size: 14px; color: var(--text-main,#0f172a); }
-    .how-step-text p  { margin: 0; font-size: 13px; color: var(--text-muted,#64748b); line-height: 1.6; }
-
-    .rewards-info-box {
-      background: #eff6ff;
-      border: 1px solid #bfdbfe;
-      border-radius: 14px;
-      padding: 14px 16px;
-      margin-top: 10px;
-    }
-    .rewards-info-box p { margin: 0; font-size: 13px; color: #1d4ed8; line-height: 1.7; }
-
-    /* Toast إشعار النقاط */
-    #pointsToast {
-      position: fixed;
-      bottom: 90px;
-      left: 50%;
-      transform: translateX(-50%) translateY(20px);
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: #fff;
-      padding: 12px 24px;
-      border-radius: 30px;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 700;
-      box-shadow: 0 8px 30px rgba(99,102,241,0.4);
-      z-index: 999999;
-      opacity: 0;
-      transition: all 0.4s cubic-bezier(.34,1.56,.64,1);
-      white-space: nowrap;
-      pointer-events: none;
+      cursor: pointer;
+      color: var(--text-muted,#64748b);
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
     }
-    #pointsToast.show {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
+    .rw-tab.active { color: #6366f1; border-bottom-color: #6366f1; }
+
+    #rewardsContent { flex: 1; overflow-y: auto; min-height: 0; position: relative; }
+
+    #rwOfferwallTab { height: 100%; min-height: 480px; position: relative; }
+    #adgemIframe {
+      width: 100%; height: 100%; min-height: 480px;
+      border: none; display: none;
+    }
+    #rwLoadingOverlay {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 14px;
+      background: var(--bg-main,#fff);
+      z-index: 2;
+    }
+    .rw-spinner {
+      width: 46px; height: 46px;
+      border: 4px solid #e2e8f0;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: rwSpin 0.8s linear infinite;
+    }
+    @keyframes rwSpin { to { transform: rotate(360deg); } }
+
+    #rwHistoryTab { padding: 16px; }
+    .rw-history-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 14px;
+      background: var(--bg-secondary,#f8fafc);
+      margin-bottom: 10px;
+      border: 1px solid var(--border-color,#e2e8f0);
+    }
+    .rw-history-icon {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      background: linear-gradient(135deg,#6366f1,#8b5cf6);
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 16px; flex-shrink: 0;
+    }
+    .rw-history-info { flex: 1; min-width: 0; }
+    .rw-history-info .rw-offer { font-size: 13px; font-weight: 700; color: var(--text-main,#0f172a); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .rw-history-info .rw-date  { font-size: 11px; color: var(--text-muted,#64748b); margin-top: 2px; }
+    .rw-history-pts { font-size: 15px; font-weight: 900; color: #16a34a; white-space: nowrap; }
+    .rw-empty {
+      text-align: center; padding: 40px 20px;
+      color: var(--text-muted,#64748b); font-size: 14px;
+    }
+    .rw-empty i { font-size: 38px; margin-bottom: 12px; display: block; opacity: 0.35; }
+
+    #rwHowTab { padding: 20px; }
+    .rw-step { display: flex; gap: 14px; margin-bottom: 20px; align-items: flex-start; }
+    .rw-step-num {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: linear-gradient(135deg,#6366f1,#8b5cf6);
+      color: #fff; font-weight: 900; font-size: 14px;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .rw-step-text h4 { margin: 0 0 4px; font-size: 14px; color: var(--text-main,#0f172a); }
+    .rw-step-text p  { margin: 0; font-size: 13px; color: var(--text-muted,#64748b); line-height: 1.6; }
+    .rw-info-box {
+      background: #eff6ff; border: 1px solid #bfdbfe;
+      border-radius: 14px; padding: 14px 16px; margin-top: 10px;
+    }
+    .rw-info-box p { margin: 0; font-size: 13px; color: #1d4ed8; line-height: 1.7; }
+
+    .rw-fallback {
+      padding: 40px 20px; text-align: center;
+    }
+    .rw-fallback-btn {
+      display: inline-flex; align-items: center; gap: 10px;
+      background: linear-gradient(135deg,#6366f1,#8b5cf6);
+      color: #fff; padding: 14px 28px; border-radius: 14px;
+      font-weight: 800; font-size: 15px; text-decoration: none;
+      box-shadow: 0 4px 20px rgba(99,102,241,0.4);
+      margin-top: 16px; cursor: pointer; border: none;
+    }
+    .rw-fallback-btn:hover { opacity: 0.9; }
+
+    #navPointsBadge {
+      background: linear-gradient(135deg,#f59e0b,#ef4444);
+      color: #fff; padding: 2px 8px; border-radius: 20px;
+      font-size: 11px; font-weight: 800; margin-right: 6px;
+      display: inline-flex; align-items: center; gap: 4px;
     }
 
-    /* نقاط في الـ navbar */
-    #navPointsBadge {
-      background: linear-gradient(135deg, #f59e0b, #ef4444);
-      color: #fff;
-      padding: 3px 8px;
-      border-radius: 20px;
-      font-size: 11px;
-      font-weight: 800;
-      margin-right: 4px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      transition: transform 0.2s;
+    #pointsToast {
+      position: fixed; bottom: 90px; left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: linear-gradient(135deg,#6366f1,#8b5cf6);
+      color: #fff; padding: 12px 24px; border-radius: 30px;
+      font-size: 14px; font-weight: 700;
+      box-shadow: 0 8px 30px rgba(99,102,241,0.4);
+      z-index: 999999; opacity: 0;
+      transition: all 0.4s cubic-bezier(.34,1.56,.64,1);
+      white-space: nowrap; pointer-events: none;
     }
-    #navPointsBadge:hover { transform: scale(1.05); }
+    #pointsToast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     @media (max-width: 600px) {
       #rewardsBox { max-height: 95vh; border-radius: 20px 20px 0 0; }
@@ -320,17 +234,14 @@ const CPX_SECRET   = "V1l4T40yPe3k7GBYKZ6MnDzxz99JSffj";
 })();
 
 // ============================================================
-//  إنشاء الـ Modal في DOM
+//  إنشاء Modal
 // ============================================================
 function createRewardsModal() {
   if (document.getElementById('rewardsModal')) return;
-
   const modal = document.createElement('div');
   modal.id = 'rewardsModal';
   modal.innerHTML = `
     <div id="rewardsBox">
-
-      <!-- Header -->
       <div id="rewardsHeader">
         <h3><i class="fas fa-gem"></i> اربح نقاط</h3>
         <button id="rewardsCloseBtn" onclick="window.closeRewardsModal()">
@@ -338,228 +249,161 @@ function createRewardsModal() {
         </button>
       </div>
 
-      <!-- شريط الرصيد -->
       <div id="rewardsBalanceBar">
-        <div class="rewards-balance-card">
-          <div class="rewards-balance-icon"><i class="fas fa-coins"></i></div>
-          <div class="rewards-balance-info">
+        <div class="rw-balance-card">
+          <div class="rw-balance-icon"><i class="fas fa-coins"></i></div>
+          <div class="rw-balance-info">
             <span>رصيدك الحالي</span>
-            <strong id="rewardsCurrentPoints">0</strong> <span style="font-size:12px;">نقطة</span>
+            <strong id="rewardsCurrentPoints">0</strong>
+            <span style="font-size:12px;display:inline;">نقطة</span>
           </div>
         </div>
-
       </div>
 
-      <!-- تبويبات -->
       <div id="rewardsTabs">
-        <div class="rewards-tab active" onclick="window.switchRewardsTab('offerwall')">
+        <div class="rw-tab active" onclick="window.switchRewardsTab('offerwall')">
           <i class="fas fa-tasks"></i> العروض
         </div>
-        <div class="rewards-tab" onclick="window.switchRewardsTab('history')">
-          <i class="fas fa-history"></i> السجل
+        <div class="rw-tab" onclick="window.switchRewardsTab('history')">
+          <i class="fas fa-history"></i> سجلي
         </div>
-        <div class="rewards-tab" onclick="window.switchRewardsTab('how')">
+        <div class="rw-tab" onclick="window.switchRewardsTab('how')">
           <i class="fas fa-question-circle"></i> كيف يعمل؟
         </div>
       </div>
 
-      <!-- المحتوى -->
-      <div id="rewardsContent" style="position:relative;">
+      <div id="rewardsContent">
 
-        <!-- تبويب الـ Offerwall -->
-        <div id="rewardsOfferwallTab">
-          <div id="rewardsLoadingOverlay">
-            <div class="rewards-spinner"></div>
+        <div id="rwOfferwallTab">
+          <div id="rwLoadingOverlay">
+            <div class="rw-spinner"></div>
             <p style="color:var(--text-muted);font-size:13px;margin:0;">جاري تحميل العروض...</p>
           </div>
-          <iframe id="adgemIframe" style="display:none;"
-            scrolling="yes"
-            allow="clipboard-write"
-          ></iframe>
+          <iframe id="adgemIframe" scrolling="yes" allow="clipboard-write"></iframe>
         </div>
 
-        <!-- تبويب السجل -->
-        <div id="rewardsHistoryTab" style="display:none;">
+        <div id="rwHistoryTab" style="display:none;">
           <div id="rewardsHistoryList">
-            <div class="history-empty">
-              <i class="fas fa-receipt"></i>
-              لا توجد معاملات بعد
-            </div>
+            <div class="rw-empty"><i class="fas fa-receipt"></i>لا توجد معاملات بعد</div>
           </div>
         </div>
 
-        <!-- تبويب كيف يعمل -->
-        <div id="rewardsHowTab" style="display:none;">
-          <div class="how-step">
-            <div class="how-step-num">1</div>
-            <div class="how-step-text">
+        <div id="rwHowTab" style="display:none;">
+          <div class="rw-step">
+            <div class="rw-step-num">1</div>
+            <div class="rw-step-text">
               <h4>اختر عرضاً</h4>
               <p>تصفح قائمة العروض المتاحة — استبيانات، ألعاب، تطبيقات — كلها مجانية</p>
             </div>
           </div>
-          <div class="how-step">
-            <div class="how-step-num">2</div>
-            <div class="how-step-text">
+          <div class="rw-step">
+            <div class="rw-step-num">2</div>
+            <div class="rw-step-text">
               <h4>أكمل المهمة</h4>
-              <p>اتبع التعليمات لكل عرض حتى النهاية للحصول على المكافأة</p>
+              <p>اتبع تعليمات كل عرض حتى النهاية للحصول على المكافأة</p>
             </div>
           </div>
-          <div class="how-step">
-            <div class="how-step-num">3</div>
-            <div class="how-step-text">
+          <div class="rw-step">
+            <div class="rw-step-num">3</div>
+            <div class="rw-step-text">
               <h4>اجمع نقاطك</h4>
               <p>تُضاف النقاط تلقائياً لرصيدك خلال لحظات مع إشعار فوري</p>
             </div>
           </div>
-          <div class="how-step">
-            <div class="how-step-num">4</div>
-            <div class="how-step-text">
+          <div class="rw-step">
+            <div class="rw-step-num">4</div>
+            <div class="rw-step-text">
               <h4>استبدل نقاطك</h4>
               <p>استخدم نقاطك للحصول على مميزات خاصة داخل المنصة</p>
             </div>
           </div>
-          <div class="rewards-info-box">
-            <p>
-              💡 <strong>كيف تُحسب نقاطك؟</strong><br>
-              تُضاف النقاط فور إكمال أي استبيان أو عرض مباشرةً لرصيدك.<br><br>
-              📌 <strong>ملاحظة:</strong> قيمة النقاط تختلف حسب كل عرض
-            </p>
+          <div class="rw-info-box">
+            <p>💡 <strong>كيف تُحسب نقاطك؟</strong><br>
+            تُضاف النقاط فور إكمال أي عرض مباشرةً لرصيدك.<br>
+            📌 قيمة النقاط تختلف حسب كل عرض</p>
           </div>
         </div>
 
       </div>
-    </div>
-  `;
+    </div>`;
   document.body.appendChild(modal);
-
-  // إغلاق بالضغط خارج الـ Modal
-  modal.addEventListener('click', (e) => {
-    if (e.target === modal) window.closeRewardsModal();
-  });
+  modal.addEventListener('click', e => { if (e.target === modal) window.closeRewardsModal(); });
 }
 
 // ============================================================
-//  تخزين ربط username ↔ cpxUserId في Firebase
+//  فتح وإغلاق Modal
 // ============================================================
-async function storeCPXMapping(username) {
-  const cpxId = await makeCPXUserId(username);
-  try {
-    const { ref: fbRef, set } = await import("https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js");
-    const { db: database } = await import("./firebase-config.js");
-    await set(fbRef(database, `cpx_users/${cpxId}`), username);
-  } catch(e) { console.warn('CPX mapping store failed:', e); }
-}
-
-// ============================================================
-//  فتح Modal اربح نقاط
-// ============================================================
-window.openRewardsModal = async () => {
+window.openRewardsModal = () => {
   if (!window.currentUser) return window.showRegisterModal();
-
   createRewardsModal();
   document.getElementById('rewardsModal').classList.add('show');
   document.body.style.overflow = 'hidden';
-
-  // إغلاق قوائم أخرى
   document.querySelectorAll('.dropdown-menu').forEach(m => m.style.display = 'none');
-
-  // تحميل الرصيد الحالي
   loadCurrentPoints();
-
-  // تخزين CPX mapping وتحميل الـ Offerwall
-  storeCPXMapping(window.currentUser).then(() => loadCPXOfferwall());
+  loadAdgemOfferwall();
 };
 
 window.closeRewardsModal = () => {
-  const modal = document.getElementById('rewardsModal');
-  if (modal) modal.classList.remove('show');
+  const m = document.getElementById('rewardsModal');
+  if (m) m.classList.remove('show');
   document.body.style.overflow = 'auto';
 };
 
 // ============================================================
-//  تحميل الـ Offerwall في iframe
+//  تحميل AdGem Offerwall
 // ============================================================
-// تحويل username عربي لـ ID رقمي ثابت مقبول من CPX
-async function makeCPXUserId(username) {
-  const encoder = new TextEncoder();
-  const data    = encoder.encode(username);
-  const hashBuf = await crypto.subtle.digest('SHA-256', data);
-  const hashArr = Array.from(new Uint8Array(hashBuf));
-  // نأخذ أول 12 رقم hex = ID فريد وثابت لكل مستخدم
-  return hashArr.map(b => b.toString(16).padStart(2,'0')).join('').substring(0, 12);
-}
-
-async function loadCPXOfferwall() {
+function loadAdgemOfferwall() {
   const iframe  = document.getElementById('adgemIframe');
-  const loading = document.getElementById('rewardsLoadingOverlay');
+  const loading = document.getElementById('rwLoadingOverlay');
   if (!iframe) return;
 
-  // AdGem Offerwall URL
-  // player_id = username العضو (يُستخدم في الـ Postback)
-  // تأكد من وجود الـ user
   const uid = window.currentUser || '';
-  if (!uid) { showOfferwallFallback('', loading, iframe); return; }
-
-  // CPX لا يقبل عربي — نحوّل الاسم لـ hash رقمي ثابت
-  const cpxUserId = await makeCPXUserId(uid);
-
-  const offerwallUrl = `https://offers.cpx-research.com/index.php?app_id=${CPX_APP_ID}&user_id=${cpxUserId}&ext_user_id=${cpxUserId}&subid=${encodeURIComponent(uid)}`;
-
   if (!uid) return;
+
+  const offerwallUrl =
+    `https://api.adgem.com/v1/wall?appid=${ADGEM_APP_ID}&playerid=${encodeURIComponent(uid)}`;
+
   iframe.src = offerwallUrl;
   iframe.style.display = 'none';
 
-  // فحص إذا كان الـ iframe يعمل
   iframe.onload = () => {
     if (loading) loading.style.display = 'none';
     iframe.style.display = 'block';
   };
 
-  iframe.onerror = () => {
-    // fallback: افتح في نافذة جديدة
-    showOfferwallFallback(offerwallUrl, loading, iframe);
-  };
-
-  // timeout: لو 6 ثوان ومفيش تحميل → fallback
+  // fallback بعد 7 ثوان
   setTimeout(() => {
     if (iframe.style.display === 'none') {
-      showOfferwallFallback(offerwallUrl, loading, iframe);
+      if (loading) loading.style.display = 'none';
+      showOfferwallFallback(offerwallUrl);
     }
-  }, 6000);
+  }, 7000);
 }
 
 // ============================================================
 //  Fallback لو iframe لم يعمل
 // ============================================================
-function showOfferwallFallback(url, loading, iframe) {
-  if (loading) loading.style.display = 'none';
-  if (iframe) iframe.style.display = 'none';
-  
-  const container = document.getElementById('rewardsOfferwallTab');
+function showOfferwallFallback(url) {
+  const container = document.getElementById('rwOfferwallTab');
   if (!container) return;
-  
-  // إزالة الـ fallback القديم لو موجود
-  const old = container.querySelector('.offerwall-fallback');
+  const old = container.querySelector('.rw-fallback');
   if (old) old.remove();
-  
+
   const div = document.createElement('div');
-  div.className = 'offerwall-fallback';
-  div.style.cssText = 'padding:40px 20px;text-align:center;';
+  div.className = 'rw-fallback';
   div.innerHTML = `
-    <div style="font-size:60px;margin-bottom:16px;">🎯</div>
-    <h3 style="color:var(--text-main);margin:0 0 8px;font-size:18px;">استبيانات مدفوعة</h3>
-    <p style="color:var(--text-muted);font-size:14px;line-height:1.7;margin-bottom:24px;">
-      اضغط الزر أدناه لفتح صفحة الاستبيانات وكسب النقاط.<br>
-      بعد إكمال أي عرض، ستُضاف نقاطك تلقائياً لرصيدك.
+    <div style="font-size:56px;margin-bottom:14px;">🎯</div>
+    <h3 style="color:var(--text-main);margin:0 0 8px;font-size:17px;">عروض AdGem</h3>
+    <p style="color:var(--text-muted);font-size:13px;line-height:1.7;margin-bottom:0;">
+      اضغط الزر أدناه لفتح صفحة العروض وكسب النقاط.<br>
+      بعد إكمال أي عرض ستُضاف نقاطك تلقائياً.
     </p>
-    <a href="${url}" target="_blank" rel="noopener"
-       style="display:inline-flex;align-items:center;gap:10px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;padding:14px 28px;border-radius:14px;font-weight:800;font-size:15px;text-decoration:none;box-shadow:0 4px 20px rgba(99,102,241,0.4);">
+    <a href="${url}" target="_blank" rel="noopener" class="rw-fallback-btn">
       <i class="fas fa-external-link-alt"></i> فتح صفحة العروض
     </a>
-    <p style="color:var(--text-muted);font-size:12px;margin-top:16px;">
-      ستُفتح الصفحة في نافذة جديدة — ارجع هنا بعد الانتهاء لمشاهدة نقاطك
-    </p>
-  `;
+    <p style="color:var(--text-muted);font-size:11px;margin-top:14px;">
+      ستُفتح في نافذة جديدة — ارجع هنا بعد الانتهاء لمشاهدة نقاطك
+    </p>`;
   container.appendChild(div);
 }
 
@@ -567,33 +411,22 @@ function showOfferwallFallback(url, loading, iframe) {
 //  تبديل التبويبات
 // ============================================================
 window.switchRewardsTab = (tab) => {
-  // إخفاء كل التبويبات
-  ['offerwall', 'history', 'how'].forEach(t => {
-    const el = document.getElementById(`rewards${capitalize(t)}Tab`);
+  const tabs = { offerwall:'rwOfferwallTab', history:'rwHistoryTab', how:'rwHowTab' };
+  Object.values(tabs).forEach(id => {
+    const el = document.getElementById(id);
     if (el) el.style.display = 'none';
   });
-
-  // إزالة active من كل الأزرار
-  document.querySelectorAll('.rewards-tab').forEach(b => b.classList.remove('active'));
-
-  // إظهار التبويب المطلوب
-  const tabMap = { offerwall: 'rewardsOfferwallTab', history: 'rewardsHistoryTab', how: 'rewardsHowTab' };
-  const el = document.getElementById(tabMap[tab]);
-  if (el) el.style.display = tab === 'offerwall' ? 'block' : 'block';
-
-  // تفعيل الزر
-  const tabs = document.querySelectorAll('.rewards-tab');
-  const idx  = { offerwall: 0, history: 1, how: 2 };
-  if (tabs[idx[tab]]) tabs[idx[tab]].classList.add('active');
-
-  // تحميل السجل عند الضغط عليه
+  document.querySelectorAll('.rw-tab').forEach(b => b.classList.remove('active'));
+  const el = document.getElementById(tabs[tab]);
+  if (el) el.style.display = 'block';
+  const idx = { offerwall:0, history:1, how:2 };
+  const btns = document.querySelectorAll('.rw-tab');
+  if (btns[idx[tab]]) btns[idx[tab]].classList.add('active');
   if (tab === 'history') loadPointsHistory();
 };
 
-function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
-
 // ============================================================
-//  تحميل الرصيد الحالي من Firebase
+//  رصيد النقاط
 // ============================================================
 function loadCurrentPoints() {
   if (!window.currentUser) return;
@@ -601,79 +434,65 @@ function loadCurrentPoints() {
     const pts = snap.exists() ? snap.val() : 0;
     const el  = document.getElementById('rewardsCurrentPoints');
     if (el) el.innerText = pts.toLocaleString('ar-EG');
-    // تحديث شارة النقاط في الـ navbar
     updateNavPointsBadge(pts);
   });
 }
 
+function updateNavPointsBadge(pts) {
+  const badge = document.getElementById('navPointsBadge');
+  if (badge) badge.innerHTML = `<i class="fas fa-coins"></i> ${pts.toLocaleString('ar-EG')}`;
+}
+
 // ============================================================
-//  تحميل سجل المكافآت
+//  سجل المكافآت
 // ============================================================
 function loadPointsHistory() {
   const container = document.getElementById('rewardsHistoryList');
   if (!container) return;
-  container.innerHTML = '<div class="history-empty"><div class="rewards-spinner" style="margin:auto;"></div></div>';
+  container.innerHTML = '<div class="rw-empty"><div class="rw-spinner" style="margin:auto;"></div></div>';
 
   get(ref(db, `users/${window.currentUser}/pointsHistory`)).then(snap => {
     if (!snap.exists()) {
-      container.innerHTML = `<div class="history-empty"><i class="fas fa-receipt"></i> لا توجد معاملات بعد</div>`;
+      container.innerHTML = '<div class="rw-empty"><i class="fas fa-receipt"></i>لا توجد معاملات بعد</div>';
       return;
     }
-
     const items = [];
-    snap.forEach(child => {
-      items.push({ id: child.key, ...child.val() });
-    });
-    // ترتيب من الأحدث للأقدم
-    items.sort((a, b) => b.timestamp - a.timestamp);
+    snap.forEach(c => items.push({ id: c.key, ...c.val() }));
+    items.sort((a,b) => b.timestamp - a.timestamp);
 
-    let html = '';
-    items.forEach(item => {
+    container.innerHTML = items.map(item => {
       const date = new Date(item.timestamp).toLocaleString('ar-EG', {
-        year: 'numeric', month: 'short', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
+        year:'numeric', month:'short', day:'numeric',
+        hour:'2-digit', minute:'2-digit'
       });
-      html += `
-        <div class="history-item">
-          <div class="history-icon"><i class="fas fa-gem"></i></div>
-          <div class="history-info">
-            <div class="offer">${item.offerName || 'عرض AdGem'}</div>
-            <div class="date">${date}</div>
+      return `
+        <div class="rw-history-item">
+          <div class="rw-history-icon"><i class="fas fa-gem"></i></div>
+          <div class="rw-history-info">
+            <div class="rw-offer">${item.offerName || 'عرض AdGem'}</div>
+            <div class="rw-date">${date}</div>
           </div>
-          <div class="history-points">+${(item.earned || 0).toLocaleString('ar-EG')} نقطة</div>
-        </div>
-      `;
-    });
-    container.innerHTML = html;
+          <div class="rw-history-pts">+${(item.earned||0).toLocaleString('ar-EG')} نقطة</div>
+        </div>`;
+    }).join('');
   });
 }
 
 // ============================================================
-//  شارة النقاط في الـ Navbar
-// ============================================================
-function updateNavPointsBadge(points) {
-  let badge = document.getElementById('navPointsBadge');
-  if (!badge) return;
-  badge.innerHTML = `<i class="fas fa-coins"></i> ${points.toLocaleString('ar-EG')}`;
-}
-
-// ============================================================
-//  الاستماع لتغيرات النقاط في Firebase (real-time)
+//  Real-time listener للنقاط
 // ============================================================
 window.listenToPoints = () => {
   if (!window.currentUser) return;
   onValue(ref(db, `users/${window.currentUser}/points`), snap => {
     const pts = snap.exists() ? snap.val() : 0;
     updateNavPointsBadge(pts);
-
-    // تحديث العرض داخل الـ Modal لو مفتوح
     const el = document.getElementById('rewardsCurrentPoints');
     if (el) el.innerText = pts.toLocaleString('ar-EG');
   });
 };
 
 // ============================================================
-//  إشعار نقاط مرئي
+//  Toast إشعار النقاط
 // ============================================================
 window.showPointsToast = (points, offerName) => {
   let toast = document.getElementById('pointsToast');
@@ -688,32 +507,27 @@ window.showPointsToast = (points, offerName) => {
 };
 
 // ============================================================
-//  الاستماع لإشعارات النقاط من Firebase
+//  Listener للإشعارات
 // ============================================================
 window.listenToPointsNotifications = () => {
   if (!window.currentUser) return;
   let isFirst = true;
   onValue(ref(db, `users/${window.currentUser}/notifications`), snap => {
-    if (isFirst) { isFirst = false; return; } // تجاهل التحميل الأول
+    if (isFirst) { isFirst = false; return; }
     if (!snap.exists()) return;
     snap.forEach(child => {
       const n = child.val();
-      if (n.type === 'cpx_reward' && !n.read && n.points) {
+      if (n.type === 'adgem_reward' && !n.read && n.points) {
         window.showPointsToast(n.points, n.offerName || 'AdGem');
-        if (window.showToast) {
-          window.showToast(
-            '🎉 نقاط جديدة!',
-            `ربحت ${n.points.toLocaleString('ar-EG')} نقطة من "${n.offerName}"`,
-            ''
-          );
-        }
+        if (window.showToast) window.showToast('🎉 نقاط جديدة!',
+          `ربحت ${n.points.toLocaleString('ar-EG')} نقطة من "${n.offerName}"`, '');
       }
     });
   });
 };
 
 // ============================================================
-//  تصدير دالة التهيئة — استدعها بعد تسجيل الدخول
+//  تهيئة النظام — استدعها بعد تسجيل الدخول
 // ============================================================
 window.initRewardsSystem = () => {
   window.listenToPoints();
