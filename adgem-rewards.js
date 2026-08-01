@@ -474,8 +474,16 @@ function loadCPXOfferwall() {
 
   // AdGem Offerwall URL
   // player_id = username العضو (يُستخدم في الـ Postback)
-  const offerwallUrl = `https://offers.cpx-research.com/index.php?app_id=${CPX_APP_ID}&ext_user_id=${encodeURIComponent(window.currentUser)}&username=${encodeURIComponent(window.currentUser)}`;
+  // تأكد من وجود الـ user
+  const uid = window.currentUser || '';
+  if (!uid) { showOfferwallFallback('', loading, iframe); return; }
 
+  // CPX Research يقبل user_id أو ext_user_id
+  const offerwallUrl = `https://offers.cpx-research.com/index.php?app_id=${CPX_APP_ID}&user_id=${encodeURIComponent(uid)}&ext_user_id=${encodeURIComponent(uid)}&subid=${encodeURIComponent(uid)}&username=${encodeURIComponent(uid)}`;
+  
+  console.log('CPX URL:', offerwallUrl); // للتشخيص
+
+  if (!uid) return;
   iframe.src = offerwallUrl;
   iframe.style.display = 'none';
 
