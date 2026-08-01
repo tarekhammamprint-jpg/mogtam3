@@ -477,8 +477,7 @@ function loadAdgemOfferwall() {
 
   // AdGem Offerwall URL
   // player_id = username العضو (يُستخدم في الـ Postback)
-  // AdGem Offerwall — جرب كل URL حتى يشتغل
-  const offerwallUrl = `https://adgem.com/offers?app_id=${ADGEM_APP_ID}&player_id=${encodeURIComponent(window.currentUser)}&mobile=false`;
+  const offerwallUrl = `https://api.adgem.com/v1/wall?appid=${ADGEM_APP_ID}&playerid=${encodeURIComponent(window.currentUser)}`;
 
   iframe.src = offerwallUrl;
   iframe.style.display = 'none';
