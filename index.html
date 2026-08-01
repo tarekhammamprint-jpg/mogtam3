@@ -374,6 +374,7 @@
                 </div>
                 <div class="dropdown-menu" id="userMenuDropdown">
                     <div onclick="window.openProfile(window.currentUser)" class="dropdown-item"><em class="fas fa-cog" style="color:var(--primary);"></em> تعديل البيانات</div>
+                    <div onclick="window.openRewardsModal()" class="dropdown-item" style="color:#7c3aed;"><em class="fas fa-gem"></em> اربح نقاط <span id="navPointsBadge" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:800;margin-right:6px;">0</span></div>
                     <div style="color:#e41e3f;" onclick="window.logoutUser()" class="dropdown-item"><em class="fas fa-sign-out-alt"></em> تسجيل خروج</div>
                 </div>
             </div>
@@ -393,6 +394,7 @@
             <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="avatar-small" id="mobileNavAvatar" style="width:26px;height:26px;" />
             <div class="dropdown-menu bottom-up-menu" id="mobileUserMenuDropdown">
                 <div onclick="window.openProfile(window.currentUser)" class="dropdown-item"><em class="fas fa-cog" style="color:var(--primary);"></em> تعديل</div>
+                <div onclick="window.openRewardsModal()" class="dropdown-item" style="color:#7c3aed;"><em class="fas fa-gem"></em> اربح نقاط</div>
                 <div style="color:#e41e3f;" onclick="window.logoutUser()" class="dropdown-item"><em class="fas fa-sign-out-alt"></em> خروج</div>
             </div>
         </div>
@@ -566,6 +568,7 @@
     <script>window.FontAwesomeConfig = { autoReplaceSvg: false };</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script type="module" src="video-call.js?v=20260728f"></script>
+    <script type="module" src="adgem-rewards.js?v=20260801"></script>
     <script type="module" src="app.js?v=20260728f"></script>
 
     <style>
