@@ -842,6 +842,14 @@ window.openFullMenu = () => {
                 </div>
                 <i class="fas fa-chevron-left fmenu-chevron"></i>
             </a>
+            <div class="fmenu-card" onclick="window.closeFullMenu();window.openRewardsModal()">
+                <div class="fmenu-icon" style="background:#f5f3ff"><i class="fas fa-gem" style="color:#7c3aed"></i></div>
+                <div class="fmenu-txt">
+                    <div class="fmenu-title" style="color:#7c3aed">اربح نقاط <span class="fmenu-badge" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">جديد</span></div>
+                    <div class="fmenu-desc">أكمل عروض AdGem واربح نقاط فورية</div>
+                </div>
+                <i class="fas fa-chevron-left fmenu-chevron"></i>
+            </div>
             <div class="fmenu-card" onclick="window.closeFullMenu();window.dlgAlert('ميزة الربح من المنشورات قريباً! 🚀','info','قريباً')">
                 <div class="fmenu-icon" style="background:#f5f3ff"><i class="fas fa-money-bill-wave" style="color:#7c3aed"></i></div>
                 <div class="fmenu-txt">
