@@ -1289,12 +1289,14 @@ function createPostHTML(p, cp, it=false, im=false) {
     let st = autoActionText || window.formatMentions(p.text), pb = '', ca = im ? '' : `onclick="window.openPostModal('${p.id}')"`; let isLongP = p.text && (p.text.length > 200 || p.text.split('\n').length > 3); let pTxt = `<div class="post-content ${isLongP && !im ? 'collapsed' : ''}" id="ptxt_${p.id}" style="${autoActionText ? 'font-weight:700;' : ''}">${st}</div>`; if(isLongP && !im) pTxt += `<div class="show-more-btn" onclick="document.getElementById('ptxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`;
     let headerLeft = `<div style="display:flex; gap:10px; align-items:center;"><a href="#/@${p.author}"><img src="${ap}" class="avatar-small"></a><div style="display:flex; flex-direction:column; line-height:1.2;"><div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px;"><a href="#/@${p.author}" class="post-author" style="color:inherit; text-decoration:none;">${ad}</a>${ah} ${abg} ${af} ${tbg}</div><a href="#/post/${p.id}" class="post-time" title="${dtFull}" style="color:inherit; text-decoration:none; margin-top:3px;">${dt}</a></div></div>`;
     if(p.isShare && p.sharedData) { let sap = window.allUsersData[p.sharedData.author]?.profilePic || dA, sst = window.formatMentions(p.sharedData.text), sd = window.getDisplayName(p.sharedData.author); let isLongS = p.sharedData.text && (p.sharedData.text.length > 200 || p.sharedData.text.split('\n').length > 3); let sTxt = `<div class="post-content ${isLongS && !im ? 'collapsed' : ''}" id="stxt_${p.id}" style="font-size:14px;">${sst}</div>`; if(isLongS && !im) sTxt += `<div class="show-more-btn" onclick="document.getElementById('stxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`; pb = `<div class="post-clickable" ${ca}>${pTxt}<div class="shared-post-box" onclick="event.stopPropagation();window.openProfile('${p.sharedData.author}')"><div class="post-header" style="margin-bottom:8px;"><a href="#/@${p.sharedData.author}"><img src="${sap}" class="avatar-small"></a><div style="display:flex; flex-direction:column; line-height:1.2; margin-right:8px;"><a href="#/@${p.sharedData.author}" class="post-author" style="color:inherit; text-decoration:none;">${sd} <span style="font-size:11px;color:#64748b;">@${p.sharedData.author}</span></a><span class="post-time" title="${window.fullDateTime(p.sharedData.timestamp)}">${window.timeAgo(p.sharedData.timestamp)}</span></div></div>${sTxt}${p.sharedData.image || p.sharedData.video ? window.renderMediaGallery(p.sharedData) : ''}</div></div>`; } else {
-        // صورة المقال الأصلي للقنوات
+        // صورة المقال الأصلي للقنوات — تفتح في viewer داخلي
         let newsImgHtml = '';
         if (p.isNewsBot && p.ogImage) {
-            newsImgHtml = `<div style="margin:8px 0;border-radius:12px;overflow:hidden;cursor:pointer;" onclick="event.stopPropagation();window.open('${p.sourceUrl||p.link||'#'}','_blank')">
+            const safeImg = p.ogImage.replace(/'/g, "\'");
+            const safeName = (p.sourceName||'').replace(/'/g, "\'");
+            newsImgHtml = `<div style="margin:8px 0;border-radius:12px;overflow:hidden;cursor:pointer;" onclick="event.stopPropagation();window.openNewsImageViewer('${safeImg}','${safeName}')">
                 <img src="${p.ogImage}" style="width:100%;max-height:280px;object-fit:cover;display:block;" onerror="this.parentElement.style.display='none'">
-                ${p.sourceName ? `<div style="padding:7px 12px;background:#f8fafc;border-top:1px solid #e2e8f0;font-size:12px;color:#64748b;display:flex;align-items:center;gap:6px;"><i class='fas fa-newspaper'></i> ${p.sourceName} <i class='fas fa-external-link-alt' style='margin-right:auto;font-size:10px;'></i></div>` : ''}
+                ${p.sourceName ? `<div style="padding:7px 12px;background:var(--bg-secondary,#f8fafc);border-top:1px solid var(--border-color,#e2e8f0);font-size:12px;color:var(--text-muted,#64748b);display:flex;align-items:center;gap:6px;"><i class='fas fa-newspaper'></i> ${p.sourceName}</div>` : ''}
             </div>`;
         }
         pb = `<div class="post-clickable" ${ca}>${pTxt}${newsImgHtml}${window.renderMediaGallery(p)}</div>`;
@@ -3018,6 +3020,33 @@ function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFrien
 function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unreadChats`), s => { window.unreadChatsData = s.exists() ? s.val() : {}; let t=0; if(window.currentChatTarget && window.isChatBoxVisible && window.unreadChatsData[window.currentChatTarget]){ remove(ref(db,`users/${window.currentUser}/unreadChats/${window.currentChatTarget}`)); delete window.unreadChatsData[window.currentChatTarget]; } let mpm = $('messagesPageModal'); if(window.mpCurrentTarget && mpm && mpm.classList.contains('show') && window.unreadChatsData[window.mpCurrentTarget]){ remove(ref(db,`users/${window.currentUser}/unreadChats/${window.mpCurrentTarget}`)); delete window.unreadChatsData[window.mpCurrentTarget]; } for(let x in window.unreadChatsData){ let c = window.unreadChatsData[x], p = window.previousUnreadChats[x]||0; t+=c; if(c>p && x!==window.currentChatTarget && x!==window.mpCurrentTarget) window.showToast("رسالة جديدة", `أرسل ${window.getDisplayName(x)} رسالة`, window.allUsersData[x]?.profilePic); } window.previousUnreadChats = {...window.unreadChatsData}; let b1=$('chatBadge'), b2=$('chatBadgeMobile'); if(t>0){ b1.style.display='inline-block'; b1.innerText=t; b2.style.display='inline-block'; b2.innerText=t; } else { b1.style.display='none'; b2.style.display='none'; } renderSidebarUsers(); if(mpm && mpm.classList.contains('show')) window.renderMessagesPageList(); }); }
 function listenToRecentChats(){ onValue(ref(db,`users/${window.currentUser}/recentChats`), s => { window.recentChatsData = s.exists() ? s.val() : {}; renderSidebarUsers(); let mpm = $('messagesPageModal'); if(mpm && mpm.classList.contains('show')) window.renderMessagesPageList(); }); }
 function listenToCommunities() { onValue(ref(db, 'communities'), s => { window.allCommunities = s.exists() ? s.val() : {}; if($('communitiesModal') && $('communitiesModal').classList.contains('show')) { window.renderCommunitiesList(); } window.renderRightSidebarCommunities && window.renderRightSidebarCommunities(); if (window.currentUser && typeof window.startCallListener === "function") window.startCallListener(); }); }
+
+// ── viewer صورة الخبر — انبثاق داخلي ─────────────────────────
+window.openNewsImageViewer = (imgSrc, sourceName) => {
+    const oldV = document.getElementById('newsImgViewer');
+    if (oldV) oldV.remove();
+    if (!document.getElementById('newsViewerStyle')) {
+        const st = document.createElement('style');
+        st.id = 'newsViewerStyle';
+        st.textContent = `@keyframes fadeInViewer{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}`;
+        document.head.appendChild(st);
+    }
+    const viewer = document.createElement('div');
+    viewer.id = 'newsImgViewer';
+    viewer.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;animation:fadeInViewer 0.2s ease;';
+    viewer.innerHTML = `
+        <div style="position:relative;max-width:900px;width:100%;">
+            <button onclick="document.getElementById('newsImgViewer').remove()"
+                style="position:absolute;top:-44px;left:0;background:rgba(255,255,255,0.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-times"></i>
+            </button>
+            <img src="${imgSrc}" style="width:100%;max-height:80vh;object-fit:contain;border-radius:12px;display:block;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1312/1312922.png'">
+            ${sourceName ? `<div style="margin-top:10px;text-align:center;color:rgba(255,255,255,0.7);font-size:13px;"><i class="fas fa-newspaper"></i> ${sourceName}</div>` : ''}
+        </div>`;
+    viewer.addEventListener('click', e => { if (e.target === viewer) viewer.remove(); });
+    document.addEventListener('keydown', function esc(e) { if(e.key==='Escape'){viewer.remove();document.removeEventListener('keydown',esc);} });
+    document.body.appendChild(viewer);
+};
 
 window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); if(window.initRewardsSystem) window.initRewardsSystem(); };
 
