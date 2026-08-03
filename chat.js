@@ -105,8 +105,16 @@ function buildMessageHTML(m, mid, mc, ts, to) {
     // محتوى الرسالة
     let co = '';
 
-    // نص
-    if (m.text) co += `<div style="word-break:break-word;">${m.text}</div>`;
+    // Buzz مميز
+    if (m.isBuzz) {
+        co += `<div style="display:flex;align-items:center;gap:8px;background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:12px;padding:8px 14px;border:2px solid #f59e0b;">
+            <span style="font-size:24px;animation:buzzShake 0.3s infinite;">⚡</span>
+            <span style="font-weight:800;color:#92400e;font-size:14px;">Buzz!</span>
+        </div>
+        <style>@keyframes buzzShake{0%,100%{transform:rotate(-10deg)}50%{transform:rotate(10deg)}}</style>`;
+    } else if (m.text) {
+        co += `<div style="word-break:break-word;">${m.text}</div>`;
+    }
 
     // صورة
     if (m.image) co += `<img src="${m.image}" style="max-width:100%;border-radius:10px;margin:4px 0;cursor:pointer;display:block;" onclick="window.openNewsImageViewer('${m.image}','')">`;
@@ -421,4 +429,186 @@ window.initChatNotificationSound = () => {
             playYahooSound();
         }
     });
+};
+
+
+// ============================================================
+//  ⚡ نظام BUZZ — زي Yahoo Messenger
+// ============================================================
+
+// صوت Buzz قوي ومميز
+function playBuzzSound() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // صوت Buzz — اهتزاز سريع
+        const sequence = [
+            { freq: 150, start: 0,    dur: 0.08, vol: 0.5 },
+            { freq: 200, start: 0.09, dur: 0.08, vol: 0.5 },
+            { freq: 150, start: 0.18, dur: 0.08, vol: 0.5 },
+            { freq: 200, start: 0.27, dur: 0.08, vol: 0.5 },
+            { freq: 250, start: 0.36, dur: 0.15, vol: 0.4 },
+        ];
+        sequence.forEach(({ freq, start, dur, vol }) => {
+            const osc  = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sawtooth';
+            osc.frequency.value = freq;
+            gain.gain.setValueAtTime(vol, ctx.currentTime + start);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + dur);
+            osc.start(ctx.currentTime + start);
+            osc.stop(ctx.currentTime + start + dur + 0.05);
+        });
+    } catch(e) {}
+}
+
+// اهتزاز نافذة الدردشة
+function shakeChatBox() {
+    const box = document.getElementById('chatBox');
+    if (!box) return;
+    box.style.transition = 'none';
+    const shakes = [
+        [-8,0],[8,0],[-6,0],[6,0],[-4,0],[4,0],[-2,0],[0,0]
+    ];
+    let i = 0;
+    const interval = setInterval(() => {
+        if (i >= shakes.length) {
+            clearInterval(interval);
+            box.style.transform = '';
+            box.style.transition = '';
+            return;
+        }
+        box.style.transform = `translateX(${shakes[i][0]}px)`;
+        i++;
+    }, 50);
+}
+
+// إرسال Buzz
+window.sendBuzz = async () => {
+    if (!window.currentUser || !window.currentChatTarget) return;
+    const rid = [window.currentUser, window.currentChatTarget].sort().join('_');
+    const n   = Date.now();
+
+    // إرسال رسالة buzz في Firebase
+    await push(ref(db, `chats/${rid}`), {
+        sender   : window.currentUser,
+        timestamp: n,
+        read     : false,
+        isBuzz   : true,
+        text     : '⚡ Buzz!'
+    });
+
+    // تحديث recentChats
+    update(ref(db, `users/${window.currentUser}/recentChats`), { [window.currentChatTarget]: n });
+    update(ref(db, `users/${window.currentChatTarget}/recentChats`), { [window.currentUser]: n });
+
+    // إشعار للطرف الآخر
+    const ur = ref(db, `users/${window.currentChatTarget}/unreadChats/${window.currentUser}`);
+    get(ur).then(s => set(ur, (s.exists() ? s.val() : 0) + 1));
+
+    // buzz لنفسي
+    playBuzzSound();
+    shakeChatBox();
+
+    // buzz للطرف الآخر عبر Firebase
+    set(ref(db, `buzz/${window.currentChatTarget}`), {
+        from     : window.currentUser,
+        timestamp: n
+    });
+};
+
+// الاستماع لـ Buzz الواردة
+window.listenToBuzz = () => {
+    if (!window.currentUser) return;
+    onValue(ref(db, `buzz/${window.currentUser}`), snap => {
+        if (!snap.exists()) return;
+        const data = snap.val();
+        if (!data || !data.timestamp) return;
+
+        // تجاهل buzz قديم (أكثر من 5 ثوان)
+        if (Date.now() - data.timestamp > 5000) return;
+
+        // تشغيل صوت وهز الشاشة
+        playBuzzSound();
+        shakeChatBox();
+
+        // إشعار مرئي
+        if (window.showToast) {
+            const senderName = window.getDisplayName(data.from) || data.from;
+            window.showToast(
+                `⚡ ${senderName} أرسل لك Buzz!`,
+                'انتبه! لديك رسالة مهمة',
+                window.allUsersData?.[data.from]?.profilePic || ''
+            );
+        }
+
+        // مسح الـ buzz بعد المعالجة
+        setTimeout(() => {
+            set(ref(db, `buzz/${window.currentUser}`), null);
+        }, 1000);
+    });
+};
+
+// ============================================================
+//  😊 Emoji Picker — قائمة إيموشن كاملة
+// ============================================================
+
+const EMOJI_CATEGORIES = {
+    '😊 مشاعر': ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🥸','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕'],
+    '👍 تعابير': ['👍','👎','👌','🤌','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','👋','🤚','🖐️','✋','🖖','👏','🙌','🤲','🙏','🤝','💪','🦾','🖕','✍️','💅','🤳'],
+    '❤️ قلوب': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💝','💘','💟','☮️','✝️','♾️','💯','💢','💥','💫','💦','💨','🕳️','💬','💭','💤'],
+    '🎉 احتفال': ['🎉','🎊','🎈','🎁','🎀','🎗️','🎟️','🏆','🥇','🥈','🥉','🎖️','🏅','🎪','🎭','🎨','🎬','🎤','🎵','🎶','🎸','🥁','🎺','🎻','🎮','🕹️','🎲','♟️','🎯','🎳'],
+    '🐶 حيوانات': ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🪱','🐛','🦋','🐌','🐞','🐜','🦟','🦗','🕷️','🦂','🐢','🐍'],
+    '🍎 طعام': ['🍎','🍊','🍋','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶️','🫑','🧄','🧅','🥔','🍠','🥐','🥖','🍞','🥨','🧀','🍳','🥚','🧇','🥞','🧈','🍖','🍗','🥩','🍔','🍟','🌭','🍕','🫓','🥪','🥙','🧆','🌮','🌯','🫔','🥗','🥘','🫕','🍝','🍜','🍛','🍣','🍱','🥟','🍤','🍙','🍚','🍘','🍥','🥮','🍢','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🧃','🥤','🧋','☕','🍵','🍺','🥂','🍾'],
+    '⚽ رياضة': ['⚽','🏀','🏈','⚾','🥎','🎾','🏐','🏉','🥏','🎱','🏓','🏸','🥅','⛳','🏹','🎣','🤿','🥊','🥋','🛹','🛼','🛷','⛸️','🥌','🎿','⛷️','🏂','🏋️','🤼','🤸','⛹️','🤺','🏇','🧘','🏄','🏊','🚣','🧗','🚵','🚴'],
+};
+
+window.toggleEmojiPicker = () => {
+    const picker = document.getElementById('chatEmojiPicker');
+    if (!picker) return;
+
+    if (picker.style.display === 'flex') {
+        picker.style.display = 'none';
+        return;
+    }
+
+    // بناء الـ picker
+    if (!picker.dataset.built) {
+        let html = '';
+        Object.entries(EMOJI_CATEGORIES).forEach(([cat, emojis]) => {
+            html += `<div style="width:100%;padding:4px 2px;font-size:11px;color:var(--text-muted);font-weight:700;">${cat}</div>`;
+            html += emojis.map(e =>
+                `<span onclick="window.insertEmoji('${e}')" style="font-size:22px;cursor:pointer;padding:3px;border-radius:6px;display:inline-block;transition:.15s;line-height:1.3;" onmouseover="this.style.background='#f1f5f9';this.style.transform='scale(1.2)'" onmouseout="this.style.background='';this.style.transform=''">${e}</span>`
+            ).join('');
+        });
+        picker.innerHTML = html;
+        picker.dataset.built = '1';
+    }
+
+    picker.style.display = 'flex';
+    picker.style.flexWrap = 'wrap';
+
+    // إغلاق عند الضغط خارجه
+    setTimeout(() => {
+        document.addEventListener('click', function closePicker(e) {
+            if (!picker.contains(e.target) && !e.target.closest('[onclick*="toggleEmojiPicker"]')) {
+                picker.style.display = 'none';
+                document.removeEventListener('click', closePicker);
+            }
+        });
+    }, 100);
+};
+
+window.insertEmoji = (emoji) => {
+    const input = document.getElementById('chatInput');
+    if (!input) return;
+    const pos   = input.selectionStart || input.value.length;
+    input.value = input.value.slice(0, pos) + emoji + input.value.slice(pos);
+    input.focus();
+    input.selectionStart = input.selectionEnd = pos + emoji.length;
+
+    // إغلاق الـ picker
+    const picker = document.getElementById('chatEmojiPicker');
+    if (picker) picker.style.display = 'none';
 };
