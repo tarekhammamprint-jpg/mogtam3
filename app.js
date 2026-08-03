@@ -691,52 +691,9 @@ window.uploadToCloudinary = (file, type, onProgress) => { return new Promise((re
 window.videoObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { if(entry.isIntersecting) { try { entry.target.muted = true; let playPromise = entry.target.play(); if(playPromise !== undefined) { playPromise.catch(error => {}); } } catch(e){} } else { try { if(!entry.target.paused) entry.target.pause(); } catch(e){} } }); }, {threshold: 0.5});
 reelsObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { let video = entry.target.querySelector('video'); if(!video) return; if(entry.isIntersecting) { try { video.muted = false; video.currentTime = 0; let p = video.play(); if(p !== undefined) p.catch(e => {}); } catch(e) {} let rid = entry.target.getAttribute('data-id'); if(rid && window.currentUser) { let vRef = ref(db, `posts/${rid}/views/${window.currentUser}`); get(vRef).then(s => { if(!s.exists()) set(vRef, true); }); } } else { try { if(!video.paused) video.pause(); } catch(e) {} } }); }, {threshold: 0.7});
 
-window.playNotifSound = () => {
-    try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        // نغمة هادئة وجميلة — 3 نغمات تصاعدية ناعمة
-        const melody = [
-            { freq: 523.25, start: 0,    dur: 0.15, vol: 0.18 }, // C5
-            { freq: 659.25, start: 0.16, dur: 0.15, vol: 0.16 }, // E5
-            { freq: 783.99, start: 0.32, dur: 0.25, vol: 0.14 }, // G5
-        ];
-        melody.forEach(({ freq, start, dur, vol }) => {
-            const osc  = ctx.createOscillator();
-            const gain = ctx.createGain();
-            const now  = ctx.currentTime;
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.type = 'sine';
-            osc.frequency.value = freq;
-            gain.gain.setValueAtTime(0, now + start);
-            gain.gain.linearRampToValueAtTime(vol, now + start + 0.04);
-            gain.gain.exponentialRampToValueAtTime(0.001, now + start + dur);
-            osc.start(now + start);
-            osc.stop(now + start + dur + 0.05);
-        });
-    } catch(e) {}
-};
+window.playNotifSound = () => { try { let audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); audio.volume = 0.5; audio.play().catch(e => {}); } catch(err) {} };
 window.toastTimeout = null;
-window.showToast = (t, x, i) => {
-    try {
-        // تحديث الـ toast المرئي
-        $('toastTitle').innerText = t;
-        $('toastBody').innerText = x;
-        $('toastImg').src = i || dA;
-        let o = $('toastNotification');
-        o.classList.add('show');
-        if (window.toastTimeout) clearTimeout(window.toastTimeout);
-        window.toastTimeout = setTimeout(() => o.classList.remove('show'), 5000);
-        // تشغيل الصوت
-        window.playNotifSound();
-        // إشعار النظام لو في الخلفية
-        if (document.hidden) {
-            window.sendPushNotif(t, x, i);
-        } else if ("Notification" in window && Notification.permission === "granted") {
-            try { let s = new Notification(t, {body:x, icon:i||dA}); setTimeout(() => s.close(), 5000); } catch(e) {}
-        }
-    } catch(err) {}
-};
+window.showToast = (t, x, i) => { try { $('toastTitle').innerText = t; $('toastBody').innerText = x; $('toastImg').src = i || dA; let o = $('toastNotification'); o.classList.add('show'); if(window.toastTimeout) clearTimeout(window.toastTimeout); window.toastTimeout = setTimeout(() => o.classList.remove('show'), 5000); window.playNotifSound(); if("Notification" in window && Notification.permission === "granted") { try { let s = new Notification(t, {body:x, icon:i||dA}); setTimeout(() => s.close(), 5000); } catch(e) {} } } catch(err) {} };
 window.fullDateTime = (ts) => { if(!ts) return ''; let dt = new Date(ts); if(isNaN(dt)) return ''; return dt.toLocaleString('ar-EG', {day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'}); };
 window.timeAgo = (ts) => {
     if(!ts) return "منذ فترة";
@@ -885,13 +842,13 @@ window.openFullMenu = () => {
                 </div>
                 <i class="fas fa-chevron-left fmenu-chevron"></i>
             </a>
-            <div class="fmenu-card" onclick="window.closeFullMenu();window.openRewardsModal&&window.openRewardsModal()" style="border:2px solid #7c3aed;">
-                <div class="fmenu-icon" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe)"><i class="fas fa-gem" style="color:#7c3aed"></i></div>
+            <div class="fmenu-card" onclick="window.closeFullMenu();window.openRewardsModal()">
+                <div class="fmenu-icon" style="background:#f5f3ff"><i class="fas fa-gem" style="color:#7c3aed"></i></div>
                 <div class="fmenu-txt">
                     <div class="fmenu-title" style="color:#7c3aed">اربح نقاط <span class="fmenu-badge" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">جديد</span></div>
                     <div class="fmenu-desc">أكمل عروض AdGem واربح نقاطاً فورية</div>
                 </div>
-                <i class="fas fa-chevron-left fmenu-chevron" style="color:#7c3aed"></i>
+                <i class="fas fa-chevron-left fmenu-chevron"></i>
             </div>
             <div class="fmenu-card" onclick="window.closeFullMenu();window.dlgAlert('ميزة الربح من المنشورات قريباً! 🚀','info','قريباً')">
                 <div class="fmenu-icon" style="background:#f5f3ff"><i class="fas fa-money-bill-wave" style="color:#7c3aed"></i></div>
@@ -1331,7 +1288,19 @@ function createPostHTML(p, cp, it=false, im=false) {
     let autoActionText = p.isProfilePicUpdate ? 'قام بتحديث صورته الشخصية' : (p.isCoverUpdate ? 'قام بتحديث صورة الغلاف' : '');
     let st = autoActionText || window.formatMentions(p.text), pb = '', ca = im ? '' : `onclick="window.openPostModal('${p.id}')"`; let isLongP = p.text && (p.text.length > 200 || p.text.split('\n').length > 3); let pTxt = `<div class="post-content ${isLongP && !im ? 'collapsed' : ''}" id="ptxt_${p.id}" style="${autoActionText ? 'font-weight:700;' : ''}">${st}</div>`; if(isLongP && !im) pTxt += `<div class="show-more-btn" onclick="document.getElementById('ptxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`;
     let headerLeft = `<div style="display:flex; gap:10px; align-items:center;"><a href="#/@${p.author}"><img src="${ap}" class="avatar-small"></a><div style="display:flex; flex-direction:column; line-height:1.2;"><div style="display:flex; align-items:center; flex-wrap:wrap; gap:5px;"><a href="#/@${p.author}" class="post-author" style="color:inherit; text-decoration:none;">${ad}</a>${ah} ${abg} ${af} ${tbg}</div><a href="#/post/${p.id}" class="post-time" title="${dtFull}" style="color:inherit; text-decoration:none; margin-top:3px;">${dt}</a></div></div>`;
-    if(p.isShare && p.sharedData) { let sap = window.allUsersData[p.sharedData.author]?.profilePic || dA, sst = window.formatMentions(p.sharedData.text), sd = window.getDisplayName(p.sharedData.author); let isLongS = p.sharedData.text && (p.sharedData.text.length > 200 || p.sharedData.text.split('\n').length > 3); let sTxt = `<div class="post-content ${isLongS && !im ? 'collapsed' : ''}" id="stxt_${p.id}" style="font-size:14px;">${sst}</div>`; if(isLongS && !im) sTxt += `<div class="show-more-btn" onclick="document.getElementById('stxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`; pb = `<div class="post-clickable" ${ca}>${pTxt}<div class="shared-post-box" onclick="event.stopPropagation();window.openProfile('${p.sharedData.author}')"><div class="post-header" style="margin-bottom:8px;"><a href="#/@${p.sharedData.author}"><img src="${sap}" class="avatar-small"></a><div style="display:flex; flex-direction:column; line-height:1.2; margin-right:8px;"><a href="#/@${p.sharedData.author}" class="post-author" style="color:inherit; text-decoration:none;">${sd} <span style="font-size:11px;color:#64748b;">@${p.sharedData.author}</span></a><span class="post-time" title="${window.fullDateTime(p.sharedData.timestamp)}">${window.timeAgo(p.sharedData.timestamp)}</span></div></div>${sTxt}${p.sharedData.image || p.sharedData.video ? window.renderMediaGallery(p.sharedData) : ''}</div></div>`; } else { pb = `<div class="post-clickable" ${ca}>${pTxt}${window.renderMediaGallery(p)}</div>`; }
+    if(p.isShare && p.sharedData) { let sap = window.allUsersData[p.sharedData.author]?.profilePic || dA, sst = window.formatMentions(p.sharedData.text), sd = window.getDisplayName(p.sharedData.author); let isLongS = p.sharedData.text && (p.sharedData.text.length > 200 || p.sharedData.text.split('\n').length > 3); let sTxt = `<div class="post-content ${isLongS && !im ? 'collapsed' : ''}" id="stxt_${p.id}" style="font-size:14px;">${sst}</div>`; if(isLongS && !im) sTxt += `<div class="show-more-btn" onclick="document.getElementById('stxt_${p.id}').classList.remove('collapsed'); this.style.display='none'; event.stopPropagation();">عرض المزيد</div>`; pb = `<div class="post-clickable" ${ca}>${pTxt}<div class="shared-post-box" onclick="event.stopPropagation();window.openProfile('${p.sharedData.author}')"><div class="post-header" style="margin-bottom:8px;"><a href="#/@${p.sharedData.author}"><img src="${sap}" class="avatar-small"></a><div style="display:flex; flex-direction:column; line-height:1.2; margin-right:8px;"><a href="#/@${p.sharedData.author}" class="post-author" style="color:inherit; text-decoration:none;">${sd} <span style="font-size:11px;color:#64748b;">@${p.sharedData.author}</span></a><span class="post-time" title="${window.fullDateTime(p.sharedData.timestamp)}">${window.timeAgo(p.sharedData.timestamp)}</span></div></div>${sTxt}${p.sharedData.image || p.sharedData.video ? window.renderMediaGallery(p.sharedData) : ''}</div></div>`; } else {
+        // صورة المقال الأصلي للقنوات — تفتح في viewer داخلي
+        let newsImgHtml = '';
+        if (p.isNewsBot && p.ogImage) {
+            const safeImg = p.ogImage.replace(/'/g, "\'");
+            const safeName = (p.sourceName||'').replace(/'/g, "\'");
+            newsImgHtml = `<div style="margin:8px 0;border-radius:12px;overflow:hidden;cursor:pointer;" onclick="event.stopPropagation();window.openNewsImageViewer('${safeImg}','${safeName}')">
+                <img src="${p.ogImage}" style="width:100%;max-height:280px;object-fit:cover;display:block;" onerror="this.parentElement.style.display='none'">
+                ${p.sourceName ? `<div style="padding:7px 12px;background:var(--bg-secondary,#f8fafc);border-top:1px solid var(--border-color,#e2e8f0);font-size:12px;color:var(--text-muted,#64748b);display:flex;align-items:center;gap:6px;"><i class='fas fa-newspaper'></i> ${p.sourceName}</div>` : ''}
+            </div>`;
+        }
+        pb = `<div class="post-clickable" ${ca}>${pTxt}${newsImgHtml}${window.renderMediaGallery(p)}</div>`;
+    }
     let cmh = ''; if(p.comments && typeof p.comments === 'object') { let ca = Object.entries(p.comments).map(([id,val]) => ({id,...val})).sort((a,b) => a.timestamp - b.timestamp), cs = im ? ca : ca.slice(-2); cs.forEach(c => { let cPic = window.allUsersData[c.author]?.profilePic || dA, cD = window.getDisplayName(c.author), sct = window.formatMentions(c.text), rh = ''; let cLikes = c.likes && typeof c.likes === 'object' ? c.likes : {}, cLc = Object.keys(cLikes).length, cLiked = window.currentUser && !!cLikes[window.currentUser]; let cLb = window.currentUser ? `<span class="reply-btn" onclick="window.toggleCommentLike('${p.id}','${c.id}',null,this)" style="margin-right:5px;color:${cLiked?'#ef4444':'inherit'};font-weight:${cLiked?'800':'inherit'};">إعجاب${cLc>0?` <span class="lc-count">${cLc}</span>`:''}</span>` : ''; if(c.replies && typeof c.replies === 'object') { Object.entries(c.replies).map(([rid,val]) => ({rid,...val})).sort((a,b) => a.timestamp - b.timestamp).forEach(r => { let rPic = window.allUsersData[r.author]?.profilePic || dA, rD = window.getDisplayName(r.author), srt = window.formatMentions(r.text), srb = im ? `<span class="reply-btn" onclick="window.prepareReply('${c.id}','${r.author}')" style="margin-top:4px;display:inline-block;margin-right:5px;">رد</span>` : ''; let rLikes = r.likes && typeof r.likes === 'object' ? r.likes : {}, rLc = Object.keys(rLikes).length, rLiked = window.currentUser && !!rLikes[window.currentUser]; let rLb = window.currentUser ? `<span class="reply-btn" onclick="window.toggleCommentLike('${p.id}','${c.id}','${r.rid}',this)" style="margin-top:4px;display:inline-block;margin-right:5px;color:${rLiked?'#ef4444':'inherit'};font-weight:${rLiked?'800':'inherit'};">إعجاب${rLc>0?` <span class="lc-count">${rLc}</span>`:''}</span>` : ''; rh += `<div class="comment reply-block" style="margin-bottom:8px;"><a href="#/@${r.author}"><img src="${rPic}" class="avatar-small" style="width:24px;height:24px;"></a><div style="flex:1;"><div class="comment-text-box" style="background:#fff;border:1px solid #e2e8f0;margin-bottom:2px;padding:8px 12px;"><a href="#/@${r.author}" class="comment-author" style="color:inherit; text-decoration:none; display:block;">${rD}</a><div>${srt}</div></div>${rLb}${srb}</div></div>`; }); } let rb = im ? `<span class="reply-btn" onclick="window.prepareReply('${c.id}','${c.author}')">رد</span>` : ''; cmh += `<div class="comment"><a href="#/@${c.author}"><img src="${cPic}" class="avatar-small" style="width:28px;height:28px;"></a><div style="flex:1;"><div class="comment-text-box"><a href="#/@${c.author}" class="comment-author" style="color:inherit; text-decoration:none; display:block;">${cD}</a><div>${sct}</div></div>${cLb}${rb}<div id="replies_${c.id}">${rh}</div></div></div>`; }); if(!im && ca.length > 2) cmh += `<div style="font-size:13px;color:#64748b;cursor:pointer;font-weight:700;margin-top:5px;text-align:center;padding:5px;background:#f1f5f9;border-radius:8px;" onclick="window.openPostModal('${p.id}')">عرض كل التعليقات (${ca.length})</div>`; }
     let cia = (!window.currentUser || cp === 'modal') ? '' : `<div class="comment-input-area"><img src="${window.allUsersData[window.currentUser]?.profilePic || dA}" class="avatar-small" style="width:32px;height:32px;"><input type="text" oninput="window.handleMentionInput(this)" id="commentInp_${cp}_${p.id}" class="comment-input" placeholder="اكتب تعليقاً..." onkeypress="if(event.key==='Enter') window.addComment('${p.id}','${p.author}','${cp}')"><button class="btn-primary" style="padding:8px 15px;border-radius:20px;" onclick="window.addComment('${p.id}','${p.author}','${cp}')"><i class="fas fa-paper-plane"></i></button></div>`;
     let admC = (window.currentUser && window.currentUser.toLowerCase() === 'admin21') ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #cbd5e1;display:flex;gap:10px;justify-content:flex-end;"><button onclick="window.warnUser('${p.author}')" style="background:#f59e0b;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-exclamation-triangle"></i> تحذير</button><button onclick="window.adminDeletePost('${p.id}')" style="background:#ef4444;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-trash"></i> حذف إداري</button></div>` : '';
@@ -3052,7 +3021,34 @@ function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unre
 function listenToRecentChats(){ onValue(ref(db,`users/${window.currentUser}/recentChats`), s => { window.recentChatsData = s.exists() ? s.val() : {}; renderSidebarUsers(); let mpm = $('messagesPageModal'); if(mpm && mpm.classList.contains('show')) window.renderMessagesPageList(); }); }
 function listenToCommunities() { onValue(ref(db, 'communities'), s => { window.allCommunities = s.exists() ? s.val() : {}; if($('communitiesModal') && $('communitiesModal').classList.contains('show')) { window.renderCommunitiesList(); } window.renderRightSidebarCommunities && window.renderRightSidebarCommunities(); if (window.currentUser && typeof window.startCallListener === "function") window.startCallListener(); }); }
 
-window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); if(window.initRewardsSystem) window.initRewardsSystem(); if(window.listenToBuzz) window.listenToBuzz(); };
+// ── viewer صورة الخبر — انبثاق داخلي ─────────────────────────
+window.openNewsImageViewer = (imgSrc, sourceName) => {
+    const oldV = document.getElementById('newsImgViewer');
+    if (oldV) oldV.remove();
+    if (!document.getElementById('newsViewerStyle')) {
+        const st = document.createElement('style');
+        st.id = 'newsViewerStyle';
+        st.textContent = `@keyframes fadeInViewer{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}`;
+        document.head.appendChild(st);
+    }
+    const viewer = document.createElement('div');
+    viewer.id = 'newsImgViewer';
+    viewer.style.cssText = 'position:fixed;inset:0;z-index:2147483000;background:rgba(0,0,0,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;animation:fadeInViewer 0.2s ease;';
+    viewer.innerHTML = `
+        <div style="position:relative;max-width:900px;width:100%;">
+            <button onclick="document.getElementById('newsImgViewer').remove()"
+                style="position:absolute;top:-44px;left:0;background:rgba(255,255,255,0.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">
+                <i class="fas fa-times"></i>
+            </button>
+            <img src="${imgSrc}" style="width:100%;max-height:80vh;object-fit:contain;border-radius:12px;display:block;" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1312/1312922.png'">
+            ${sourceName ? `<div style="margin-top:10px;text-align:center;color:rgba(255,255,255,0.7);font-size:13px;"><i class="fas fa-newspaper"></i> ${sourceName}</div>` : ''}
+        </div>`;
+    viewer.addEventListener('click', e => { if (e.target === viewer) viewer.remove(); });
+    document.addEventListener('keydown', function esc(e) { if(e.key==='Escape'){viewer.remove();document.removeEventListener('keydown',esc);} });
+    document.body.appendChild(viewer);
+};
+
+window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); if(window.initRewardsSystem) window.initRewardsSystem(); };
 
 window.showBanScreen = function(d) {
     let now = Date.now();
