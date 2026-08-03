@@ -374,7 +374,6 @@
                 </div>
                 <div class="dropdown-menu" id="userMenuDropdown">
                     <div onclick="window.openProfile(window.currentUser)" class="dropdown-item"><em class="fas fa-cog" style="color:var(--primary);"></em> تعديل البيانات</div>
-                    <div onclick="window.openRewardsModal()" class="dropdown-item" style="color:#7c3aed;"><em class="fas fa-gem"></em> اربح نقاط <span id="navPointsBadge" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:800;margin-right:6px;">0</span></div>
                     <div style="color:#e41e3f;" onclick="window.logoutUser()" class="dropdown-item"><em class="fas fa-sign-out-alt"></em> تسجيل خروج</div>
                 </div>
             </div>
@@ -394,7 +393,6 @@
             <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="avatar-small" id="mobileNavAvatar" style="width:26px;height:26px;" />
             <div class="dropdown-menu bottom-up-menu" id="mobileUserMenuDropdown">
                 <div onclick="window.openProfile(window.currentUser)" class="dropdown-item"><em class="fas fa-cog" style="color:var(--primary);"></em> تعديل</div>
-                <div onclick="window.openRewardsModal()" class="dropdown-item" style="color:#7c3aed;"><em class="fas fa-gem"></em> اربح نقاط</div>
                 <div style="color:#e41e3f;" onclick="window.logoutUser()" class="dropdown-item"><em class="fas fa-sign-out-alt"></em> خروج</div>
             </div>
         </div>
@@ -469,11 +467,29 @@
             </div>
         </div>
         <div id="chatMessages" class="chat-messages"></div>
-        <div class="chat-input-area">
-            <label style="cursor:pointer;color:var(--primary);font-size:22px;padding:5px 5px;"><em class="fas fa-image"></em><input type="file" style="display:none;" accept="image/*" onchange="window.sendChatMedia(event,'image')" /></label>
-            <label style="cursor:pointer;color:#eab308;font-size:22px;padding:5px 5px;"><em class="fas fa-video"></em><input type="file" style="display:none;" accept="video/*" onchange="window.sendChatMedia(event,'video')" /></label>
-            <input oninput="window.handleChatInput()" onkeypress="if(event.key==='Enter') window.sendMessage()" placeholder="رسالة..." class="chat-input" id="chatInput" type="text" style="padding:10px 15px;" />
-            <button onclick="window.sendMessage()" class="chat-send"><em class="fas fa-paper-plane"></em></button>
+        <div class="chat-input-area" style="flex-wrap:wrap;gap:6px;">
+            <!-- أزرار الوسائط -->
+            <div style="display:flex;align-items:center;gap:4px;">
+                <!-- صورة -->
+                <label title="إرسال صورة" style="cursor:pointer;color:var(--primary);font-size:20px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                    <em class="fas fa-image"></em>
+                    <input type="file" style="display:none;" accept="image/*" onchange="window.sendChatMedia(event,'image')" />
+                </label>
+                <!-- فيديو -->
+                <label title="إرسال فيديو" style="cursor:pointer;color:#eab308;font-size:20px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                    <em class="fas fa-video"></em>
+                    <input type="file" style="display:none;" accept="video/*" onchange="window.sendChatMedia(event,'video')" />
+                </label>
+                <!-- ملف مرفق -->
+                <label title="إرفاق ملف" style="cursor:pointer;color:#7c3aed;font-size:20px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                    <em class="fas fa-paperclip"></em>
+                    <input type="file" style="display:none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt,.mp3" onchange="window.sendChatFile(event)" />
+                </label>
+            </div>
+            <!-- حقل الكتابة -->
+            <input oninput="window.handleChatInput()" onkeypress="if(event.key==='Enter') window.sendMessage()" placeholder="اكتب رسالة..." class="chat-input" id="chatInput" type="text" style="padding:10px 15px;flex:1;min-width:100px;" />
+            <!-- زر الإرسال -->
+            <button id="chatSendBtn" onclick="window.sendMessage()" class="chat-send"><em class="fas fa-paper-plane"></em></button>
         </div>
     </div>
 
@@ -568,7 +584,6 @@
     <script>window.FontAwesomeConfig = { autoReplaceSvg: false };</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     <script type="module" src="video-call.js?v=20260728f"></script>
-    <script type="module" src="adgem-rewards.js?v=20260802"></script>
     <script type="module" src="app.js?v=20260728f"></script>
 
     <style>
