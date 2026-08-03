@@ -467,27 +467,31 @@
             </div>
         </div>
         <div id="chatMessages" class="chat-messages"></div>
-        <div class="chat-input-area" style="flex-wrap:wrap;gap:6px;">
-            <!-- أزرار الوسائط -->
-            <div style="display:flex;align-items:center;gap:4px;">
-                <!-- صورة -->
-                <label title="إرسال صورة" style="cursor:pointer;color:var(--primary);font-size:20px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                    <em class="fas fa-image"></em>
-                    <input type="file" style="display:none;" accept="image/*" onchange="window.sendChatMedia(event,'image')" />
-                </label>
-                <!-- فيديو -->
-                <label title="إرسال فيديو" style="cursor:pointer;color:#eab308;font-size:20px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                    <em class="fas fa-video"></em>
-                    <input type="file" style="display:none;" accept="video/*" onchange="window.sendChatMedia(event,'video')" />
-                </label>
-                <!-- ملف مرفق -->
-                <label title="إرفاق ملف" style="cursor:pointer;color:#7c3aed;font-size:20px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:.2s;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
-                    <em class="fas fa-paperclip"></em>
-                    <input type="file" style="display:none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt,.mp3" onchange="window.sendChatFile(event)" />
-                </label>
-            </div>
+        <!-- picker الإيموشن -->
+        <div id="chatEmojiPicker" style="display:none;position:absolute;bottom:70px;right:10px;background:var(--card-bg);border:1px solid var(--border-color);border-radius:16px;padding:10px;box-shadow:0 8px 30px rgba(0,0,0,.15);z-index:9999;width:300px;max-height:200px;overflow-y:auto;flex-wrap:wrap;gap:4px;direction:ltr;">
+        </div>
+        <div class="chat-input-area" style="position:relative;">
+            <!-- زر Buzz ⚡ -->
+            <button onclick="window.sendBuzz()" title="Buzz!" style="background:linear-gradient(135deg,#f59e0b,#ef4444);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 2px 8px rgba(239,68,68,.3);transition:.2s;" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">⚡</button>
+            <!-- زر صورة -->
+            <label title="إرسال صورة" style="cursor:pointer;color:var(--primary);font-size:20px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:.2s;flex-shrink:0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <em class="fas fa-image"></em>
+                <input type="file" style="display:none;" accept="image/*" onchange="window.sendChatMedia(event,'image')" />
+            </label>
+            <!-- زر فيديو -->
+            <label title="إرسال فيديو" style="cursor:pointer;color:#eab308;font-size:20px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:.2s;flex-shrink:0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <em class="fas fa-video"></em>
+                <input type="file" style="display:none;" accept="video/*" onchange="window.sendChatMedia(event,'video')" />
+            </label>
+            <!-- زر ملف -->
+            <label title="إرفاق ملف" style="cursor:pointer;color:#7c3aed;font-size:20px;width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;transition:.2s;flex-shrink:0;" onmouseover="this.style.background='#f1f5f9'" onmouseout="this.style.background='transparent'">
+                <em class="fas fa-paperclip"></em>
+                <input type="file" style="display:none;" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt,.mp3" onchange="window.sendChatFile(event)" />
+            </label>
             <!-- حقل الكتابة -->
-            <input oninput="window.handleChatInput()" onkeypress="if(event.key==='Enter') window.sendMessage()" placeholder="اكتب رسالة..." class="chat-input" id="chatInput" type="text" style="padding:10px 15px;flex:1;min-width:100px;" />
+            <input oninput="window.handleChatInput()" onkeypress="if(event.key==='Enter') window.sendMessage()" placeholder="اكتب رسالة..." class="chat-input" id="chatInput" type="text" style="padding:10px 15px;" />
+            <!-- زر إيموشن 😊 -->
+            <button onclick="window.toggleEmojiPicker()" title="إيموشن" style="background:none;border:none;font-size:22px;cursor:pointer;width:34px;height:34px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.2s;" onmouseover="this.style.transform='scale(1.15)'" onmouseout="this.style.transform='scale(1)'">😊</button>
             <!-- زر الإرسال -->
             <button id="chatSendBtn" onclick="window.sendMessage()" class="chat-send"><em class="fas fa-paper-plane"></em></button>
         </div>
