@@ -885,6 +885,14 @@ window.openFullMenu = () => {
                 </div>
                 <i class="fas fa-chevron-left fmenu-chevron"></i>
             </a>
+            <div class="fmenu-card" onclick="window.closeFullMenu();window.openRewardsModal&&window.openRewardsModal()" style="border:2px solid #7c3aed;">
+                <div class="fmenu-icon" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe)"><i class="fas fa-gem" style="color:#7c3aed"></i></div>
+                <div class="fmenu-txt">
+                    <div class="fmenu-title" style="color:#7c3aed">اربح نقاط <span class="fmenu-badge" style="background:linear-gradient(135deg,#f59e0b,#ef4444)">جديد</span></div>
+                    <div class="fmenu-desc">أكمل عروض AdGem واربح نقاطاً فورية</div>
+                </div>
+                <i class="fas fa-chevron-left fmenu-chevron" style="color:#7c3aed"></i>
+            </div>
             <div class="fmenu-card" onclick="window.closeFullMenu();window.dlgAlert('ميزة الربح من المنشورات قريباً! 🚀','info','قريباً')">
                 <div class="fmenu-icon" style="background:#f5f3ff"><i class="fas fa-money-bill-wave" style="color:#7c3aed"></i></div>
                 <div class="fmenu-txt">
@@ -3044,7 +3052,7 @@ function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unre
 function listenToRecentChats(){ onValue(ref(db,`users/${window.currentUser}/recentChats`), s => { window.recentChatsData = s.exists() ? s.val() : {}; renderSidebarUsers(); let mpm = $('messagesPageModal'); if(mpm && mpm.classList.contains('show')) window.renderMessagesPageList(); }); }
 function listenToCommunities() { onValue(ref(db, 'communities'), s => { window.allCommunities = s.exists() ? s.val() : {}; if($('communitiesModal') && $('communitiesModal').classList.contains('show')) { window.renderCommunitiesList(); } window.renderRightSidebarCommunities && window.renderRightSidebarCommunities(); if (window.currentUser && typeof window.startCallListener === "function") window.startCallListener(); }); }
 
-window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); };
+window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); if(window.initRewardsSystem) window.initRewardsSystem(); if(window.listenToBuzz) window.listenToBuzz(); };
 
 window.showBanScreen = function(d) {
     let now = Date.now();
