@@ -6,11 +6,11 @@
     <title>مجتمعنا - منصة تواصل</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=20260722" />
+    <link rel="stylesheet" href="style.css?v=20260804" />
     <style>
         .interests-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; max-height: 300px; overflow-y: auto; padding: 10px; }
-        .interest-chip { background: #f1f5f9; border: 2px solid #e2e8f0; color: #475569; padding: 10px 18px; border-radius: 999px; font-weight: 700; cursor: pointer; transition: 0.2s; user-select: none; }
-        .interest-chip.selected { background: var(--primary); border-color: var(--primary); color: #fff; transform: scale(1.05); box-shadow: 0 4px 10px rgba(37,99,235,0.3); }
+        .interest-chip { background: var(--bg); border: 2px solid var(--border); color: var(--muted); padding: 10px 18px; border-radius: 999px; font-weight: 700; cursor: pointer; transition: 0.2s; user-select: none; }
+        .interest-chip.selected { background: var(--primary); border-color: var(--primary); color: #fff; transform: scale(1.05); box-shadow: 0 4px 10px rgba(45,106,79,0.3); }
         #interestsModal .modal-content { text-align: center; max-width: 500px; padding: 30px; }
         #interestsModal .close-btn { display: none; }
         
@@ -87,24 +87,24 @@
             <span onclick="window.closeModal('statsModal')" class="close-btn"><em class="fas fa-times"></em></span>
             <h3 style="margin-top:0;text-align:center;color:#7c3aed;"><em class="fas fa-chart-line"></em> إحصائيات المنصة</h3>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:15px;margin-top:20px;">
-                <div style="background:#f8fafc;padding:15px;border-radius:12px;text-align:center;border:1px solid #e2e8f0;">
-                    <span style="display:block;font-size:24px;font-weight:800;color:#7c3aed;" id="statReal">0</span><span style="font-size:13px;color:#64748b;">أعضاء</span>
+                <div style="background:#FAF8F4;padding:15px;border-radius:14px;text-align:center;border:2px solid var(--border);">
+                    <span style="display:block;font-size:24px;font-weight:800;color:var(--primary);" id="statReal">0</span><span style="font-size:13px;color:var(--muted);">أعضاء</span>
                 </div>
-                <div style="background:#f8fafc;padding:15px;border-radius:12px;text-align:center;border:1px solid #e2e8f0;">
-                    <span style="display:block;font-size:24px;font-weight:800;color:#7c3aed;" id="statBots">0</span><span style="font-size:13px;color:#64748b;">حسابات آلية</span>
+                <div style="background:#FAF8F4;padding:15px;border-radius:14px;text-align:center;border:2px solid var(--border);">
+                    <span style="display:block;font-size:24px;font-weight:800;color:var(--primary);" id="statBots">0</span><span style="font-size:13px;color:var(--muted);">حسابات آلية</span>
                 </div>
-                <div style="background:#f8fafc;padding:15px;border-radius:12px;text-align:center;border:1px solid #e2e8f0;">
-                    <span style="display:block;font-size:24px;font-weight:800;color:#7c3aed;" id="statPosts">0</span><span style="font-size:13px;color:#64748b;">منشورات</span>
+                <div style="background:#FAF8F4;padding:15px;border-radius:14px;text-align:center;border:2px solid var(--border);">
+                    <span style="display:block;font-size:24px;font-weight:800;color:var(--primary);" id="statPosts">0</span><span style="font-size:13px;color:var(--muted);">منشورات</span>
                 </div>
-                <div style="background:#f8fafc;padding:15px;border-radius:12px;text-align:center;border:1px solid #e2e8f0;">
-                    <span style="display:block;font-size:24px;font-weight:800;color:#7c3aed;" id="statOnline">0</span><span style="font-size:13px;color:#64748b;">متصل الآن</span>
+                <div style="background:#FAF8F4;padding:15px;border-radius:14px;text-align:center;border:2px solid var(--border);">
+                    <span style="display:block;font-size:24px;font-weight:800;color:var(--primary);" id="statOnline">0</span><span style="font-size:13px;color:var(--muted);">متصل الآن</span>
                 </div>
             </div>
         </div>
     </div>
 
     <div class="login-wrapper" id="loginModal">
-        <div id="loginModalCloseBtn" onclick="window.closeRegisterModal()" style="display:none; position:absolute; top:20px; right:20px; background:rgba(0,0,0,0.5); color:#fff; width:45px; height:45px; border-radius:50%; align-items:center; justify-content:center; cursor:pointer; font-size:20px; z-index:100; transition:0.2s;"><em class="fas fa-times"></em></div>
+        <div id="loginModalCloseBtn" onclick="window.closeRegisterModal()" style="display:none; position:absolute; top:20px; right:20px; background:rgba(255,255,255,.2); color:#fff; width:45px; height:45px; border-radius:50%; align-items:center; justify-content:center; cursor:pointer; font-size:20px; z-index:100; transition:0.2s;"><em class="fas fa-times"></em></div>
         <div class="login-container">
             <div class="login-brand">مجتمعنا</div>
             <div class="login-tagline">تواصل مع الأصدقاء والعالم من حولك بنقرة واحدة.</div>
@@ -145,7 +145,7 @@
             <div style="text-align:right;margin-bottom:5px;font-weight:bold;color:var(--text-muted);">النبذة التعريفية:</div>
             <input type="text" id="editBio" class="modal-input" placeholder="اكتب نبذة قصيرة عنك..." />
             <div style="text-align:right;margin-bottom:5px;font-weight:bold;color:var(--text-muted);">الموقع/البلد:</div>
-            <button type="button" onclick="window.detectMyLocation()" style="width:100%;margin-bottom:8px;background:#eff6ff;color:#2563eb;border:2px solid #bfdbfe;padding:10px;border-radius:10px;cursor:pointer;font-family:'Cairo',sans-serif;font-weight:700;font-size:13.5px;display:flex;align-items:center;justify-content:center;gap:8px;">
+            <button type="button" onclick="window.detectMyLocation()" style="width:100%;margin-bottom:8px;background:var(--primary-lt);color:var(--primary);border:2px solid var(--primary);padding:10px;border-radius:10px;cursor:pointer;font-family:'Cairo',sans-serif;font-weight:700;font-size:13.5px;display:flex;align-items:center;justify-content:center;gap:8px;">
                 <em class="fas fa-location-crosshairs"></em> تحديد موقعي تلقائيًا (أدق نتيجة)
             </button>
             <div id="geoLocStatus" style="text-align:center;font-size:11.5px;color:var(--text-muted);margin-bottom:8px;min-height:14px;"></div>
@@ -189,7 +189,7 @@
                 <h2 class="profile-name" id="profName">الاسم</h2>
                 <div class="profile-handle" id="profHandle">@user</div>
                 <p class="profile-bio" id="profBio">لا توجد نبذة.</p>
-                <p style="font-size:13px;color:#65676b;margin-top:-10px;margin-bottom:15px;" id="profLoc"><em class="fas fa-map-marker-alt"></em> <span id="profLocText">غير محدد</span></p>
+                <p style="font-size:13px;color:var(--muted);margin-top:-10px;margin-bottom:15px;" id="profLoc"><em class="fas fa-map-marker-alt"></em> <span id="profLocText">غير محدد</span></p>
                 <div id="profInterestsArea" style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap; margin-bottom:15px;"></div>
                 <div class="profile-stats" id="profStats">
                     <div class="stat-box"><span class="stat-num" id="statFriends">0</span><span class="stat-label">صديق</span></div>
@@ -208,7 +208,7 @@
             </div>
             
             <div class="tab-content" id="tab-posts">
-                <div style="display:none;background:#fff;padding:15px;border-radius:12px;margin-bottom:15px;border:1px solid var(--border-color);" id="profEditSection"></div>
+                <div style="display:none;background:#fff;padding:15px;border-radius:12px;margin-bottom:15px;border:1px solid var(--border);" id="profEditSection"></div>
                 <div style="display:flex;flex-direction:column;gap:15px;" id="profilePostsFeed"></div>
             </div>
             <div style="display:none;" class="tab-content" id="tab-reels">
@@ -229,20 +229,20 @@
     <div class="modal" id="requestsModal">
         <div style="padding:25px;" class="modal-content">
             <span onclick="window.closeModal('requestsModal')" class="close-btn"><em class="fas fa-times"></em></span>
-            <h3 style="margin-top:0;color:#1c1e21;"><em class="fas fa-user-friends" style="color:var(--primary);"></em> طلبات الصداقة</h3>
+            <h3 style="margin-top:0;color:var(--text);"><em class="fas fa-user-friends" style="color:var(--primary);"></em> طلبات الصداقة</h3>
             <div id="requestsList"></div>
-            <h3 style="margin-top:20px;border-top:1px solid var(--border-color);padding-top:20px;color:#1c1e21;"><em class="fas fa-users" style="color:var(--secondary);"></em> مقترحات</h3>
+            <h3 style="margin-top:20px;border-top:1px solid var(--border);padding-top:20px;color:var(--text);"><em class="fas fa-users" style="color:var(--secondary);"></em> مقترحات</h3>
             <div id="usersList"></div>
         </div>
     </div>
 
     <!-- Share Popup - مستقل عن نظام modal -->
     <div id="shareOverlay" style="display:none;position:fixed;inset:0;z-index:99998;background:rgba(15,23,42,0.6);backdrop-filter:blur(4px);align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this) window.closeSharePopup()">
-        <div id="sharePopupBox" style="background:#fff;border-radius:20px;width:100%;max-width:480px;box-shadow:0 24px 80px rgba(0,0,0,0.25);overflow:hidden;transform:scale(0.9) translateY(20px);transition:transform .25s cubic-bezier(.34,1.56,.64,1);font-family:'Cairo',sans-serif;direction:rtl;">
+        <div id="sharePopupBox" style="background:#fff;border-radius:26px;width:100%;max-width:480px;box-shadow:0 28px 80px rgba(44,26,14,0.25);overflow:hidden;transform:scale(0.9) translateY(20px);transition:transform .25s cubic-bezier(.34,1.56,.64,1);font-family:'Cairo',sans-serif;direction:rtl;">
             <!-- Header -->
-            <div style="display:flex;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid #e2e8f0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:17px 20px;border-bottom:2px solid var(--border);">
                 <h3 style="margin:0;font-size:17px;font-weight:800;color:#0f172a;"><i class="fas fa-share" style="color:var(--primary);margin-left:8px;"></i>مشاركة المنشور</h3>
-                <button onclick="window.closeSharePopup()" style="background:#f1f5f9;border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;color:#64748b;display:flex;align-items:center;justify-content:center;transition:.2s;" onmouseover="this.style.background='#e2e8f0'" onmouseout="this.style.background='#f1f5f9'"><i class="fas fa-times"></i></button>
+                <button onclick="window.closeSharePopup()" style="background:var(--bg);border:none;width:32px;height:32px;border-radius:50%;cursor:pointer;font-size:14px;color:var(--muted);display:flex;align-items:center;justify-content:center;transition:.2s;" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='var(--bg)'"><i class="fas fa-times"></i></button>
             </div>
             <!-- Body -->
             <div style="padding:18px 20px;">
@@ -265,12 +265,12 @@
 
     <div class="modal" id="postModal">
         <div class="modal-content">
-            <div class="chat-header" style="border-radius:16px 16px 0 0;background:#fff;color:#050505;border-bottom:1px solid var(--border-color);box-shadow:none;">
+            <div class="chat-header" style="border-radius:16px 16px 0 0;background:var(--card);color:var(--text);border-bottom:2px solid var(--border);box-shadow:none;">
                 <span><em class="far fa-file-alt"></em> تفاصيل المنشور</span>
-                <span id="postModalCloseBtn" onclick="window.closeModal('postModal')" style="cursor:pointer;background:#f0f2f5;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:.2s;" onmouseover="this.style.background='#e4e6eb'" onmouseout="this.style.background='#f0f2f5'"><em class="fas fa-times"></em></span>
+                <span id="postModalCloseBtn" onclick="window.closeModal('postModal')" style="cursor:pointer;background:var(--bg);width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;transition:.2s;" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='var(--bg)'"><em class="fas fa-times"></em></span>
             </div>
             <div id="postModalBody"></div>
-            <div id="postModalFooter" style="padding:15px;background:#fff;border-top:1px solid var(--border-color);display:none;gap:10px;">
+            <div id="postModalFooter" style="padding:15px;background:#fff;border-top:1px solid var(--border);display:none;gap:10px;">
                 <input type="hidden" id="modalPostId" /><input type="hidden" id="modalPostAuthor" /><input type="hidden" id="modalReplyToId" />
                 <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" id="modalMyPic" class="avatar-small" />
                 <input oninput="window.handleMentionInput(this)" onkeypress="if(event.key==='Enter') window.submitModalComment()" placeholder="اكتب تعليقاً... @" class="comment-input" id="modalCommentInput" type="text" style="margin-top:0;" />
@@ -289,7 +289,7 @@
             </div>
             <div style="display:none;margin-bottom:10px;" id="editPostUploadProgressWrap">
                 <div style="background:#e2e8f0;border-radius:8px;overflow:hidden;height:8px;">
-                    <div id="editPostUploadProgressBar" style="height:100%;width:0%;background:linear-gradient(135deg,#2563eb,#7c3aed);transition:width .2s;"></div>
+                    <div id="editPostUploadProgressBar" style="height:100%;width:0%;background:linear-gradient(135deg,var(--primary),var(--gold));transition:width .2s;"></div>
                 </div>
                 <div id="editPostUploadProgressText" style="font-size:12px;color:var(--text-muted);margin-top:4px;text-align:center;"></div>
             </div>
@@ -303,7 +303,7 @@
 
     <div class="modal" id="reelsViewerModal">
         <div class="modal-content">
-            <span onclick="window.closeReelsViewer()" class="close-btn" style="position:fixed; top:85px; right:20px; background:var(--card-bg); width:45px; height:45px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1px solid var(--border-color); cursor:pointer;"><em class="fas fa-times"></em></span>
+            <span onclick="window.closeReelsViewer()" class="close-btn" style="position:fixed; top:85px; right:20px; background:var(--card-bg); width:45px; height:45px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:1px solid var(--border); cursor:pointer;"><em class="fas fa-times"></em></span>
             <div class="reels-scroll-area" id="reelsScrollArea"></div>
         </div>
     </div>
@@ -347,8 +347,8 @@
     <div class="navbar">
         <div onclick="window.goHome()" class="nav-brand">مجتمعنا</div>
         <div class="search-container">
-            <input onkeyup="window.handleGlobalSearch(this.value)" onblur="if(this.value===''){this.placeholder='بحث';}" onfocus="this.placeholder='ابحث...'" placeholder="بحث" id="globalSearch" class="search-bar" type="text" />
             <em class="fas fa-search search-icon"></em>
+            <input onkeyup="window.handleGlobalSearch(this.value)" onblur="if(this.value===''){this.placeholder='بحث';}" onfocus="this.placeholder='ابحث...'" placeholder="بحث" id="globalSearch" class="search-bar" type="text" />
             <div class="search-results-dropdown" id="searchResults"></div>
         </div>
         
@@ -386,7 +386,7 @@
     </div>
 
     <div class="bottom-nav" id="bottomNav">
-        <div class="b-nav-item" onclick="window.goHome()"><em class="fas fa-home"></em></div>
+        <div class="b-nav-item active-nav" onclick="window.goHome()"><em class="fas fa-home"></em></div>
         <div class="b-nav-item" onclick="window.openCommunitiesModal()"><em class="fas fa-users-cog"></em></div>
         <div class="b-nav-item" onclick="window.openRequestsModal()"><em class="fas fa-user-friends"></em><span class="badge" id="reqBadgeMobile" style="display:none;">0</span></div>
         <div class="b-nav-item" onclick="window.toggleSidebar()"><em class="fas fa-comment-dots"></em><span class="badge" id="chatBadgeMobile" style="display:none;">0</span></div>
@@ -418,11 +418,11 @@
                 <!-- شريط التحميل -->
                 <div style="display:none;margin-bottom:10px;" id="postUploadProgressWrap">
                     <div style="background:#e2e8f0;border-radius:10px;overflow:hidden;height:10px;">
-                        <div id="postUploadProgressBar" style="background:var(--primary);height:100%;width:0%;transition:width .2s;border-radius:10px;"></div>
+                        <div id="postUploadProgressBar" style="background:linear-gradient(135deg,var(--primary),var(--gold));height:100%;width:0%;transition:width .2s;border-radius:10px;"></div>
                     </div>
                     <div id="postUploadProgressText" style="font-size:12px;color:var(--text-muted);margin-top:5px;text-align:center;font-weight:700;"></div>
                 </div>
-                <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border-color);padding-top:10px;">
+                <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:10px;">
                     <div style="display:flex;gap:5px;">
                         <label class="file-upload-label" style="color:var(--primary);"><em class="fas fa-image"></em> صورة<input onchange="window.previewMedia(event,'image')" style="display:none;" accept="image/*" type="file" multiple /></label>
                         <label class="file-upload-label" style="color:#eab308;"><em class="fas fa-video"></em> فيديو<input onchange="window.previewMedia(event,'video')" style="display:none;" accept="video/*" type="file" multiple /></label>
@@ -438,10 +438,10 @@
         <div class="sidebar-placeholder" id="sidebarAreaContainer" style="display:none;">
             <div id="sidebarArea" class="sidebar">
                 <div id="sidebarAdSlot" style="margin-bottom:16px;"></div>
-                <div id="sidebarTopSection" style="margin-bottom:20px;border-bottom:1px solid var(--border-color);padding-bottom:15px;"></div>
+                <div id="sidebarTopSection" style="margin-bottom:20px;border-bottom:1px solid var(--border);padding-bottom:15px;"></div>
                 <div class="sidebar-title"><em class="fas fa-comments"></em> المحادثات والأصدقاء</div>
                 <input type="text" id="chatSearchInput" placeholder="ابحث للمراسلة..." class="comment-input" style="width:100%;margin-bottom:15px;padding:12px 15px;border-radius:12px;box-sizing:border-box;" onkeyup="window.searchChatUsers(this.value)" />
-                <div id="chatSearchBox" style="display:none;margin-bottom:15px;border-bottom:1px solid var(--border-color);padding-bottom:10px;"></div>
+                <div id="chatSearchBox" style="display:none;margin-bottom:15px;border-bottom:1px solid var(--border);padding-bottom:10px;"></div>
                 <div id="msgRequestsHeader" class="sidebar-title" style="margin-bottom:10px;display:none;color:#f59e0b;"><em class="fas fa-envelope"></em> طلبات المراسلة</div>
                 <div style="margin-bottom:20px;" id="msgRequestsList"></div>
                 <div id="friendsList"></div>
@@ -525,14 +525,14 @@
             <span onclick="window.closeModal('communitiesModal')" class="close-btn"><em class="fas fa-times"></em></span>
             <h3 style="margin-top:0;color:var(--primary);"><em class="fas fa-users-cog"></em> المجتمعات والجروبات</h3>
             
-            <div style="background:#f8fafc; padding:20px; border-radius:12px; margin-bottom:20px; border:1px solid var(--border-color);">
+            <div style="background:var(--bg); padding:20px; border-radius:16px; margin-bottom:20px; border:2px solid var(--border);">
                 <h4 style="margin-top:0;">إنشاء مجتمع جديد</h4>
                 <input type="text" id="communityNameInput" class="modal-input" placeholder="اسم المجتمع (مثال: فريق الدعم الفني)" />
                 <input type="text" id="communityDescInput" class="modal-input" placeholder="وصف المجتمع (اختياري)" />
                 <button class="btn-primary" id="createCommunityBtn" onclick="window.createCommunity()" style="width:100%;"><i class="fas fa-plus"></i> إنشاء المجتمع</button>
             </div>
 
-            <h4 style="border-top:1px solid var(--border-color); padding-top:15px;">قائمة المجتمعات</h4>
+            <h4 style="border-top:1px solid var(--border); padding-top:15px;">قائمة المجتمعات</h4>
             <div id="communitiesListArea"></div>
         </div>
     </div>
@@ -542,20 +542,20 @@
         <div style="padding:25px;" class="modal-content">
             <span onclick="window.closeModal('communityViewModal')" class="close-btn"><em class="fas fa-times"></em></span>
             
-            <div style="background:var(--primary); color:#fff; padding:25px; border-radius:16px; margin-bottom:20px; text-align:center;">
+            <div style="background:linear-gradient(140deg,#162e1f,var(--primary) 60%,var(--gold)); color:#fff; padding:25px; border-radius:18px; margin-bottom:20px; text-align:center;">
                 <h2 id="communityViewTitle" style="margin:0 0 10px 0;">اسم المجتمع</h2>
                 <p id="communityViewDesc" style="margin:0 0 15px 0; font-size:14px; opacity:0.9;"></p>
                 
                 <div id="communityHeaderActions" style="display:flex; justify-content:center; gap:10px; margin-bottom:15px; flex-wrap:wrap;"></div>
                 
-                <button class="btn-primary" style="background:#10b981; font-size:16px; padding:12px 30px; box-shadow:0 4px 15px rgba(16,185,129,0.4);" onclick="window.startCommunityCall()">
+                <button class="btn-primary" style="background:rgba(255,255,255,.2); font-size:16px; padding:12px 30px; box-shadow:0 4px 15px rgba(0,0,0,0.2); border:2px solid rgba(255,255,255,.4);" onclick="window.startCommunityCall()">
                     <i class="fas fa-video"></i> بدء اجتماع فيديو/صوت 
                 </button>
                 <div style="font-size:12px; margin-top:10px; opacity:0.8;">لا تستهلك مساحة من قاعدة البيانات الأساسية</div>
             </div>
 
-            <div style="background:#fff; padding:15px; border-radius:12px; border:1px solid var(--border-color); margin-bottom:20px;">
-                <textarea id="communityPostContent" class="composer-input" placeholder="شارك نقاشاً أو ملفاً مع أعضاء المجتمع..." rows="2" style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid #e2e8f0; width:100%;"></textarea>
+            <div style="background:#fff; padding:15px; border-radius:12px; border:1px solid var(--border); margin-bottom:20px;">
+                <textarea id="communityPostContent" class="composer-input" placeholder="شارك نقاشاً أو ملفاً مع أعضاء المجتمع..." rows="2" style="background:var(--bg); padding:10px; border-radius:8px; border:2px solid var(--border); width:100%;"></textarea>
                 <div style="text-align:left; margin-top:10px;">
                     <button id="publishCommBtn" class="btn-primary" onclick="window.publishCommunityPost()"><i class="fas fa-paper-plane"></i> نشر</button>
                 </div>
