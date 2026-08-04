@@ -18,7 +18,7 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 .navbar{position:fixed;top:0;left:0;width:100%;height:70px;background:var(--nav-bg);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(124,58,237,.25);display:flex;align-items:center;justify-content:space-between;padding:0 5%;z-index:2147483000;box-sizing:border-box;transition:all .3s}
 .nav-brand{font-size:26px;font-weight:800;color:#fff;cursor:pointer;flex-shrink:0;letter-spacing:-0.5px}
 .search-container{position:relative;display:flex;align-items:center;margin:0 20px}
-.search-icon{position:absolute;right:15px;color:rgba(255,255,255,.6);pointer-events:none;z-index:2;font-size:16px}
+.search-icon{position:absolute;right:13px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.6);pointer-events:none;z-index:2;font-size:15px}
 .search-bar{width:45px;height:45px;border-radius:var(--radius-pill);border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.1);transition:all .4s cubic-bezier(.4,0,.2,1);padding:0 40px 0 15px;outline:0;font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;color:#fff}
 .search-bar::placeholder{color:transparent;transition:color .3s}
 .search-bar:focus,.search-bar:not(:placeholder-shown){width:300px;background:rgba(255,255,255,.15);border-color:rgba(245,158,11,.6);box-shadow:0 0 0 3px rgba(245,158,11,.15);cursor:text}
@@ -386,7 +386,7 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
     .hide-on-mobile{display:none!important}
     .nav-brand{font-size:22px}
     .search-container{margin:0;flex:1;justify-content:flex-end}
-    .search-bar{width:40px;height:40px;padding:0 35px 0 10px}
+    .search-bar{width:40px;height:40px;padding:0 36px 0 10px}
     .search-bar:focus,.search-bar:not(:placeholder-shown){width:100%}
     .bottom-nav{display:flex}
     .dropdown-menu{position:fixed!important;top:80px!important;left:50%!important;right:auto!important;transform:translateX(-50%)!important;width:90%!important;max-height:calc(100vh - 160px)!important}
