@@ -289,35 +289,54 @@ body.dark-mode .notif-item.unread{background:rgba(99,102,241,0.06)}
    التخطيط الرئيسي
 ══════════════════════ */
 .main-container{
-  display:flex;flex-direction:column;align-items:flex-start;
-  margin:84px auto 0;width:100%;max-width:1400px;
-  gap:20px;padding:0 16px;box-sizing:border-box;
+  display:flex;
+  flex-direction:row;
+  flex-wrap:nowrap;
+  align-content:stretch;
+  justify-content:flex-start;
+  align-items:flex-start;
+  margin:84px auto 0;
+  width:100%;max-width:1400px;
+  gap:20px;padding:0 16px;
+  box-sizing:border-box;
+  min-height:calc(100vh - 104px);
 }
 .feed-area{
-  flex:1;min-width:0;display:flex;flex-direction:column;
-  gap:18px;width:100%;order:2;
+  flex:1;min-width:0;
+  display:flex;flex-direction:column;
+  gap:18px;
+  order:2;
+  /* توسيط الفيد مع تحديد عرض أقصى */
+  max-width:680px;
+  margin-left:auto;
+  margin-right:auto;
+  width:100%;
 }
 
 /* ══════════════════════
    السايدبار والعمود الأيمن
 ══════════════════════ */
-.sidebar-placeholder{flex:0 0 290px;position:relative;order:3}
+.sidebar-placeholder{flex:0 0 270px;position:relative;order:3;flex-shrink:0;}
 .sidebar{
-  position:fixed;left:16px;top:84px;width:290px;
-  height:calc(100vh - 104px);overflow-y:auto;
+  position:sticky;top:84px;
+  width:270px;
+  max-height:calc(100vh - 104px);overflow-y:auto;
   background:var(--card-bg);padding:18px;border-radius:var(--r-lg);
   box-shadow:var(--shadow-md);border:1px solid var(--border);
   direction:rtl;box-sizing:border-box;z-index:100;scrollbar-width:thin;
+  align-self:flex-start;
 }
 .sidebar::-webkit-scrollbar{width:4px}
 .sidebar::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
-.right-col-placeholder{flex:0 0 260px;position:relative;order:1}
+.right-col-placeholder{flex:0 0 250px;position:relative;order:1;flex-shrink:0;}
 .right-col{
-  position:fixed;right:16px;top:84px;width:260px;
-  height:calc(100vh - 104px);overflow-y:auto;overflow-x:hidden;
+  position:sticky;top:84px;
+  width:250px;
+  max-height:calc(100vh - 104px);overflow-y:auto;overflow-x:hidden;
   background:var(--card-bg);border-radius:var(--r-lg);
   box-shadow:var(--shadow-md);border:1px solid var(--border);
   padding:16px;box-sizing:border-box;direction:rtl;scrollbar-width:thin;z-index:100;
+  align-self:flex-start;
 }
 .right-col::-webkit-scrollbar{width:4px}
 .right-col::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px}
@@ -372,7 +391,31 @@ body.dark-mode .notif-item.unread{background:rgba(99,102,241,0.06)}
 @media(max-width:900px){
   .right-col-placeholder{display:none!important}
   .right-col{display:none!important}
-  .feed-area{margin-right:0!important}
+  .feed-area{margin-left:0!important;margin-right:0!important;max-width:100%!important}
+}
+
+/* شاشات متوسطة: إخفاء العمود الأيمن فقط */
+@media(min-width:901px) and (max-width:1100px){
+  .right-col-placeholder{display:none!important}
+  .right-col{display:none!important}
+  .sidebar-placeholder{flex:0 0 260px}
+  .sidebar{width:260px}
+  .feed-area{max-width:calc(100% - 280px)!important;margin-left:auto;margin-right:auto;}
+}
+
+/* شاشات كبيرة: الثلاثة أعمدة */
+@media(min-width:1101px) and (max-width:1300px){
+  .sidebar-placeholder{flex:0 0 240px}
+  .sidebar{width:240px}
+  .right-col-placeholder{flex:0 0 220px}
+  .right-col{width:220px}
+  .feed-area{max-width:580px}
+}
+@media(min-width:1301px) and (max-width:1500px){
+  .feed-area{max-width:640px}
+}
+@media(min-width:1501px){
+  .feed-area{max-width:700px}
 }
 
 /* ══════════════════════
@@ -629,11 +672,22 @@ body.dark-mode .notif-item.unread{background:rgba(99,102,241,0.06)}
 /* ══════════════════════
    نافذة الدردشة
 ══════════════════════ */
+/* ── نافذة الدردشة العائمة ── */
 .chat-box{
-  position:fixed;left:20px;bottom:80px;width:330px;
+  position:fixed;left:20px;bottom:20px;width:340px;
   background:var(--card-bg);border-radius:var(--r-xl);
   box-shadow:var(--shadow-xl);border:1px solid var(--border);
   display:none;flex-direction:column;overflow:hidden;z-index:5000;
+  max-height:500px;
+}
+/* app.js يضيف class="show" عند الفتح */
+.chat-box.show{display:flex!important;flex-direction:column!important;}
+/* بادج الرسائل غير المقروءة في السايدبار */
+.unread-msg-badge{
+  background:linear-gradient(135deg,var(--accent),var(--violet));
+  color:#fff;border-radius:var(--r-pill);
+  padding:2px 7px;font-size:11px;font-weight:800;
+  min-width:18px;text-align:center;
 }
 .chat-header{
   background:linear-gradient(135deg,var(--primary),var(--accent));
@@ -1029,9 +1083,10 @@ body.dark-mode .notif-item.unread{background:rgba(99,102,241,0.06)}
    Responsive
 ══════════════════════ */
 @media(max-width:768px){
-  .main-container{flex-direction:column;margin-top:80px;padding-bottom:110px;gap:14px}
-  .sidebar-placeholder{flex:none;width:0;height:0;margin:0;padding:0;border:0;overflow:visible}
-  .sidebar{width:100%;height:calc(100vh - 135px);position:fixed;top:64px;left:0;right:unset;z-index:900;border-radius:0;border:0;border-left:1px solid var(--border);display:none}
+  .main-container{flex-direction:column;flex-wrap:wrap;margin-top:74px;padding-bottom:110px;gap:14px;padding:0 10px 110px;}
+  .feed-area{max-width:100%!important;margin:0!important;order:1;}
+  .sidebar-placeholder{flex:none;width:0;height:0;margin:0;padding:0;border:0;overflow:visible;order:2;}
+  .sidebar{width:100%;height:calc(100vh - 64px);position:fixed;top:64px;left:0;right:unset;z-index:900;border-radius:0;border:0;border-left:1px solid var(--border);display:none;overflow-y:auto;}
   .sidebar.mobile-show{display:block!important}
   #sidebarTopSection{display:none!important}
   .search-results-dropdown{position:fixed;top:68px;left:10px;right:10px;width:auto}
@@ -1060,22 +1115,7 @@ body.dark-mode .notif-item.unread{background:rgba(99,102,241,0.06)}
   .hover-user-card{display:none!important}
 }
 
-@media(min-width:901px) and (max-width:1100px){
-  .sidebar-placeholder{flex:0 0 260px}
-  .sidebar{width:260px;left:14px}
-  .right-col-placeholder{flex:0 0 230px}
-  .right-col{width:230px;right:14px}
-  .feed-area{max-width:580px}
-}
-@media(min-width:1101px) and (max-width:1300px){.feed-area{max-width:650px}}
-@media(min-width:1301px) and (max-width:1500px){.feed-area{max-width:720px}}
-@media(min-width:1501px){.feed-area{max-width:780px}}
-
-/* ══════════════════════
-   التخطيط الكامل (desktop)
-══════════════════════ */
-.feed-area{flex:1;min-width:0;display:flex;flex-direction:column;gap:25px;width:100%;order:2;}
-.sidebar-placeholder{flex:0 0 300px;position:relative;order:3;}
+/* التعريفات المفصّلة موجودة أعلاه في قسم media queries الرئيسي */
 
 /* ══════════════════════
    الاهتمامات
