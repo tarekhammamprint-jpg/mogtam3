@@ -3561,38 +3561,3 @@ if(window.currentUser){
         if (cfg) cfg.close();
     });
 })();
-
-
-/* ==========================================================================
-   FEATURE #9: Profile Hover Card Integration (Appended safely to retain 100% logic)
-   ========================================================================== */
-(function setupGlobalHoverCards() {
-    document.addEventListener('mouseover', function(e) {
-        const userLink = e.target.closest('[data-user-id], .author-name, .user-profile-link');
-        if (userLink && !userLink.querySelector('.hover-card-popup')) {
-            userLink.classList.add('user-hover-trigger');
-            const userName = userLink.textContent.trim() || 'عضو مجتمع';
-            const hoverCard = document.createElement('div');
-            hoverCard.className = 'hover-card-popup';
-            hoverCard.innerHTML = `
-                <div class="hover-card-header"></div>
-                <div class="hover-card-body">
-                    <img src="https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=6366f1&color=fff" class="hover-card-avatar" alt="Avatar">
-                    <div class="hover-card-name">${userName}</div>
-                    <div class="hover-card-username">@member</div>
-                    <div class="hover-card-bio">عضو نشط في منصة مجتمع. ينشر المشاركات ويتفاعل مع أفكار الحائط.</div>
-                    <div class="hover-card-stats-grid">
-                        <div><div class="hover-card-stat-num">240</div><div class="hover-card-stat-lbl">أصدقاء</div></div>
-                        <div><div class="hover-card-stat-num">1.1K</div><div class="hover-card-stat-lbl">متابعين</div></div>
-                        <div><div class="hover-card-stat-num">85</div><div class="hover-card-stat-lbl">منشورات</div></div>
-                    </div>
-                    <div class="hover-card-btns">
-                        <button class="btn btn-primary"><i class="fa-solid fa-user-plus"></i> متابعة</button>
-                        <button class="btn btn-secondary"><i class="fa-solid fa-envelope"></i> مراسلة</button>
-                    </div>
-                </div>
-            `;
-            userLink.appendChild(hoverCard);
-        }
-    });
-})();
