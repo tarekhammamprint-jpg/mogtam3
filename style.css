@@ -1663,3 +1663,156 @@ body.dark-mode .chat-box{
   background:#1a1d27!important;
   border-color:#2a2d3e!important;
 }
+
+/* ══════════════════════════════════════
+   إصلاح أزرار الكتابة — ريلز + صورة + فيديو
+══════════════════════════════════════ */
+
+/* الحاوي الخارجي لأزرار الميديا */
+.composer-box .file-upload-label {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  background: #f1f5f9 !important;
+  border: 1.5px solid #e2e8f0 !important;
+  border-radius: 999px !important;
+  padding: 8px 16px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: all .2s !important;
+  text-align: center !important;
+  white-space: nowrap !important;
+}
+
+/* ألوان كل زر */
+.composer-box label[title="رفع ريل قصير"],
+.composer-box label:has(input[onchange*="reel"]) {
+  color: #d946ef !important;
+  border-color: #f5d0fe !important;
+  background: #fdf4ff !important;
+}
+.composer-box label[title="رفع ريل قصير"]:hover,
+.composer-box label:has(input[onchange*="reel"]):hover {
+  background: #f0abfc !important;
+  color: #a21caf !important;
+  border-color: #d946ef !important;
+}
+.composer-box label:has(input[accept="image/*"]) {
+  color: #6366f1 !important;
+  border-color: #c7d2fe !important;
+  background: #eef2ff !important;
+}
+.composer-box label:has(input[accept="image/*"]):hover {
+  background: #c7d2fe !important;
+  color: #4338ca !important;
+}
+.composer-box label:has(input[accept="video/*"]:not([onchange*="reel"])) {
+  color: #ca8a04 !important;
+  border-color: #fef08a !important;
+  background: #fefce8 !important;
+}
+.composer-box label:has(input[accept="video/*"]:not([onchange*="reel"])):hover {
+  background: #fef08a !important;
+  color: #854d0e !important;
+}
+
+/* ── الحاوي الأفقي لأزرار الميديا ── */
+.composer-box > div:last-child {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+}
+.composer-box > div:last-child > div:first-child {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+}
+
+/* ── تأكيد ظهور زر الريلز ── */
+label[title="رفع ريل قصير"] {
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+
+/* ══════════════════════════════════════
+   إصلاح نهائي — أزرار الكومبوزر مرئية
+══════════════════════════════════════ */
+
+/* إعادة ضبط file-upload-label بالكامل */
+.file-upload-label {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 8px 14px !important;
+  border-radius: 999px !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+  transition: all .2s !important;
+  border: 1.5px solid !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  white-space: nowrap !important;
+  text-align: center !important;
+}
+
+/* زر صورة */
+.file-upload-label:nth-child(1) {
+  color: #6366f1 !important;
+  background: #eef2ff !important;
+  border-color: #c7d2fe !important;
+}
+.file-upload-label:nth-child(1):hover {
+  background: #c7d2fe !important;
+}
+
+/* زر فيديو */
+.file-upload-label:nth-child(2) {
+  color: #ca8a04 !important;
+  background: #fefce8 !important;
+  border-color: #fde68a !important;
+}
+.file-upload-label:nth-child(2):hover {
+  background: #fde68a !important;
+}
+
+/* زر ريلز */
+.file-upload-label:nth-child(3),
+label[title="رفع ريل قصير"] {
+  color: #d946ef !important;
+  background: #fdf4ff !important;
+  border-color: #f0abfc !important;
+  display: inline-flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+.file-upload-label:nth-child(3):hover,
+label[title="رفع ريل قصير"]:hover {
+  background: #f0abfc !important;
+  color: #a21caf !important;
+}
+
+/* حاوي الأزرار */
+#composerBox > div:last-of-type {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: nowrap !important;
+  gap: 8px !important;
+  border-top: 1px solid #e2e8f0 !important;
+  padding-top: 12px !important;
+  margin-top: 8px !important;
+}
+#composerBox > div:last-of-type > div:first-child {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-shrink: 0 !important;
+}
