@@ -1858,3 +1858,73 @@ body {
   transform: none !important;
   will-change: auto !important;
 }
+
+/* ══════════════════════════════════════════════
+   إصلاح نهائي — منع transform من كسر position:fixed
+   على موبايل Chrome/WebView
+══════════════════════════════════════════════ */
+
+/* أي transform على عناصر عادية يخلق stacking context
+   يكسر position:fixed للـ navbar وbottom-nav */
+.btn-primary {
+  transform: none !important;
+  will-change: auto !important;
+}
+.btn-primary:hover {
+  transform: none !important;
+  filter: brightness(0.92) !important;
+}
+.btn-secondary:hover {
+  transform: none !important;
+}
+
+/* الكومبوزر نفسه لا يخلق stacking context */
+.composer-box {
+  transform: none !important;
+  will-change: auto !important;
+  isolation: auto !important;
+  contain: none !important;
+}
+
+/* المنشورات */
+.post {
+  transform: none !important;
+  will-change: auto !important;
+}
+.post:hover {
+  transform: none !important;
+}
+
+/* suggested cards */
+.suggested-card:hover {
+  transform: none !important;
+  box-shadow: 0 4px 16px rgba(15,23,42,.1) !important;
+}
+
+/* community card */
+.community-card:hover {
+  transform: none !important;
+}
+
+/* friend card */
+.friend-card-enhanced:hover {
+  transform: none !important;
+}
+
+/* تأكيد navbar وbottom-nav ثابتان تماماً */
+.navbar {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  transform: translate3d(0,0,0) !important;
+  will-change: auto !important;
+}
+.bottom-nav {
+  position: fixed !important;
+  bottom: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  transform: translate3d(0,0,0) !important;
+  will-change: auto !important;
+}
