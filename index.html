@@ -610,10 +610,10 @@
         <!-- صندوق الكتابة -->
         <div class="composer-box" id="composerBox" style="display:none;">
             <div style="display:flex;gap:10px;margin-bottom:12px;direction:rtl;align-items:flex-start;">
-                <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="avatar-small" id="composerAvatar" style="margin-top:3px;" />
-                <textarea oninput="window.handleMentionInput(this)" placeholder="ما الذي يدور في ذهنك؟ @" rows="2" class="composer-input" id="postContent" style="flex:1;"></textarea>
+                <img src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="avatar-small" id="composerAvatar" style="margin-top:3px;flex-shrink:0;" />
+                <textarea oninput="window.handleMentionInput(this)" placeholder="ما الذي يدور في ذهنك؟ @" rows="2" class="composer-input" id="postContent" style="flex:1;min-height:56px;"></textarea>
             </div>
-            <!-- معاينة الملفات المتعددة -->
+            <!-- معاينة الملفات -->
             <div style="display:none;margin-bottom:12px;" id="postMediaPreviewContainer">
                 <div id="postMediaPreviewGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px;"></div>
             </div>
@@ -624,22 +624,26 @@
                 </div>
                 <div id="postUploadProgressText" style="font-size:12px;color:#64748b;margin-top:5px;text-align:center;font-weight:700;"></div>
             </div>
-            <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid #e2e8f0;padding-top:12px;margin-top:4px;">
-                <div style="display:flex;gap:8px;align-items:center;flex-wrap:nowrap;">
-                    <label class="file-upload-label" style="display:inline-flex!important;align-items:center;gap:5px;color:#6366f1;background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:700;font-size:13px;">
-                        <i class="fas fa-image"></i> صورة
+            <!-- شريط الأزرار -->
+            <div style="border-top:1px solid #e2e8f0;padding-top:12px;margin-top:4px;display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:8px;">
+                <!-- أزرار الميديا -->
+                <div style="display:flex;gap:6px;align-items:center;flex-shrink:1;overflow:hidden;">
+                    <label style="display:inline-flex;align-items:center;gap:5px;color:#6366f1;background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:999px;padding:7px 12px;cursor:pointer;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;white-space:nowrap;flex-shrink:0;">
+                        <i class="fas fa-image"></i> <span class="hide-on-mobile">صورة</span><span class="show-on-mobile" style="display:none">📷</span>
                         <input onchange="window.previewMedia(event,'image')" style="display:none;" accept="image/*" type="file" multiple />
                     </label>
-                    <label class="file-upload-label" style="display:inline-flex!important;align-items:center;gap:5px;color:#ca8a04;background:#fefce8;border:1.5px solid #fde68a;border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:700;font-size:13px;">
-                        <i class="fas fa-video"></i> فيديو
+                    <label style="display:inline-flex;align-items:center;gap:5px;color:#ca8a04;background:#fefce8;border:1.5px solid #fde68a;border-radius:999px;padding:7px 12px;cursor:pointer;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;white-space:nowrap;flex-shrink:0;">
+                        <i class="fas fa-video"></i> <span>فيديو</span>
                         <input onchange="window.previewMedia(event,'video')" style="display:none;" accept="video/*" type="file" multiple />
                     </label>
-                    <label class="file-upload-label" title="رفع ريل قصير" style="display:inline-flex!important;align-items:center;gap:5px;color:#d946ef;background:#fdf4ff;border:1.5px solid #f0abfc;border-radius:999px;padding:7px 14px;cursor:pointer;font-weight:700;font-size:13px;">
-                        <i class="fas fa-play-circle"></i> ريلز
+                    <label style="display:inline-flex;align-items:center;gap:5px;color:#d946ef;background:#fdf4ff;border:1.5px solid #f0abfc;border-radius:999px;padding:7px 12px;cursor:pointer;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;white-space:nowrap;flex-shrink:0;">
+                        <i class="fas fa-play-circle"></i> <span>ريلز</span>
                         <input onchange="window.previewMedia(event,'reel')" style="display:none;" accept="video/mp4,video/x-m4v,video/*" type="file" />
                     </label>
                 </div>
-                <button onclick="window.publishPost()" id="publishBtn" class="btn-primary" style="padding:9px 22px;">
+                <!-- زر النشر — بدون transform لمنع كسر fixed -->
+                <button onclick="window.publishPost()" id="publishBtn"
+                    style="flex-shrink:0;background:linear-gradient(135deg,#6366f1,#2a5298);color:#fff;border:none;padding:10px 20px;border-radius:999px;font-family:'Cairo',sans-serif;font-size:14px;font-weight:800;cursor:pointer;display:inline-flex;align-items:center;gap:7px;box-shadow:0 2px 10px rgba(99,102,241,0.3);transform:none!important;will-change:auto!important;">
                     <i class="fas fa-paper-plane"></i> نشر
                 </button>
             </div>
