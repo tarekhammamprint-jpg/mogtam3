@@ -963,8 +963,8 @@ window.toggleInterest = (el, cat) => { if(window.selectedInterests.has(cat)) { w
 window.saveUserInterests = () => { if(window.selectedInterests.size < 3) return window.dlgAlert("الرجاء اختيار 3 اهتمامات على الأقل ليتم تخصيص المنصة لك.", "warning", "تنبيه"); let arr = Array.from(window.selectedInterests); let btn = $('saveInterestsBtn'), ot = btn.innerText; btn.innerText = "جاري الحفظ..."; btn.disabled = true; update(ref(db, `users/${window.currentUser}`), { interests: arr }).then(async () => { $('interestsModal').classList.remove('show'); document.body.style.overflow = 'auto'; btn.innerText = ot; btn.disabled = false; await window.dlgAlert("تم تخصيص تجربتك بنجاح! ✨", "success", "تم الحفظ"); if (window.pendingLocationStep) { window.pendingLocationStep = false; if (window.renderLocationStepModal) window.renderLocationStepModal(); } }).catch(e => { window.dlgAlert("حدث خطأ، يرجى المحاولة مجدداً.", "danger", "خطأ"); btn.innerText = ot; btn.disabled = false; }); };
 
 function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(500)), s => { let l = []; if(s.exists()){ s.forEach(c => { let p=c.val(); p.id=c.key; window.postCache[p.id]=p; if(!p.isNewsBot) l.push(p); }); l.sort((a,b) => b.timestamp - a.timestamp); } window.allPosts = l; window.renderReelsTopBar(); if(window.isInitialLoad){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); window.isInitialLoad=false; handleRouting(); } else { let hash = window.location.hash; if(hash.startsWith('#/post/')){ let up = window.postCache[decodeURIComponent(hash.replace('#/post/', ''))]; if(up) window.openPostLogic(up.id); } let nc = l.filter(p=>!window.renderedPostIds.has(p.id)).length, mp = l.some(p=>p.author===window.currentUser&&!window.renderedPostIds.has(p.id)); if(mp){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); $('newPostsBtn').style.display='none'; } else if(nc>=1){ $('newPostsBtn').style.display='block'; $('newPostsBtn').innerHTML=`<i class='fas fa-arrow-up'></i> ${nc} منشور جديد — انقر للتحديث`; $('newPostsBtn').style.display='flex'; } else { let ci=new Set(l.map(p=>p.id)); for(let id of window.renderedPostIds) if(!ci.has(id)) window.renderedPostIds.delete(id); } } if(window.location.hash.startsWith('#/@')) try { renderProfilePosts(decodeURIComponent(window.location.hash.replace('#/@', ''))) } catch(e){} }); }
-window.showNewPosts = () => { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim=5; renderFeed(); $('newPostsBtn').style.display='none'; window.scrollTo({top:0, behavior:'smooth'}); };
-window.addEventListener('scroll', () => { if((window.innerHeight+window.scrollY) >= document.body.offsetHeight-800){ if(window.feedLim < window.allPosts.length){ window.feedLim += 5; renderFeed(); } } });
+window.showNewPosts = () => { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim=5; let pf=document.getElementById('postsFeed'); if(pf) pf.dataset.renderedIds=''; renderFeed(); $('newPostsBtn').style.display='none'; window.scrollTo({top:0, behavior:'smooth'}); };
+window.addEventListener('scroll', () => { if((window.innerHeight+window.scrollY) >= document.body.offsetHeight-800){ if(window.feedLim < window.allPosts.length){ window.feedLim += 5; let pf=document.getElementById('postsFeed'); if(pf) pf.dataset.renderedIds=''; renderFeed(); } } });
 
 // ── مشغّل الفيديو الذكي ─────────────────────────────────────
 window.toggleVideoMute = (btn) => {
@@ -1309,7 +1309,7 @@ function createPostHTML(p, cp, it=false, im=false) {
 
 function renderFeed() {
     let pf = document.getElementById('postsFeed'); if(!window.currentUser) { if(pf) pf.innerHTML = ''; return; }
-    let h='', sg=window.getSuggestions?window.getSuggestions():[], iN=window.currentUser?window.myFriends.length===0:true, vp=[], reg=[], tr=[];
+    let h='', sg=window.getSuggestions?window.getSuggestions():[], iN=window.currentUser?window.myFriends.length===0:true, vp=[], tr=[];
     let myFollowing = (window.allUsersData[window.currentUser]?.following) || {};
     (window.allNewsPosts || []).filter(p => myFollowing[p.author]).forEach(p => vp.push({p:p, it:false}));
     window.allPosts.forEach(p => {
@@ -1332,16 +1332,17 @@ function renderFeed() {
     }
     final.sort((a,b) => (b.p.timestamp||0) - (a.p.timestamp||0));
     let sliced = final.slice(0, window.feedLim || 5);
-    let newIds = sliced.map(v=>v.p.id);
-    // تحقق إذا نفس الترتيب — لا تعيد الرسم
-    try {
-        let existingIds = Array.from(pf.querySelectorAll('.post[data-post-id]')).map(el=>el.dataset.postId);
-        if(existingIds.length === newIds.length && newIds.every((id,i)=>id===existingIds[i])) {
-            document.querySelectorAll('#postsFeed video').forEach(v => { try{ window.videoObserver.observe(v); }catch(e){} });
-            return;
-        }
-    } catch(e) {}
+    let newIds = sliced.map(v=>v.p.id).join(',');
+
+    // ── لا تعيد الرسم إذا نفس المنشورات بنفس الترتيب ──
+    if(pf && pf.dataset.renderedIds === newIds && pf.children.length > 0) {
+        document.querySelectorAll('#postsFeed video').forEach(v => { try{ window.videoObserver.observe(v); }catch(e){} });
+        return;
+    }
+
+    // ── احفظ موضع الـ scroll قبل الرسم ──
     let savedScroll = window.scrollY;
+
     sliced.forEach((v,i) => {
         h += createPostHTML(v.p, 'feed', v.it, false);
         if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget();
@@ -1350,8 +1351,12 @@ function renderFeed() {
     });
     if(pf) {
         pf.innerHTML = h || '<p style="text-align:center;color:#666;padding:20px;">المنشورات تظهر هنا.</p>';
+        pf.dataset.renderedIds = newIds;
         document.querySelectorAll('#postsFeed video').forEach(v => { try{ window.videoObserver.observe(v); }catch(e){} });
-        if(savedScroll > 100) window.scrollTo({top: savedScroll, behavior: 'instant'});
+        // ── استعد موضع الـ scroll فوراً ──
+        if(savedScroll > 0) {
+            window.scrollTo({top: savedScroll, behavior: 'instant'});
+        }
     }
 }
 
@@ -2856,7 +2861,7 @@ window.refreshEligibleAds = () => {
     renderSidebarAd();
     // نعيد رسم الفيد المعروض حالياً حتى لو كان قد اتُبني قبل توفر بيانات الموقع/الاستهداف
     // (مثال: حساب جديد لسه بيكمل خطوة تحديد الموقع بعد ما الفيد اتعرض أول مرة)
-    if (typeof renderFeed === 'function' && document.getElementById('postsFeed')) renderFeed();
+    if (typeof renderFeed === 'function' && document.getElementById('postsFeed')) { let pf=document.getElementById('postsFeed'); if(pf) pf.dataset.renderedIds=''; renderFeed(); }
 };
 
 // أداة تشخيص: تعرض تقرير مرئي (بدون الحاجة لـ Console/DevTools، تشتغل حتى جوه تطبيقات
@@ -3013,7 +3018,7 @@ function listenToNewsBotPosts() {
             s.forEach(c => { let p = c.val(); p.id = c.key; window.allNewsPosts.push(p); window.postCache[p.id] = p; });
             window.allNewsPosts.sort((a, b) => b.timestamp - a.timestamp);
         }
-        if (window.currentUser && !window.isInitialLoad) { window.feedLim = 5; renderFeed(); }
+        if (window.currentUser && !window.isInitialLoad) { let pf=document.getElementById('postsFeed'); if(pf) pf.dataset.renderedIds=''; renderFeed(); }
     });
 }
 
@@ -3030,7 +3035,7 @@ function listenToReels() {
 }
 
 function listenToUsers(){ onValue(ref(db,'users'), s => { if(s.exists()){ window.allUsersData = s.val(); if(window.isInitialLoad){ listenToPosts(); } if(window.currentUser){ renderSidebarUsers(); renderRequests(); window.renderSidebarTop(); window.initRightSidebar && window.initRightSidebar(); window.rerenderNotifications && window.rerenderNotifications(); window.refreshEligibleAds && window.refreshEligibleAds(); } } }); }
-function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ window.feedLim=5; renderFeed(); } }); }
+function listenToAllFriends(){ onValue(ref(db,'friends'), s => { window.allFriendsData = s.exists() ? s.val() : {}; window.myFriends = window.allFriendsData[window.currentUser] ? Object.keys(window.allFriendsData[window.currentUser]) : []; renderSidebarUsers(); if(!window.isInitialLoad){ let pf=document.getElementById('postsFeed'); if(pf) pf.dataset.renderedIds=''; renderFeed(); } }); }
 function listenToUnreadChats(){ onValue(ref(db,`users/${window.currentUser}/unreadChats`), s => { window.unreadChatsData = s.exists() ? s.val() : {}; let t=0; if(window.currentChatTarget && window.isChatBoxVisible && window.unreadChatsData[window.currentChatTarget]){ remove(ref(db,`users/${window.currentUser}/unreadChats/${window.currentChatTarget}`)); delete window.unreadChatsData[window.currentChatTarget]; } let mpm = $('messagesPageModal'); if(window.mpCurrentTarget && mpm && mpm.classList.contains('show') && window.unreadChatsData[window.mpCurrentTarget]){ remove(ref(db,`users/${window.currentUser}/unreadChats/${window.mpCurrentTarget}`)); delete window.unreadChatsData[window.mpCurrentTarget]; } for(let x in window.unreadChatsData){ let c = window.unreadChatsData[x], p = window.previousUnreadChats[x]||0; t+=c; if(c>p && x!==window.currentChatTarget && x!==window.mpCurrentTarget) window.showToast("رسالة جديدة", `أرسل ${window.getDisplayName(x)} رسالة`, window.allUsersData[x]?.profilePic); } window.previousUnreadChats = {...window.unreadChatsData}; let b1=$('chatBadge'), b2=$('chatBadgeMobile'); if(t>0){ b1.style.display='inline-block'; b1.innerText=t; b2.style.display='inline-block'; b2.innerText=t; } else { b1.style.display='none'; b2.style.display='none'; } renderSidebarUsers(); if(mpm && mpm.classList.contains('show')) window.renderMessagesPageList(); }); }
 function listenToRecentChats(){ onValue(ref(db,`users/${window.currentUser}/recentChats`), s => { window.recentChatsData = s.exists() ? s.val() : {}; renderSidebarUsers(); let mpm = $('messagesPageModal'); if(mpm && mpm.classList.contains('show')) window.renderMessagesPageList(); }); }
 function listenToCommunities() { onValue(ref(db, 'communities'), s => { window.allCommunities = s.exists() ? s.val() : {}; if($('communitiesModal') && $('communitiesModal').classList.contains('show')) { window.renderCommunitiesList(); } window.renderRightSidebarCommunities && window.renderRightSidebarCommunities(); if (window.currentUser && typeof window.startCallListener === "function") window.startCallListener(); }); }
