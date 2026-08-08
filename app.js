@@ -962,7 +962,7 @@ window.renderInterestsModal = () => { window.selectedInterests = new Set(); let 
 window.toggleInterest = (el, cat) => { if(window.selectedInterests.has(cat)) { window.selectedInterests.delete(cat); el.classList.remove('selected'); } else { window.selectedInterests.add(cat); el.classList.add('selected'); } };
 window.saveUserInterests = () => { if(window.selectedInterests.size < 3) return window.dlgAlert("الرجاء اختيار 3 اهتمامات على الأقل ليتم تخصيص المنصة لك.", "warning", "تنبيه"); let arr = Array.from(window.selectedInterests); let btn = $('saveInterestsBtn'), ot = btn.innerText; btn.innerText = "جاري الحفظ..."; btn.disabled = true; update(ref(db, `users/${window.currentUser}`), { interests: arr }).then(async () => { $('interestsModal').classList.remove('show'); document.body.style.overflow = 'auto'; btn.innerText = ot; btn.disabled = false; await window.dlgAlert("تم تخصيص تجربتك بنجاح! ✨", "success", "تم الحفظ"); if (window.pendingLocationStep) { window.pendingLocationStep = false; if (window.renderLocationStepModal) window.renderLocationStepModal(); } }).catch(e => { window.dlgAlert("حدث خطأ، يرجى المحاولة مجدداً.", "danger", "خطأ"); btn.innerText = ot; btn.disabled = false; }); };
 
-function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(500)), s => { let l = []; if(s.exists()){ s.forEach(c => { let p=c.val(); p.id=c.key; window.postCache[p.id]=p; if(!p.isNewsBot) l.push(p); }); l.sort((a,b) => b.timestamp - a.timestamp); } let prev = window.allPosts; window.allPosts = l; window.renderReelsTopBar(); if(window.isInitialLoad){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); window.isInitialLoad=false; handleRouting(); } else { let hash = window.location.hash; if(hash.startsWith('#/post/')){ let up = window.postCache[decodeURIComponent(hash.replace('#/post/', ''))]; if(up) window.openPostLogic(up.id); } let nc = l.filter(p=>!window.renderedPostIds.has(p.id)).length, mp = l.some(p=>p.author===window.currentUser&&!window.renderedPostIds.has(p.id)); if(mp){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); $('newPostsBtn').style.display='none'; } else if(nc>=1){ $('newPostsBtn').style.display='block'; $('newPostsBtn').innerHTML=`<i class='fas fa-arrow-up'></i> ${nc} منشور جديد — انقر للتحديث`; $('newPostsBtn').style.display='flex'; } else { // ← لا إعادة رسم — فقط تحديث الأعداد في مكانها let ci=new Set(l.map(p=>p.id)); for(let id of window.renderedPostIds) if(!ci.has(id)) window.renderedPostIds.delete(id); // تحديث أعداد الإعجابات والتعليقات في المكان بدون إعادة رسم l.forEach(p => { let old = prev.find(x=>x.id===p.id); if(!old) return; let lc=p.likes?Object.keys(p.likes).length:0, oc=old.likes?Object.keys(old.likes).length:0; let cc=p.comments?Object.keys(p.comments).length:0, occ=old.comments?Object.keys(old.comments).length:0; if(lc!==oc){ let el=document.querySelector(`[onclick*="toggleLike('${p.id}'"]`); if(el){ let sp=el.querySelector('.lc-count'); let wasLikedByMe = old.likes&&old.likes[window.currentUser]; let isLikedByMe = p.likes&&p.likes[window.currentUser]; let ic=el.querySelector('i'); if(sp) sp.innerText=lc>0?lc:'إعجاب'; el.dataset.count=lc; if(ic&&!ic.style.animation){ ic.className=isLikedByMe?'fas fa-heart':'far fa-heart'; ic.style.color=isLikedByMe?'#ef4444':'#64748b'; } } } if(cc!==occ){ let cBtn=document.querySelector(`[onclick*="openPostModal('${p.id}')"].action-btn`); if(cBtn){ let ci2=cBtn.querySelector('i'); if(ci2) cBtn.innerHTML=`<i class="far fa-comment-alt"></i> ${cc>0?cc:''} تعليق`; } } }); } } if(window.location.hash.startsWith('#/@')) try { renderProfilePosts(decodeURIComponent(window.location.hash.replace('#/@', ''))) } catch(e){} }); }
+function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestamp'), limitToLast(500)), s => { let l = []; if(s.exists()){ s.forEach(c => { let p=c.val(); p.id=c.key; window.postCache[p.id]=p; if(!p.isNewsBot) l.push(p); }); l.sort((a,b) => b.timestamp - a.timestamp); } window.allPosts = l; window.renderReelsTopBar(); if(window.isInitialLoad){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); window.isInitialLoad=false; handleRouting(); } else { let hash = window.location.hash; if(hash.startsWith('#/post/')){ let up = window.postCache[decodeURIComponent(hash.replace('#/post/', ''))]; if(up) window.openPostLogic(up.id); } let nc = l.filter(p=>!window.renderedPostIds.has(p.id)).length, mp = l.some(p=>p.author===window.currentUser&&!window.renderedPostIds.has(p.id)); if(mp){ window.renderedPostIds = new Set(l.map(p=>p.id)); if(window.currentUser) renderFeed(); $('newPostsBtn').style.display='none'; } else if(nc>=1){ $('newPostsBtn').style.display='block'; $('newPostsBtn').innerHTML=`<i class='fas fa-arrow-up'></i> ${nc} منشور جديد — انقر للتحديث`; $('newPostsBtn').style.display='flex'; } else { let ci=new Set(l.map(p=>p.id)); for(let id of window.renderedPostIds) if(!ci.has(id)) window.renderedPostIds.delete(id); } } if(window.location.hash.startsWith('#/@')) try { renderProfilePosts(decodeURIComponent(window.location.hash.replace('#/@', ''))) } catch(e){} }); }
 window.showNewPosts = () => { window.renderedPostIds = new Set(window.allPosts.map(p=>p.id)); window.feedLim=5; renderFeed(); $('newPostsBtn').style.display='none'; window.scrollTo({top:0, behavior:'smooth'}); };
 window.addEventListener('scroll', () => { if((window.innerHeight+window.scrollY) >= document.body.offsetHeight-800){ if(window.feedLim < window.allPosts.length){ window.feedLim += 5; renderFeed(); } } });
 
@@ -1308,65 +1308,50 @@ function createPostHTML(p, cp, it=false, im=false) {
 }
 
 function renderFeed() {
-    let pf = document.getElementById('postsFeed');
-    if (!window.currentUser) { if (pf) pf.innerHTML = ''; return; }
-
-    let sg = window.getSuggestions ? window.getSuggestions() : [];
-    let iN = window.myFriends.length === 0;
-    let vp = [], tr = [];
+    let pf = document.getElementById('postsFeed'); if(!window.currentUser) { if(pf) pf.innerHTML = ''; return; }
+    let h='', sg=window.getSuggestions?window.getSuggestions():[], iN=window.currentUser?window.myFriends.length===0:true, vp=[], reg=[], tr=[];
     let myFollowing = (window.allUsersData[window.currentUser]?.following) || {};
-
-    (window.allNewsPosts || []).filter(p => myFollowing[p.author]).forEach(p => vp.push({ p, it: false }));
+    (window.allNewsPosts || []).filter(p => myFollowing[p.author]).forEach(p => vp.push({p:p, it:false}));
     window.allPosts.forEach(p => {
-        if (!window.renderedPostIds.has(p.id)) return;
+        if(!window.renderedPostIds.has(p.id)) return;
         let im = p.author === window.currentUser;
         let ifR = window.myFriends.includes(p.author);
         let lc = p.likes ? Object.keys(p.likes).length : 0;
         let it = lc >= 10;
-        if (im || ifR) vp.push({ p, it });
-        else if (it) tr.push({ p, it: true });
+        if(im || ifR) vp.push({p:p, it:it});
+        else if(it) tr.push({p:p, it:true});
     });
-
-    let t_i = 0, final = [...vp];
-    if (!iN) {
-        for (let i = 0; i < vp.length; i++) {
-            if ((i + 1) % 10 === 0 && t_i < tr.length) { final.splice(i + 1, 0, tr[t_i]); t_i++; }
+    let t_i = 0;
+    let final = [...vp];
+    if(!iN) {
+        for(let i=0; i<vp.length; i++) {
+            if((i+1)%10===0 && t_i<tr.length) { final.splice(i+1, 0, tr[t_i]); t_i++; }
         }
     } else {
         final = [...vp, ...tr];
     }
-    final.sort((a, b) => (b.p.timestamp || 0) - (a.p.timestamp || 0));
-
+    final.sort((a,b) => (b.p.timestamp||0) - (a.p.timestamp||0));
     let sliced = final.slice(0, window.feedLim || 5);
-    let newIds  = sliced.map(v => v.p.id);
-
-    // قارن الترتيب الحالي بالجديد
-    let existingEls = pf ? Array.from(pf.querySelectorAll('.post[data-post-id]')) : [];
-    let existingIds = existingEls.map(el => el.dataset.postId);
-    let sameOrder   = existingIds.length === newIds.length && newIds.every((id, i) => id === existingIds[i]);
-
-    if (sameOrder && existingEls.length > 0) {
-        // ✅ نفس الترتيب — لا نفعل شيئاً
-        document.querySelectorAll('#postsFeed video').forEach(v => window.videoObserver && window.videoObserver.observe(v));
-        return;
-    }
-
-    // ترتيب مختلف (منشور جديد، تحميل المزيد) — احفظ موضع الـ scroll ثم أعد البناء
+    let newIds = sliced.map(v=>v.p.id);
+    // تحقق إذا نفس الترتيب — لا تعيد الرسم
+    try {
+        let existingIds = Array.from(pf.querySelectorAll('.post[data-post-id]')).map(el=>el.dataset.postId);
+        if(existingIds.length === newIds.length && newIds.every((id,i)=>id===existingIds[i])) {
+            document.querySelectorAll('#postsFeed video').forEach(v => { try{ window.videoObserver.observe(v); }catch(e){} });
+            return;
+        }
+    } catch(e) {}
     let savedScroll = window.scrollY;
-
-    let h = '';
-    sliced.forEach((v, i) => {
+    sliced.forEach((v,i) => {
         h += createPostHTML(v.p, 'feed', v.it, false);
-        if (window.currentUser && (i + 1) % 4 === 0 && sg.length > 0) h += createSuggestedFriendsWidget();
-        if (window.currentUser && i > 0 && i % 5 === 0) h += window.generateReelsWidgetHTML();
-        if (window.activeAds && window.activeAds.length > 0 && (i + 1) % 7 === 0) h += window.getActiveAdHTML();
+        if(window.currentUser && (i+1)%4===0 && sg.length>0) h += createSuggestedFriendsWidget();
+        if(window.currentUser && i>0 && i%5===0) h += window.generateReelsWidgetHTML();
+        if(window.activeAds && window.activeAds.length > 0 && (i+1) % 7 === 0) h += window.getActiveAdHTML();
     });
-
-    if (pf) {
+    if(pf) {
         pf.innerHTML = h || '<p style="text-align:center;color:#666;padding:20px;">المنشورات تظهر هنا.</p>';
-        document.querySelectorAll('#postsFeed video').forEach(v => window.videoObserver && window.videoObserver.observe(v));
-        // استعد موضع الـ scroll فوراً بدون أي animation
-        if (savedScroll > 0) window.scrollTo({ top: savedScroll, behavior: 'instant' });
+        document.querySelectorAll('#postsFeed video').forEach(v => { try{ window.videoObserver.observe(v); }catch(e){} });
+        if(savedScroll > 100) window.scrollTo({top: savedScroll, behavior: 'instant'});
     }
 }
 
