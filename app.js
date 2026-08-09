@@ -1093,7 +1093,7 @@ window.openMediaViewer = (items, startIdx, post) => {
         <div style="display:flex;gap:8px;align-items:center;padding:10px 14px;border-top:1px solid #e2e8f0;">
             <img src="${window.allUsersData[window.currentUser]?.profilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">
             <input type="text" id="_mvInpDesktop" placeholder="اكتب تعليقاً..." style="flex:1;border:1px solid #e2e8f0;border-radius:20px;padding:8px 14px;font-family:Cairo,sans-serif;font-size:13px;outline:none;" onkeypress="if(event.key==='Enter')window.mvAddComment('${post.id}','${post.author}')">
-            <button onclick="window.mvAddComment('${post.id}','${post.author}')" style="background:var(--primary);color:#fff;border:none;border-radius:50%;width:34px;height:34px;cursor:pointer;"><i class="fas fa-paper-plane"></i></button>
+            <button onclick="window.mvAddComment('${post.id}','${post.author}')" style="background:linear-gradient(135deg,#6366f1,#2a5298);color:#fff;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><i class="fas fa-paper-plane" style="font-size:13px;"></i></button>
         </div>` : '';
     let actionBar = `
         <div style="display:flex;border-top:1px solid #e2e8f0;padding:4px 0;">
@@ -1217,7 +1217,9 @@ window.mvStartReply = (commentId, commentAuthor, commentAuthorName) => {
 };
 
 window.mvAddComment = (postId, postAuthor) => {
-    let inp = document.getElementById('mvCommentInput'); if (!inp) return;
+    // يبحث عن الـ input في كلا الواجهتين (desktop و mobile)
+    let inp = document.getElementById('mvCommentInput') || document.getElementById('_mvInpDesktop');
+    if (!inp) return;
     let txt = inp.value.trim(); if (!txt) return;
     let replyTo = inp.dataset.replyTo;
     inp.value = ''; inp.disabled = true;
@@ -1228,26 +1230,28 @@ window.mvAddComment = (postId, postAuthor) => {
     push(ref(db, dbPath), { author: window.currentUser, text: txt, timestamp: Date.now() }).then((ref2) => {
         inp.disabled = false; inp.focus();
         if (postAuthor !== window.currentUser) push(ref(db, `users/${postAuthor}/notifications`), { type: replyTo ? 'reply' : 'comment', from: window.currentUser, postId, timestamp: Date.now(), read: false });
-        let list = document.getElementById('mvCommentsList'); if (!list) return;
-        let pic = window.allUsersData[window.currentUser]?.profilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+        let pic = window.allUsersData[window.currentUser]?.profilePic || dA;
         let name = window.getDisplayName(window.currentUser);
-        if (replyTo) {
-            // أضف الرد تحت التعليق الأصلي
-            let cDiv = list.querySelector(`[data-cid="${replyTo}"]`);
-            if (cDiv) {
+        // أضف التعليق في كلا القائمتين
+        ['mvCommentsList', '_mvListDesktop'].forEach(listId => {
+            let list = document.getElementById(listId); if (!list) return;
+            if (replyTo) {
+                let cDiv = list.querySelector(`[data-cid="${replyTo}"]`);
+                if (cDiv) {
+                    let el = document.createElement('div');
+                    el.style.cssText = 'display:flex;gap:7px;margin-top:8px;margin-right:20px;';
+                    el.innerHTML = `<img src="${pic}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;"><div style="flex:1;"><div style="background:#e2e8f0;border-radius:10px;padding:7px 10px;"><div style="font-weight:700;font-size:12px;">${name}</div><div style="font-size:12px;">${txt}</div></div></div>`;
+                    cDiv.appendChild(el);
+                }
+            } else {
                 let el = document.createElement('div');
-                el.style.cssText = 'display:flex;gap:7px;margin-top:8px;margin-right:20px;';
-                el.innerHTML = `<img src="${pic}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;"><div style="flex:1;"><div style="background:#e2e8f0;border-radius:10px;padding:7px 10px;"><div style="font-weight:700;font-size:12px;">${name}</div><div style="font-size:12px;">${txt}</div></div></div>`;
-                cDiv.appendChild(el);
+                el.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;'; el.dataset.cid = ref2.key;
+                el.innerHTML = `<img src="${pic}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;"><div style="flex:1;"><div style="background:#f1f5f9;border-radius:12px;padding:8px 12px;"><div style="font-weight:700;font-size:13px;">${name}</div><div style="font-size:13px;">${txt}</div></div><div style="display:flex;gap:12px;margin-top:4px;padding-right:6px;"><span style="font-size:12px;cursor:pointer;font-weight:700;color:#64748b;">إعجاب</span><span onclick="window.mvStartReply('${ref2.key}','${window.currentUser}','${name}')" style="font-size:12px;cursor:pointer;font-weight:700;color:#6366f1;">رد</span></div></div>`;
+                if (list.querySelector('[style*="لا توجد"]')) list.innerHTML = '';
+                list.appendChild(el);
+                list.scrollTop = list.scrollHeight;
             }
-        } else {
-            let el = document.createElement('div');
-            el.style.cssText = 'display:flex;gap:8px;margin-bottom:14px;'; el.dataset.cid = ref2.key;
-            el.innerHTML = `<img src="${pic}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;"><div style="flex:1;"><div style="background:#f1f5f9;border-radius:12px;padding:8px 12px;"><div style="font-weight:700;font-size:13px;">${name}</div><div style="font-size:13px;">${txt}</div></div><div style="display:flex;gap:12px;margin-top:4px;padding-right:6px;"><span style="font-size:12px;cursor:pointer;font-weight:700;color:#64748b;">إعجاب</span><span onclick="window.mvStartReply('${ref2.key}','${window.currentUser}','${name}')" style="font-size:12px;cursor:pointer;font-weight:700;color:#2563eb;">رد</span></div></div>`;
-            if (list.querySelector('[style*="لا توجد تعليقات"]')) list.innerHTML = '';
-            list.appendChild(el);
-        }
-        list.scrollTop = list.scrollHeight;
+        });
     }).catch(() => { inp.disabled = false; });
 };
 
