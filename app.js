@@ -1090,9 +1090,9 @@ window.openMediaViewer = (items, startIdx, post) => {
     let likeCount = post.likes ? Object.keys(post.likes).length : 0;
     let isLiked = window.currentUser && post.likes && !!post.likes[window.currentUser];
     let commentInput = window.currentUser ? `
-        <div style="display:flex;gap:8px;align-items:center;padding:10px 14px;border-top:1px solid #e2e8f0;">
-            <img src="${window.allUsersData[window.currentUser]?.profilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">
-            <input type="text" id="_mvInpDesktop" placeholder="اكتب تعليقاً..." style="flex:1;border:1px solid #e2e8f0;border-radius:20px;padding:8px 14px;font-family:Cairo,sans-serif;font-size:13px;outline:none;" onkeypress="if(event.key==='Enter')window.mvAddComment('${post.id}','${post.author}')">
+        <div style="display:flex;flex-direction:row-reverse;gap:8px;align-items:center;padding:10px 14px;border-top:1px solid #e2e8f0;flex-shrink:0;">
+            <img src="${(window.allUsersData && window.allUsersData[window.currentUser]?.profilePic) || dA}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid #e2e8f0;" onerror="this.src='${dA}'">
+            <input type="text" id="_mvInpDesktop" placeholder="اكتب تعليقاً..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:20px;padding:8px 14px;font-family:Cairo,sans-serif;font-size:13px;outline:none;direction:rtl;text-align:right;" onkeypress="if(event.key==='Enter')window.mvAddComment('${post.id}','${post.author}')">
             <button onclick="window.mvAddComment('${post.id}','${post.author}')" style="background:linear-gradient(135deg,#6366f1,#2a5298);color:#fff;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><i class="fas fa-paper-plane" style="font-size:13px;"></i></button>
         </div>` : '';
     let actionBar = `
@@ -1154,10 +1154,10 @@ window.openMediaViewer = (items, startIdx, post) => {
                     ${commentsHTML || '<div style="text-align:center;color:#94a3b8;font-size:14px;padding:30px;">لا توجد تعليقات بعد</div>'}
                 </div>
                 ${window.currentUser ? `
-                <div id="fbCommentsSheetInput">
-                    <img src="${window.allUsersData[window.currentUser]?.profilePic || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">
-                    <input type="text" id="mvCommentInput" placeholder="اكتب تعليقاً..." onkeypress="if(event.key==='Enter')window.mvAddComment('${post.id}','${post.author}')">
-                    <button onclick="window.mvAddComment('${post.id}','${post.author}')"><i class="fas fa-paper-plane"></i></button>
+                <div id="fbCommentsSheetInput" style="display:flex;flex-direction:row-reverse;gap:8px;align-items:center;padding:12px 14px 18px;border-top:1px solid #e2e8f0;">
+                    <img src="${(window.allUsersData && window.allUsersData[window.currentUser]?.profilePic) || dA}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid #e2e8f0;" onerror="this.src='${dA}'">
+                    <input type="text" id="mvCommentInput" placeholder="اكتب تعليقاً..." style="flex:1;border:1.5px solid #e2e8f0;border-radius:20px;padding:10px 16px;font-family:Cairo,sans-serif;font-size:14px;outline:none;direction:rtl;text-align:right;" onkeypress="if(event.key==='Enter')window.mvAddComment('${post.id}','${post.author}')">
+                    <button onclick="window.mvAddComment('${post.id}','${post.author}')" style="background:linear-gradient(135deg,#6366f1,#2a5298);color:#fff;border:none;border-radius:50%;width:38px;height:38px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;"><i class="fas fa-paper-plane" style="font-size:14px;"></i></button>
                 </div>` : ''}
             </div>
         </div>`;
