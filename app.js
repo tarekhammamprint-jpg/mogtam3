@@ -1499,7 +1499,40 @@ window.renderPostModalLogic = (p) => {
     document.querySelectorAll('#postModalBody video').forEach(v => window.videoObserver.observe(v));
 };
 window.prepareReply = (id, a) => { if(!window.currentUser) return window.showRegisterModal(); $('modalReplyToId').value = id; let i = $('modalCommentInput'); if(!i.value.includes(`@${a}`)) i.value = `@${a} ` + i.value; i.focus(); };
-window.submitModalComment = () => { if(!window.currentUser) return window.showRegisterModal(); let pid = $('modalPostId').value, pAuthor = $('modalPostAuthor').value, rid = $('modalReplyToId').value, i = $('modalCommentInput'), t = i.value.trim(); if(!t) return; let rp = rid ? `posts/${pid}/comments/${rid}/replies` : `posts/${pid}/comments`; push(ref(db, rp), {author:window.currentUser, text:t, timestamp:Date.now()}).then(() => { let p = window.postCache[pid] || window.allPosts.find(x => x.id === pid); if(rid) { if(p && p.comments && p.comments[rid]) { let ca = p.comments[rid].author; if(ca && ca !== window.currentUser) push(ref(db, `users/${ca}/notifications`), {type:'reply', from:window.currentUser, postId:pid, timestamp:Date.now(), read:false}); } } else { let tg = p ? p.author : pAuthor; if(tg && tg !== window.currentUser) push(ref(db, `users/${tg}/notifications`), {type:'comment', from:window.currentUser, postId:pid, timestamp:Date.now(), read:false}); } window.myFriends.forEach(f => { if(t.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:pid, timestamp:Date.now(), read:false}); }); }); i.value = ''; $('modalReplyToId').value = ''; i.placeholder = "تعليق..."; let mb = $('postModalBody'); setTimeout(() => mb.scrollTop = mb.scrollHeight, 100); $('globalMentionBox').style.display = 'none'; };
+window.submitModalComment = () => {
+    if(!window.currentUser) return window.showRegisterModal();
+    let pid = $('modalPostId').value, pAuthor = $('modalPostAuthor').value;
+    let rid = $('modalReplyToId').value;
+    let i = $('modalCommentInput'), t = i.value.trim();
+    if(!t) return;
+    let mp = (window.allUsersData && window.allUsersData[window.currentUser]?.profilePic) || dA;
+    let md = window.getDisplayName(window.currentUser);
+    let st = window.formatMentions(t);
+    // أضف التعليق في DOM فوراً
+    let nh = `<div class="comment"><img src="${mp}" class="avatar-small" style="width:28px;height:28px;"><div class="comment-text-box"><div class="comment-author">${md}</div><div>${st}</div></div></div>`;
+    let mb = $('postModalBody');
+    let cs = mb ? mb.querySelector('.comments-section') : null;
+    let cia = mb ? mb.querySelector('.comment-input-area') : null;
+    if(cia) cia.insertAdjacentHTML('beforebegin', nh);
+    else if(cs) cs.insertAdjacentHTML('beforeend', nh);
+    i.value = ''; $('modalReplyToId').value = ''; i.placeholder = "تعليق...";
+    $('globalMentionBox').style.display = 'none';
+    let rp = rid ? `posts/${pid}/comments/${rid}/replies` : `posts/${pid}/comments`;
+    push(ref(db, rp), {author:window.currentUser, text:t, timestamp:Date.now()}).then(() => {
+        let p = window.postCache[pid] || window.allPosts.find(x => x.id === pid);
+        if(rid) {
+            if(p && p.comments && p.comments[rid]) {
+                let ca = p.comments[rid].author;
+                if(ca && ca !== window.currentUser) push(ref(db, `users/${ca}/notifications`), {type:'reply', from:window.currentUser, postId:pid, timestamp:Date.now(), read:false});
+            }
+        } else {
+            let tg = p ? p.author : pAuthor;
+            if(tg && tg !== window.currentUser) push(ref(db, `users/${tg}/notifications`), {type:'comment', from:window.currentUser, postId:pid, timestamp:Date.now(), read:false});
+        }
+        window.myFriends.forEach(f => { if(t.includes('@'+f)) push(ref(db, `users/${f}/notifications`), {type:'mention', from:window.currentUser, postId:pid, timestamp:Date.now(), read:false}); });
+        if(mb) setTimeout(() => mb.scrollTop = mb.scrollHeight, 100);
+    });
+};
 window.executeShare = () => {
     if(!window.currentUser) return window.showRegisterModal();
     let id = $('sharePostId').value, c = $('shareCaption').value.trim(),
