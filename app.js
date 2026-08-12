@@ -3676,93 +3676,12 @@ if(window.currentUser){
 })();
 
 
-// ═══════════════════════════════════════════════
-//  دوال عارض الصور — index.html يستدعيها مباشرة
-// ═══════════════════════════════════════════════
 
-window.fbOpenComments = () => {
-    let p = window._fbCurrentPost; if (!p) return;
-    let sheet = document.getElementById('fbCommentsSheet');
-    if (sheet) sheet.classList.add('open');
-    // تحديث صورة المستخدم الحالي
-    let myPic = document.getElementById('fbCommentsMyPic');
-    if (myPic && window.currentUser) {
-        myPic.src = (window.allUsersData?.[window.currentUser]?.profilePic) || dA;
-        myPic.onerror = () => { myPic.src = dA; };
-    }
-    // رسم التعليقات
-    let list = document.getElementById('fbCommentsSheetList');
-    if (!list) return;
-    if (!p.comments || !Object.keys(p.comments).length) {
-        list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:30px;font-size:14px;">لا توجد تعليقات بعد</div>';
-    } else {
-        let html = '';
-        Object.entries(p.comments).map(([id,v])=>({id,...v}))
-            .sort((a,b)=>a.timestamp-b.timestamp)
-            .forEach(c => {
-                let cPic = window.allUsersData?.[c.author]?.profilePic || dA;
-                let cD = window.getDisplayName(c.author);
-                html += `<div style="display:flex;gap:8px;margin-bottom:12px;direction:rtl;">
-                    <img src="${cPic}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.src='${dA}'">
-                    <div style="flex:1;background:#f1f5f9;border-radius:12px;padding:8px 12px;">
-                        <div style="font-weight:700;font-size:13px;">${cD}</div>
-                        <div style="font-size:13px;">${c.text||''}</div>
-                    </div></div>`;
-            });
-        list.innerHTML = html;
-    }
-    list.scrollTop = list.scrollHeight;
-    setTimeout(() => document.getElementById('fbCommentsInput')?.focus(), 300);
-};
-
-window.fbCloseComments = () => {
-    document.getElementById('fbCommentsSheet')?.classList.remove('open');
-};
-
-window.fbSubmitComment = () => {
-    if (!window.currentUser) return window.showRegisterModal();
-    let p = window._fbCurrentPost; if (!p) return;
-    let inp = document.getElementById('fbCommentsInput');
-    if (!inp) return;
-    let txt = inp.value.trim(); if (!txt) return;
-    let pic = window.allUsersData?.[window.currentUser]?.profilePic || dA;
-    let name = window.getDisplayName(window.currentUser);
-    // أضف في DOM فوراً
-    let list = document.getElementById('fbCommentsSheetList');
-    if (list) {
-        let el = document.createElement('div');
-        el.style.cssText = 'display:flex;gap:8px;margin-bottom:12px;direction:rtl;';
-        el.innerHTML = `<img src="${pic}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.src='${dA}'">
-            <div style="flex:1;background:#f1f5f9;border-radius:12px;padding:8px 12px;">
-                <div style="font-weight:700;font-size:13px;">${name}</div>
-                <div style="font-size:13px;">${txt}</div>
-            </div>`;
-        if (list.querySelector('[style*="لا توجد"]')) list.innerHTML = '';
-        list.appendChild(el);
-        list.scrollTop = list.scrollHeight;
-    }
-    inp.value = '';
-    // أرسل لـ Firebase
-    push(ref(db, `posts/${p.id}/comments`), {
-        author: window.currentUser, text: txt, timestamp: Date.now()
-    }).then(() => {
-        if (p.author !== window.currentUser)
-            push(ref(db, `users/${p.author}/notifications`), {
-                type: 'comment', from: window.currentUser, postId: p.id, timestamp: Date.now(), read: false
-            });
-    });
-};
-
-window.fbToggleLike = () => {
-    let p = window._fbCurrentPost; if (!p) return;
-    window.toggleLike(p.id, p.author, null);
-};
-
-window.fbSharePost = () => {
-    let p = window._fbCurrentPost; if (!p) return;
-    window.closeMediaViewer?.();
-    setTimeout(() => window.openShareModal?.(p.id), 300);
-};
-
-window.fbNavMedia = (dir) => { window.mediaViewerNav?.(dir); };
+// دوال بسيطة للتوافق مع الأكواد القديمة
 window.closeFbViewer = () => { window.closeMediaViewer?.(); };
+window.fbNavMedia = (dir) => { window.mediaViewerNav?.(dir); };
+window.fbToggleLike = () => { let p = window._fbCurrentPost; if(p) window.toggleLike(p.id, p.author, null); };
+window.fbSharePost = () => { let p = window._fbCurrentPost; if(p) { window.closeMediaViewer?.(); setTimeout(() => window.openShareModal?.(p.id), 300); } };
+window.fbOpenComments = () => { window.openMvCommentsSheet?.(true); };
+window.fbCloseComments = () => { window.closeMvCommentsSheet?.(); };
+window.fbSubmitComment = () => { window.mvAddComment?.(window._fbCurrentPost?.id, window._fbCurrentPost?.author); };
