@@ -153,101 +153,55 @@ function renderCommunityPage(commId) {
     let cover = comm.coverPhoto || defaultCover;
     let avatar = comm.avatar || '';
 
-    // بناء رأس المجتمع
-    let titleEl = $('communityViewTitle');
-    let descEl = $('communityViewDesc');
-    if (titleEl) titleEl.innerText = '';
-    if (descEl) descEl.innerText = '';
-
-    let actEl = $('communityHeaderActions');
-    if (actEl) {
-        actEl.innerHTML = '';
-        // غلاف المجتمع داخل المودال
-        actEl.closest('.modal-content').querySelector('.modal-content > div:first-child') && null;
-    }
-
-    // اعد بناء محتوى المودال كاملاً
-    let mc = $('communityViewModal')?.querySelector('.modal-content');
+    let mc = document.getElementById('communityViewModal')?.querySelector('.modal-content');
     if (!mc) return;
 
     let avatarHtml = avatar
         ? `<img src="${avatar}" style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:4px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,.2);">`
         : `<div style="width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#2a5298);border:4px solid #fff;display:flex;align-items:center;justify-content:center;font-size:30px;color:#fff;font-weight:900;box-shadow:0 4px 16px rgba(0,0,0,.2);">${comm.name?.charAt(0)||'م'}</div>`;
 
+    mc.style.padding = '0';
     mc.innerHTML = `
-        <div onclick="window.closeModal('communityViewModal')" style="position:fixed;top:80px;right:20px;width:40px;height:40px;background:#fff;border:1px solid #e2e8f0;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.1);"><i class="fas fa-times" style="color:#64748b;"></i></div>
-
-        <!-- الغلاف -->
-        <div style="height:180px;background:url('${cover}') center/cover no-repeat;position:relative;border-radius:20px 20px 0 0;">
-            ${isAdmin ? `<label style="position:absolute;bottom:12px;left:12px;background:rgba(0,0,0,.55);color:#fff;padding:7px 14px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;"><i class="fas fa-camera"></i>تغيير الغلاف<input type="file" accept="image/*" style="display:none;" onchange="window.uploadCommCover('${commId}',this)"></label>` : ''}
-            <div style="position:absolute;bottom:-36px;right:20px;">
-                <div style="position:relative;display:inline-block;">
-                    ${avatarHtml}
-                    ${isAdmin ? `<label style="position:absolute;bottom:0;left:0;width:26px;height:26px;background:#6366f1;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid #fff;"><i class="fas fa-camera" style="color:#fff;font-size:10px;"></i><input type="file" accept="image/*" style="display:none;" onchange="window.uploadCommAvatar('${commId}',this)"></label>` : ''}
-                </div>
+        <button onclick="window.closeModal('communityViewModal')" style="position:fixed;top:80px;right:20px;width:40px;height:40px;background:#fff;border:1px solid #e2e8f0;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.1);"><i class="fas fa-times" style="color:#64748b;font-size:14px;"></i></button>
+        <div style="height:200px;background:url('${cover}') center/cover no-repeat;position:relative;flex-shrink:0;">
+            <div style="position:absolute;inset:0;background:linear-gradient(to bottom,rgba(0,0,0,0.1),rgba(0,0,0,0.45));"></div>
+            ${isAdmin ? `<label style="position:absolute;bottom:14px;left:14px;background:rgba(0,0,0,.6);color:#fff;padding:7px 14px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;z-index:2;"><i class="fas fa-camera"></i>تغيير الغلاف<input type="file" accept="image/*" style="display:none;" onchange="window.uploadCommCover('${commId}',this)"></label>` : ''}
+            <div style="position:absolute;bottom:-40px;right:20px;z-index:2;">
+                <div style="position:relative;display:inline-block;">${avatarHtml}${isAdmin ? `<label style="position:absolute;bottom:0;left:0;width:28px;height:28px;background:#6366f1;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;border:2px solid #fff;"><i class="fas fa-camera" style="color:#fff;font-size:10px;"></i><input type="file" accept="image/*" style="display:none;" onchange="window.uploadCommAvatar('${commId}',this)"></label>` : ''}</div>
             </div>
         </div>
-
-        <!-- المعلومات -->
-        <div style="padding:46px 22px 20px;border-bottom:1px solid #e2e8f0;">
-            <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+        <div style="padding:52px 22px 18px;border-bottom:1px solid #e2e8f0;">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;">
                 <div>
-                    <div style="font-size:22px;font-weight:900;color:#0f172a;margin-bottom:4px;">${comm.name}</div>
-                    <div style="font-size:14px;color:#64748b;margin-bottom:10px;">${comm.description||''}</div>
-                    <div style="font-size:13px;color:#64748b;"><i class="fas fa-users" style="color:#6366f1;"></i> ${memCount} عضو ${isAdmin?`· <i class="fas fa-user-clock" style="color:#f59e0b;"></i> ${reqCount} طلب`:''}
-                    · <i class="fas fa-crown" style="color:#f59e0b;"></i> ${getDisplayName(comm.admin)}</div>
+                    <div style="font-size:21px;font-weight:900;color:#0f172a;margin-bottom:4px;">${comm.name}</div>
+                    <div style="font-size:14px;color:#64748b;margin-bottom:8px;">${comm.description||''}</div>
+                    <div style="font-size:13px;color:#94a3b8;"><i class="fas fa-users" style="color:#6366f1;"></i> ${memCount} عضو &nbsp;·&nbsp; <i class="fas fa-crown" style="color:#f59e0b;"></i> ${getDisplayName(comm.admin)}</div>
                 </div>
-                <!-- أزرار المسئول -->
-                ${isAdmin ? `
                 <div style="display:flex;gap:8px;flex-wrap:wrap;">
-                    <button onclick="window.commManageMembers('${commId}')" style="background:#f1f5f9;border:1.5px solid #e2e8f0;color:#334155;padding:8px 16px;border-radius:999px;font-family:Cairo,sans-serif;font-weight:700;font-size:13px;cursor:pointer;"><i class="fas fa-users"></i> الأعضاء</button>
-                    <button onclick="window.commManageRequests('${commId}')" style="background:${reqCount>0?'#fef3c7':'#f1f5f9'};border:1.5px solid ${reqCount>0?'#fde68a':'#e2e8f0'};color:${reqCount>0?'#92400e':'#334155'};padding:8px 16px;border-radius:999px;font-family:Cairo,sans-serif;font-weight:700;font-size:13px;cursor:pointer;"><i class="fas fa-user-plus"></i> الطلبات ${reqCount>0?`<span style="background:#f59e0b;color:#fff;border-radius:999px;padding:1px 6px;font-size:11px;">${reqCount}</span>`:''}</button>
-                </div>` : `
-                <button onclick="window.viewCommunityMembers('${commId}')" style="background:#f1f5f9;border:1.5px solid #e2e8f0;color:#334155;padding:8px 16px;border-radius:999px;font-family:Cairo,sans-serif;font-weight:700;font-size:13px;cursor:pointer;"><i class="fas fa-users"></i> الأعضاء</button>
-                `}
+                    <button onclick="window.commManageMembers('${commId}')" style="background:#f1f5f9;border:1.5px solid #e2e8f0;color:#334155;padding:9px 18px;border-radius:999px;font-family:Cairo,sans-serif;font-weight:700;font-size:13px;cursor:pointer;"><i class="fas fa-users"></i> الأعضاء</button>
+                    ${isAdmin ? `<button onclick="window.commManageRequests('${commId}')" style="background:${reqCount>0?'#fef3c7':'#f1f5f9'};border:1.5px solid ${reqCount>0?'#fde68a':'#e2e8f0'};color:${reqCount>0?'#92400e':'#334155'};padding:9px 18px;border-radius:999px;font-family:Cairo,sans-serif;font-weight:700;font-size:13px;cursor:pointer;"><i class="fas fa-user-plus"></i> الطلبات ${reqCount>0?'<span style="background:#f59e0b;color:#fff;border-radius:999px;padding:1px 7px;font-size:11px;margin-right:4px;">'+ reqCount +'</span>':''}</button>` : ''}
+                </div>
             </div>
         </div>
-
-        <!-- صندوق النشر -->
-        <div style="padding:18px 22px;border-bottom:1px solid #e2e8f0;background:#f8fafc;">
-            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:16px;">
+        <div style="padding:16px 22px;border-bottom:1px solid #e2e8f0;background:#f8fafc;">
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:14px;">
                 <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:12px;">
-                    <img src="${window.allUsersData?.[window.currentUser]?.profilePic||dA}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1.5px solid #e2e8f0;">
-                    <textarea id="communityPostContent" placeholder="شارك شيئاً مع أعضاء ${comm.name}..." rows="2"
-                        style="flex:1;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;font-family:Cairo,sans-serif;font-size:14px;resize:none;outline:none;direction:rtl;"
-                        onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'"></textarea>
+                    <img src="${window.allUsersData?.[window.currentUser]?.profilePic||dA}" style="width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.src='${dA}'">
+                    <textarea id="communityPostContent" placeholder="شارك شيئاً مع أعضاء ${comm.name}..." rows="2" style="flex:1;border:1.5px solid #e2e8f0;border-radius:12px;padding:10px 14px;font-family:Cairo,sans-serif;font-size:14px;resize:none;outline:none;direction:rtl;box-sizing:border-box;width:100%;" onfocus="this.style.borderColor='#6366f1'" onblur="this.style.borderColor='#e2e8f0'"></textarea>
                 </div>
                 <div style="display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid #f1f5f9;">
                     <div style="display:flex;gap:8px;">
-                        <label style="display:inline-flex;align-items:center;gap:5px;color:#6366f1;background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:999px;padding:6px 12px;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700;font-size:12px;">
-                            <i class="fas fa-image"></i> صورة
-                            <input type="file" accept="image/*" style="display:none;" onchange="window.commSelectMedia(event,'image')">
-                        </label>
-                        <label style="display:inline-flex;align-items:center;gap:5px;color:#ca8a04;background:#fefce8;border:1.5px solid #fde68a;border-radius:999px;padding:6px 12px;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700;font-size:12px;">
-                            <i class="fas fa-video"></i> فيديو
-                            <input type="file" accept="video/*" style="display:none;" onchange="window.commSelectMedia(event,'video')">
-                        </label>
+                        <label style="display:inline-flex;align-items:center;gap:5px;color:#6366f1;background:#eef2ff;border:1.5px solid #c7d2fe;border-radius:999px;padding:7px 13px;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700;font-size:12px;"><i class="fas fa-image"></i> صورة<input type="file" accept="image/*" style="display:none;" onchange="window.commSelectMedia(event,'image')"></label>
+                        <label style="display:inline-flex;align-items:center;gap:5px;color:#ca8a04;background:#fefce8;border:1.5px solid #fde68a;border-radius:999px;padding:7px 13px;cursor:pointer;font-family:Cairo,sans-serif;font-weight:700;font-size:12px;"><i class="fas fa-video"></i> فيديو<input type="file" accept="video/*" style="display:none;" onchange="window.commSelectMedia(event,'video')"></label>
                     </div>
                     <button id="publishCommBtn" onclick="window.publishCommunityPost()" style="background:linear-gradient(135deg,#6366f1,#2a5298);color:#fff;border:none;padding:9px 22px;border-radius:999px;font-family:Cairo,sans-serif;font-weight:800;font-size:14px;cursor:pointer;"><i class="fas fa-paper-plane"></i> نشر</button>
                 </div>
-                <div id="commMediaPreview" style="display:none;margin-top:10px;position:relative;border-radius:12px;overflow:hidden;background:#000;">
-                    <div id="commMediaPreviewInner"></div>
-                    <button onclick="window.commClearMedia()" style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.55);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:12px;"><i class="fas fa-times"></i></button>
-                </div>
-                <div id="commUploadProgress" style="display:none;margin-top:8px;">
-                    <div style="background:#e2e8f0;border-radius:999px;height:6px;overflow:hidden;">
-                        <div id="commProgressBar" style="height:100%;background:linear-gradient(135deg,#6366f1,#0ea5e9);width:0%;transition:width .2s;border-radius:999px;"></div>
-                    </div>
-                    <div id="commProgressText" style="font-size:11px;color:#64748b;margin-top:4px;text-align:center;font-weight:700;"></div>
-                </div>
+                <div id="commMediaPreview" style="display:none;margin-top:10px;position:relative;border-radius:12px;overflow:hidden;"><div id="commMediaPreviewInner"></div><button onclick="window.commClearMedia()" style="position:absolute;top:8px;left:8px;background:rgba(0,0,0,.55);border:none;color:#fff;width:28px;height:28px;border-radius:50%;cursor:pointer;"><i class="fas fa-times"></i></button></div>
+                <div id="commUploadProgress" style="display:none;margin-top:8px;"><div style="background:#e2e8f0;border-radius:999px;height:6px;overflow:hidden;"><div id="commProgressBar" style="height:100%;background:linear-gradient(135deg,#6366f1,#0ea5e9);width:0%;transition:width .2s;border-radius:999px;"></div></div><div id="commProgressText" style="font-size:11px;color:#64748b;margin-top:4px;text-align:center;font-weight:700;"></div></div>
             </div>
         </div>
-
-        <!-- الفيد -->
-        <div id="communityFeedArea" style="padding:0;"></div>
+        <div id="communityFeedArea"></div>
     `;
-
-    // تحميل المنشورات
     window.renderCommunityFeed(commId);
 }
 
