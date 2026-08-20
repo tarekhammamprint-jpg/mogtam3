@@ -795,26 +795,11 @@
      مودال عرض المجتمع
 ══════════════════════════════════════════════ -->
 <div class="modal" id="communityViewModal">
-    <div class="modal-content" style="padding:26px;max-width:720px;">
-        <span onclick="window.closeModal('communityViewModal')" class="close-btn"><em class="fas fa-times"></em></span>
-        <div style="background:linear-gradient(135deg,var(--primary) 0%,var(--accent) 100%);color:#fff;padding:26px;border-radius:var(--r-xl);margin-bottom:22px;text-align:center;position:relative;overflow:hidden;">
-            <div style="position:absolute;inset:0;background:url('data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2220%22 cy=%2220%22 r=%2220%22 fill=%22rgba(255,255,255,0.05)%22/><circle cx=%2280%22 cy=%2280%22 r=%2230%22 fill=%22rgba(255,255,255,0.04)%22/></svg>');"></div>
-            <h2 id="communityViewTitle" style="margin:0 0 10px;font-size:22px;position:relative;">اسم المجتمع</h2>
-            <p id="communityViewDesc" style="margin:0 0 18px;font-size:14px;opacity:0.85;position:relative;"></p>
-            <div id="communityHeaderActions" style="display:flex;justify-content:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;position:relative;"></div>
-            <button style="background:rgba(16,185,129,1);color:#fff;border:none;padding:12px 28px;border-radius:var(--r-pill);font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 18px rgba(16,185,129,0.4);transition:all .25s;display:inline-flex;align-items:center;gap:10px;position:relative;" onclick="window.startCommunityCall()">
-                <i class="fas fa-video"></i> بدء اجتماع فيديو/صوت
-            </button>
-            <div style="font-size:12px;margin-top:10px;opacity:0.75;position:relative;">لا تستهلك مساحة من قاعدة البيانات الأساسية</div>
-        </div>
-        <div style="background:var(--card-bg);padding:16px;border-radius:var(--r-lg);border:1px solid var(--border);margin-bottom:18px;">
-            <textarea id="communityPostContent" class="composer-input" placeholder="شارك نقاشاً أو ملفاً مع أعضاء المجتمع..." rows="2" style="background:var(--border-soft);padding:12px;border-radius:var(--r-md);border:1.5px solid var(--border);width:100%;box-sizing:border-box;"></textarea>
-            <div style="text-align:left;margin-top:10px;">
-                <button id="publishCommBtn" class="btn-primary" onclick="window.publishCommunityPost()">
-                    <i class="fas fa-paper-plane"></i> نشر
-                </button>
-            </div>
-        </div>
+    <div class="modal-content" style="padding:0;max-width:800px;min-height:100%;">
+        <!-- يُبنى محتواه ديناميكياً من communities.js -->
+        <div id="communityViewTitle" style="display:none;"></div>
+        <div id="communityViewDesc" style="display:none;"></div>
+        <div id="communityHeaderActions" style="display:none;"></div>
         <div id="communityFeedArea"></div>
     </div>
 </div>
