@@ -738,11 +738,6 @@ window._renderNotifications = (rawVal) => {
                 else if (x.type === 'share') { tH = `<strong>${d}</strong> شارك منشورك`; tP = `شارك ${d} منشورك`; icon = '<i class="fas fa-share" style="color:#8b5cf6;"></i>'; }
                 else if (x.type === 'reply') { tH = `<strong>${d}</strong> رد على تعليقك`; tP = `رد ${d} على تعليقك`; icon = '<i class="fas fa-reply" style="color:#64748b;"></i>'; }
                 else if (x.type === 'mention') { tH = `<strong>${d}</strong> ذكرك في تعليق`; tP = `ذكرك ${d} في تعليق`; icon = '<i class="fas fa-at" style="color:#d946ef;"></i>'; }
-                else if (x.type === 'community_join_request') { tH = `<strong>${d}</strong> طلب الانضمام إلى "${x.communityName||'المجتمع'}"`;  tP = tH; icon = '<i class="fas fa-user-plus" style="color:#f59e0b;"></i>'; }
-                else if (x.type === 'community_request_approved') { tH = `تمت الموافقة على انضمامك إلى <strong>${x.communityName||'المجتمع'}</strong> 🎉`; tP = tH; icon = '<i class="fas fa-check-circle" style="color:#10b981;"></i>'; }
-                else if (x.type === 'community_request_rejected') { tH = `تم رفض طلب انضمامك إلى <strong>${x.communityName||'المجتمع'}</strong>`; tP = tH; icon = '<i class="fas fa-times-circle" style="color:#ef4444;"></i>'; }
-                else if (x.type === 'community_new_post') { tH = `<strong>${d}</strong> نشر في "${x.communityName||'المجتمع'}"`;  tP = tH; icon = '<i class="fas fa-users" style="color:#6366f1;"></i>'; }
-                else if (x.type === 'community_post_like') { tH = `<strong>${d}</strong> أعجب بمنشورك في "${x.communityName||'المجتمع'}"`; tP = tH; icon = '<i class="fas fa-heart" style="color:#ef4444;"></i>'; }
                 if (!window.isInitialNotifLoad && x.read === false && x.from !== window.currentUser && !window.alertedNotifs.has(x.id)) { window.showToast("إشعار جديد", tP || "تفاعل جديد", pic); }
                 window.alertedNotifs.add(x.id);
                 let uS = x.read === false ? 'background:#eef2ff;' : 'background:#fff;',
