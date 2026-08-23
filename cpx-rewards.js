@@ -58,10 +58,10 @@ function md5(str) {
 
 // ============================================================
 //  حساب الـ secure_hash لـ CPX Research
-//  الصيغة: MD5(app_id + "-" + ext_user_id + CPX_SECRET_KEY)
+//  الصيغة الرسمية: MD5(app_id + ext_user_id + secret_key)
 // ============================================================
 function getCpxHash(userId) {
-  return md5(CPX_APP_ID + "-" + userId + CPX_SECRET_KEY);
+  return md5(CPX_APP_ID + userId + CPX_SECRET_KEY);
 }
 
 // ============================================================
@@ -445,26 +445,28 @@ function loadCpxOfferwall() {
   const loading = document.getElementById('rwLoadingOverlay');
   if (!iframe) return;
 
-  const uid = window.currentUser || '';
-  if (!uid) return;
+  // انتظر currentUser لو مش موجود بعد
+  const uid = window.currentUser || localStorage.getItem('savedUser') || '';
+  if (!uid) {
+    if (loading) loading.innerHTML = '<p style="color:#ef4444;font-size:13px;">يرجى تسجيل الدخول أولاً</p>';
+    return;
+  }
 
-  const userData = window.allUsersData?.[uid] || {};
-  const userEmail = userData.email || '';
-  const displayName = userData.displayName || uid;
-  const secureHash = getCpxHash(uid);
+  const userData    = window.allUsersData?.[uid] || {};
+  const userEmail   = userData.email || '';
+  const displayName = (userData.displayName || uid).replace(/[^\w\s\u0600-\u06FF]/g, '');
+  const secureHash  = getCpxHash(uid);
 
-  // بناء رابط CPX Offerwall
-  const params = new URLSearchParams({
-    app_id: CPX_APP_ID,
-    ext_user_id: uid,
-    secure_hash: secureHash,
-    username: displayName,
-    email: userEmail,
-    subid_1: 'mogtam3',
-    subid_2: ''
-  });
-
-  const offerwallUrl = `https://offers.cpx-research.com/index.php?${params.toString()}`;
+  // بناء رابط CPX Offerwall — بدون URLSearchParams لتجنب أي encoding خاطئ
+  const offerwallUrl =
+    `https://offers.cpx-research.com/index.php` +
+    `?app_id=${CPX_APP_ID}` +
+    `&ext_user_id=${encodeURIComponent(uid)}` +
+    `&secure_hash=${secureHash}` +
+    `&username=${encodeURIComponent(displayName)}` +
+    `&email=${encodeURIComponent(userEmail)}` +
+    `&subid_1=mogtam3` +
+    `&subid_2=`;
 
   iframe.src = offerwallUrl;
   iframe.style.display = 'none';
