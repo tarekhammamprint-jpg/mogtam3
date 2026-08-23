@@ -455,18 +455,28 @@ function loadCpxOfferwall() {
   const userData    = window.allUsersData?.[uid] || {};
   const userEmail   = userData.email || '';
   const displayName = (userData.displayName || uid).replace(/[^\w\s\u0600-\u06FF]/g, '');
-  const secureHash  = getCpxHash(uid);
 
-  // بناء رابط CPX Offerwall — بدون URLSearchParams لتجنب أي encoding خاطئ
+  // CPX تحتاج ext_user_id بدون أحرف عربية
+  // لو الاسم عربي نحوّله لـ hex string
+  let safeUid = uid;
+  if (/[^\x00-\x7F]/.test(uid)) {
+    safeUid = Array.from(uid).map(c => c.charCodeAt(0).toString(16).padStart(4,'0')).join('');
+  }
+
+  const secureHash  = getCpxHash(safeUid);
+
   const offerwallUrl =
     `https://offers.cpx-research.com/index.php` +
     `?app_id=${CPX_APP_ID}` +
-    `&ext_user_id=${encodeURIComponent(uid)}` +
+    `&ext_user_id=${safeUid}` +
     `&secure_hash=${secureHash}` +
     `&username=${encodeURIComponent(displayName)}` +
     `&email=${encodeURIComponent(userEmail)}` +
     `&subid_1=mogtam3` +
     `&subid_2=`;
+
+  console.log('[CPX] uid:', uid, '| safeUid:', safeUid, '| hash:', secureHash);
+  console.log('[CPX] offerwallUrl:', offerwallUrl);
 
   iframe.src = offerwallUrl;
   iframe.style.display = 'none';
