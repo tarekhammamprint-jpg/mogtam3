@@ -214,7 +214,16 @@ if (document.readyState === 'loading') {
 }
 
 // -- المتغيرات والإعدادات العامة --
-window.CLOUDINARY_CLOUD_NAME = "diwaqfsap"; window.CLOUDINARY_UPLOAD_PRESET = "ml_default";
+// ═══════════════════════════════════════════════════
+//  إعدادات Cloudinary — 5 حسابات منفصلة
+// ═══════════════════════════════════════════════════
+window.CLD = {
+  posts:       { cloud: 'tolcc03f', preset: 'mogtam3_images'      }, // صور المنشورات
+  video:       { cloud: 'trsnwnto', preset: 'mogtam3_videos'      }, // فيديوهات
+  profiles:    { cloud: 'h2pevzix', preset: 'mogtam3_profiles'    }, // صور البروفايل والغلاف
+  communities: { cloud: 'wnzecoa2', preset: 'mogtam3_communities' }, // مجتمعات
+  ads:         { cloud: 'izpbzzqc', preset: 'mogtam3_ads'         }, // إعلانات
+};
 window.currentUser = localStorage.getItem('savedUser') || null;
 window.currentChatTarget = null; window.allUsersData = {}; window.allFriendsData = {};
 window.myFriends = []; window.allPosts = []; window.postCache = {}; window.renderedPostIds = new Set(); window.activeAds = [];
@@ -687,7 +696,56 @@ window.goHome = () => {
     window.renderedPostIds = new Set(window.allPosts.map(p => p.id)); $('newPostsBtn').style.display='none'; window.feedLim=5; renderFeed();
 };
 
-window.uploadToCloudinary = (file, type, onProgress) => { return new Promise((resolve, reject) => { let fd = new FormData(); fd.append('file', file); fd.append('upload_preset', window.CLOUDINARY_UPLOAD_PRESET); let xhr = new XMLHttpRequest(); xhr.open('POST', `https://api.cloudinary.com/v1_1/${window.CLOUDINARY_CLOUD_NAME}/${type}/upload`); xhr.upload.onprogress = (e) => { if (onProgress && e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100)); }; xhr.onload = () => { try { let data = JSON.parse(xhr.responseText); if (xhr.status >= 200 && xhr.status < 300 && data.secure_url) resolve(data.secure_url); else reject(new Error(data.error?.message || 'فشل الرفع')); } catch (e) { reject(e); } }; xhr.onerror = () => reject(new Error('فشل الاتصال بالخادم')); xhr.send(fd); }); };
+// ═══════════════════════════════════════════════════
+//  uploadToCloudinary — يختار الحساب الصح تلقائياً
+//  bucket: 'posts' | 'video' | 'profiles' | 'communities' | 'ads'
+//  لو مش محدد — صور → posts، فيديو → video
+// ═══════════════════════════════════════════════════
+window.uploadToCloudinary = (file, type, onProgress, bucket) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      // تحديد الـ bucket الصح
+      let b = bucket;
+      if (!b) b = (type === 'video') ? 'video' : 'posts';
+      const cfg = window.CLD[b] || window.CLD.posts;
+
+      // تحويل base64 لـ Blob لو لزم
+      let uploadFile = file;
+      if (typeof file === 'string' && file.startsWith('data:')) {
+        const res = await fetch(file);
+        uploadFile = await res.blob();
+      }
+
+      const fd = new FormData();
+      fd.append('file', uploadFile);
+      fd.append('upload_preset', cfg.preset);
+
+      const cldType = (type === 'video' || type === 'reel') ? 'video' : 'image';
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `https://api.cloudinary.com/v1_1/${cfg.cloud}/${cldType}/upload`);
+
+      xhr.upload.onprogress = (e) => {
+        if (onProgress && e.lengthComputable)
+          onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+
+      xhr.onload = () => {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300 && data.secure_url) {
+            resolve(data.secure_url);
+          } else {
+            reject(new Error(data.error?.message || 'فشل الرفع'));
+          }
+        } catch (e) { reject(e); }
+      };
+
+      xhr.onerror = () => reject(new Error('فشل الاتصال بالخادم'));
+      xhr.send(fd);
+
+    } catch (err) { reject(err); }
+  });
+};
 window.videoObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { if(entry.isIntersecting) { try { entry.target.muted = true; let playPromise = entry.target.play(); if(playPromise !== undefined) { playPromise.catch(error => {}); } } catch(e){} } else { try { if(!entry.target.paused) entry.target.pause(); } catch(e){} } }); }, {threshold: 0.5});
 reelsObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { let video = entry.target.querySelector('video'); if(!video) return; if(entry.isIntersecting) { try { video.muted = false; video.currentTime = 0; let p = video.play(); if(p !== undefined) p.catch(e => {}); } catch(e) {} let rid = entry.target.getAttribute('data-id'); if(rid && window.currentUser) { let vRef = ref(db, `posts/${rid}/views/${window.currentUser}`); get(vRef).then(s => { if(!s.exists()) set(vRef, true); }); } } else { try { if(!video.paused) video.pause(); } catch(e) {} } }); }, {threshold: 0.7});
 
@@ -2625,7 +2683,7 @@ window.previewCoverImageEnhanced = async (event) => {
     if (!file || !window.currentUser) return;
 
     try {
-        const url = await window.uploadToCloudinary(file, 'image');
+        const url = await window.uploadToCloudinary(file, 'image', null, 'profiles');
         await update(ref(db, `users/${window.currentUser}`), { coverPic: url });
 
         let coverImg = document.getElementById('profCoverImgEnhanced');
@@ -2657,7 +2715,7 @@ window.previewAvatarEnhanced = async (event) => {
     if (!file || !window.currentUser) return;
     
     try {
-        const url = await window.uploadToCloudinary(file, 'image');
+        const url = await window.uploadToCloudinary(file, 'image', null, 'profiles');
         await update(ref(db, `users/${window.currentUser}`), { profilePic: url });
         const avatarImg = document.getElementById('profPicEnhanced');
         if (avatarImg) avatarImg.src = url;
@@ -2713,7 +2771,7 @@ window.uploadReelFromProfile = async (event) => {
 // =============== نهاية دوال البروفايل المطور ===============
 
 function renderProfileData(u, d) { $('profPic').src = d.profilePic || dA; $('profName').innerText = window.getDisplayName(u); $('profHandle').innerText = '@' + u; $('profBio').innerText = d.bio || "لا نبذة."; $('profLocText').innerText = d.location || "غير محدد"; $('profileAboutArea').innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;border:1px solid var(--border-color);text-align:right;"><h4 style="margin-top:0;color:var(--primary);border-bottom:1px solid #e2e8f0;padding-bottom:10px;">معلومات</h4><div><strong>المدينة:</strong> <br>${d.location||'غير محدد'}</div><div><strong>تاريخ الميلاد:</strong> <br>${d.birthdate||'غير محدد'}</div><div><strong>المهنة:</strong> <br>${d.job||'غير محدد'}</div><div><strong>الدراسة:</strong> <br>${d.education||'غير محدد'}</div><div><strong>الهوايات:</strong> <br>${d.hobbies||'غير محدد'}</div></div>`; let intArea = $('profInterestsArea'); if(d.interests && d.interests.length > 0) { intArea.style.display = 'flex'; intArea.innerHTML = d.interests.map(i => `<span style="background:#eef2ff; color:var(--primary); padding:4px 10px; border-radius:12px; font-size:12px; font-weight:700;">${i}</span>`).join(''); } else { intArea.style.display = 'none'; } let ce = $('profCoverImg'); if(d.coverPic) { ce.src = d.coverPic; ce.style.display = 'block'; } else ce.style.display = 'none'; $('statPosts').innerText = window.allPosts.filter(p => p.author === u && !p.isReel).length; $('statPhotos').innerText = window.allPosts.filter(p => p.author === u && (p.image || p.video) && !p.isReel).length; $('statFriends').innerText = Object.keys(window.allFriendsData[u] || {}).length; let ac = $('profActions'); let ism = (u === window.currentUser), isf = window.currentUser ? window.myFriends.includes(u) : false, rr = window.currentRequests && window.currentRequests[u]; if(!window.currentUser) { $('coverEditBtn').style.display = 'none'; ac.innerHTML = `<button class="btn-primary" onclick="window.showRegisterModal()"><i class="fas fa-user-plus"></i> تسجيل الدخول للتفاعل</button>`; } else if(ism) { $('coverEditBtn').style.display = 'flex'; ac.innerHTML = `<button class="btn-primary" onclick="window.openEditProfileModal()"><i class="fas fa-edit"></i> تعديل</button><a href="ads.html" target="_blank" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;padding:8px 16px;border-radius:20px;border:1px solid #e2e8f0;font-weight:700;font-size:14px;font-family:Cairo,sans-serif;background:#fff;color:#0f172a;"><i class="fas fa-bullhorn" style="color:#f59e0b;"></i> إعلان ممول</a><button class="btn-secondary" onclick="window.location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); let c = $('postContent'); c.value = 'حساب رائع: @${u} ✨'; c.focus();"><i class="fas fa-share"></i> مشاركة</button>`; } else { $('coverEditBtn').style.display = 'none'; let sb = `<button class="btn-secondary" onclick="window.location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); let c = $('postContent'); c.value = 'حساب رائع: @${u} ✨'; c.focus();"><i class="fas fa-share"></i> مشاركة</button>`; if(isf) ac.innerHTML = `<button class="btn-secondary" style="background:#ef4444;color:#fff;" onclick="window.unfriend('${u}')"><i class="fas fa-user-minus"></i></button><button class="btn-primary" onclick="window.location.hash=''; setTimeout(()=>window.openChat('${u}'),300)"><i class="fas fa-comment-dots"></i> رسالة</button> ${sb}`; else if(rr) ac.innerHTML = `<button class="btn-primary" style="background:#10b981;" onclick="window.acceptRequestFromProfile('${u}',this)"><i class="fas fa-check"></i> قبول</button> ${sb}`; else if(window.sentRequests && window.sentRequests[u]) ac.innerHTML = `<button class="btn-secondary" onclick="window.cancelFriendRequest('${u}')"><i class="fas fa-user-times"></i> إلغاء</button> ${sb}`; else { ac.innerHTML = `<button class="btn-secondary" disabled>جاري...</button>`; get(ref(db, `friendRequests/${u}/${window.currentUser}`)).then(s => { if($('profHandle').innerText.replace('@', '') === u) { if(s.exists()) { window.sentRequests[u] = true; ac.innerHTML = `<button class="btn-secondary" onclick="window.cancelFriendRequest('${u}')"><i class="fas fa-user-times"></i> إلغاء</button> ${sb}`; } else ac.innerHTML = `<button class="btn-primary" data-action="add" data-target="${u}" onclick="window.sendFriendRequestToFromFeed('${u}',this)"><i class="fas fa-user-plus"></i> إضافة</button> ${sb}`; } }).catch(e => console.log(e)); } } $('profileModal').classList.add('show'); document.body.style.overflow = 'hidden'; try { renderProfilePosts(u) } catch(e) {} }
-window.previewCoverImage = async (e) => { let f = e.target.files[0]; if(!f) return; let bt = $('coverEditBtn'), ot = bt.innerHTML; bt.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; try { let url = await window.uploadToCloudinary(f, 'image'); $('profCoverImg').src = url; $('profCoverImg').style.display = 'block'; await update(ref(db, `users/${window.currentUser}`), {coverPic:url}); } catch(err) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); } bt.innerHTML = ot; }; window.saveProfile = async () => { let p = $('editPicBase64').value; if(p && p.startsWith('data:')) { let b = $('saveProfileBtn'), ot = b.innerHTML; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...'; b.disabled = true; try { p = await window.uploadToCloudinary(p, 'image'); } catch(e) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); b.innerHTML = ot; b.disabled = false; return; } b.innerHTML = ot; b.disabled = false; } let locVal = $('editLocation').value.trim(); let dobVal = $('editDobProfile').value; if(dobVal) { let ageChk = window.calcAge(dobVal); if(ageChk == null || isNaN(ageChk)) return window.dlgAlert("تاريخ الميلاد غير صحيح.", "warning", "تاريخ ميلاد غير صالح"); if(ageChk < 13) return window.dlgAlert("يجب أن يكون عمرك 13 سنة على الأقل.", "warning", "العمر غير كافٍ"); if(ageChk > 100) return window.dlgAlert("تاريخ الميلاد المُدخل غير منطقي، يرجى التأكد منه.", "warning", "تاريخ ميلاد غير صالح"); } let up = {bio:$('editBio').value.trim(), location:locVal, job:$('editJob').value.trim(), education:$('editEducation').value.trim(), hobbies:$('editHobbies').value.trim(), birthdate:dobVal, gender:$('editGender').value}; if(locVal) up.locationPrecise = true; if(p) up.profilePic = p; await update(ref(db, `users/${window.currentUser}`), up); if(p) { $('myNavAvatar').src = p; $('mobileNavAvatar').src = p; } window.location.hash = '#/@' + window.currentUser; };
+window.previewCoverImage = async (e) => { let f = e.target.files[0]; if(!f) return; let bt = $('coverEditBtn'), ot = bt.innerHTML; bt.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; try { let url = await window.uploadToCloudinary(f, 'image', null, 'profiles'); $('profCoverImg').src = url; $('profCoverImg').style.display = 'block'; await update(ref(db, `users/${window.currentUser}`), {coverPic:url}); } catch(err) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); } bt.innerHTML = ot; }; window.saveProfile = async () => { let p = $('editPicBase64').value; if(p && p.startsWith('data:')) { let b = $('saveProfileBtn'), ot = b.innerHTML; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...'; b.disabled = true; try { p = await window.uploadToCloudinary(p, 'image', null, 'profiles'); } catch(e) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); b.innerHTML = ot; b.disabled = false; return; } b.innerHTML = ot; b.disabled = false; } let locVal = $('editLocation').value.trim(); let dobVal = $('editDobProfile').value; if(dobVal) { let ageChk = window.calcAge(dobVal); if(ageChk == null || isNaN(ageChk)) return window.dlgAlert("تاريخ الميلاد غير صحيح.", "warning", "تاريخ ميلاد غير صالح"); if(ageChk < 13) return window.dlgAlert("يجب أن يكون عمرك 13 سنة على الأقل.", "warning", "العمر غير كافٍ"); if(ageChk > 100) return window.dlgAlert("تاريخ الميلاد المُدخل غير منطقي، يرجى التأكد منه.", "warning", "تاريخ ميلاد غير صالح"); } let up = {bio:$('editBio').value.trim(), location:locVal, job:$('editJob').value.trim(), education:$('editEducation').value.trim(), hobbies:$('editHobbies').value.trim(), birthdate:dobVal, gender:$('editGender').value}; if(locVal) up.locationPrecise = true; if(p) up.profilePic = p; await update(ref(db, `users/${window.currentUser}`), up); if(p) { $('myNavAvatar').src = p; $('mobileNavAvatar').src = p; } window.location.hash = '#/@' + window.currentUser; };
 function renderProfilePosts(u) { 
     let pp = window.allUsersData[u]?.profilePic || dA; 
     $('profilePostsFeed').innerHTML = '<div style="text-align:center;padding:20px;color:var(--primary);"><i class="fas fa-spinner fa-spin fa-2x"></i><br>جاري جلب المنشورات...</div>';
