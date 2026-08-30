@@ -118,6 +118,8 @@ window.renderCommunityFeed = (commId) => {
             posts.forEach(p => {
                 let dt = new Date(p.timestamp).toLocaleString('ar-EG'), ap = window.allUsersData[p.author]?.profilePic || dA, ad = window.getDisplayName(p.author);
                 let lc = p.likes ? Object.keys(p.likes).length : 0, hl = p.likes && p.likes[window.currentUser];
+                let canDelete = isAdmin || p.author === window.currentUser;
+                let adminDeleteBtn = canDelete ? `<button onclick="window.deleteCommPost('${commId}','${p.id}')" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:14px;" title="حذف"><i class="fas fa-trash"></i></button>` : '';
                 let mediaHtml = '';
                 if (p.image) mediaHtml = `<img src="${p.image}" style="width:100%;max-height:400px;object-fit:cover;border-radius:12px;margin-bottom:10px;cursor:pointer;" onclick="window.openMediaViewerFor('${p.id}',0)">`;
                 else if (p.video) mediaHtml = `<div class="smart-video-wrap" style="margin-bottom:10px;" onclick="event.stopPropagation();window.openCommVideoModal('${p.id}','${commId}')"><video src="${p.video}" class="smart-video" muted playsinline preload="metadata" style="width:100%;max-height:400px;object-fit:cover;border-radius:12px;background:#1e293b;cursor:pointer;"></video><div class="sv-overlay"><i class="fas fa-play sv-play-icon"></i></div><button class="sv-mute-btn" onclick="event.stopPropagation();window.toggleVideoMute(this)"><i class="fas fa-volume-mute"></i></button></div>`;
