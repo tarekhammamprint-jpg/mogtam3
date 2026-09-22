@@ -1344,40 +1344,48 @@ function renderFeed() {
     let myFollowing = (window.allUsersData[window.currentUser]?.following) || {};
     const mode = window.feedMode || 'latest';
 
-    (window.allNewsPosts || []).filter(p => myFollowing[p.author]).forEach(p => vp.push({ p, it: false }));
+    // ── دمج منشورات البوتات مع المنشورات العادية ──
+    const allBotPosts = (window.allNewsPosts || []).map(p => ({ ...p, _isBot: true }));
+    const allRegPosts = (window.allPosts || []).filter(p => window.renderedPostIds.has(p.id));
+    const combinedPosts = [...allRegPosts, ...allBotPosts];
 
-    window.allPosts.forEach(p => {
-        if (!window.renderedPostIds.has(p.id)) return;
-        let im = p.author === window.currentUser;
-        let ifR = window.myFriends.includes(p.author);
-        let lc = p.likes ? Object.keys(p.likes).length : 0;
+    combinedPosts.forEach(p => {
+        let im   = p.author === window.currentUser;
+        let ifR  = window.myFriends.includes(p.author);
+        let iBot = p._isBot || window.allUsersData[p.author]?.isNewsBot;
+        let iFollowed = myFollowing[p.author];
+        let lc = p.likes    ? Object.keys(p.likes).length    : 0;
         let cc = p.comments ? Object.keys(p.comments).length : 0;
         let it = lc >= 10;
 
-        if (mode === 'following') {
-            // فقط الأصدقاء والمتابَعون
-            if (im || ifR || myFollowing[p.author]) vp.push({ p, it });
-        } else {
-            if (im || ifR) vp.push({ p, it });
-            else if (it) tr.push({ p, it: true });
-        }
-
-        // حساب نقاط التفاعل لوضع "الأكثر تفاعلاً"
+        // حساب نقاط التفاعل
         p._score = (lc * 3) + (cc * 5) + (p.views || 0);
+
+        if (mode === 'following') {
+            // الأصدقاء + المتابَعون (بما فيهم قنوات البوتات)
+            if (im || ifR || iFollowed) vp.push({ p, it });
+        } else if (mode === 'top') {
+            // الأكثر تفاعلاً — كل المنشورات
+            if (im || ifR || iFollowed || iBot) vp.push({ p, it });
+            else if (it) tr.push({ p, it: true });
+        } else {
+            // الأحدث — منشوراتي + أصدقائي + المتابَعون
+            if (im || ifR || iFollowed) vp.push({ p, it });
+            else if (it || iBot) tr.push({ p, it: iBot ? false : true });
+        }
     });
 
     let t_i = 0, final = [...vp];
     if (mode !== 'following') {
         if (!iN) {
             for (let i = 0; i < vp.length; i++) {
-                if ((i + 1) % 10 === 0 && t_i < tr.length) { final.splice(i + 1, 0, tr[t_i]); t_i++; }
+                if ((i + 1) % 8 === 0 && t_i < tr.length) { final.splice(i + 1, 0, tr[t_i]); t_i++; }
             }
         } else { final = [...vp, ...tr]; }
     }
 
     // ── الترتيب حسب الوضع المختار ──
     if (mode === 'top') {
-        // الأكثر تفاعلاً (آخر 7 أيام)
         const week = Date.now() - 7 * 24 * 60 * 60 * 1000;
         final.sort((a, b) => {
             let aScore = (a.p._score || 0) + (a.p.timestamp > week ? 50 : 0);
@@ -1385,7 +1393,6 @@ function renderFeed() {
             return bScore - aScore;
         });
     } else {
-        // الأحدث (latest & following)
         final.sort((a, b) => (b.p.timestamp || 0) - (a.p.timestamp || 0));
     }
 
