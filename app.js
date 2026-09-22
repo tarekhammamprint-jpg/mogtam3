@@ -1321,7 +1321,7 @@ window.setFeedMode = (mode) => {
     let pf = document.getElementById('postsFeed');
     if (pf) pf.dataset.renderedIds = '';
     // تحديث أزرار التصفية
-    document.querySelectorAll('.feed-filter-btn').forEach(b => {
+    document.querySelectorAll('.ff-btn, .feed-filter-btn').forEach(b => {
         b.classList.toggle('active', b.dataset.mode === mode);
     });
     renderFeed();
