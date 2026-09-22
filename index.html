@@ -649,6 +649,59 @@
             </div>
         </div>
         <!-- الفيد -->
+        <!-- ── أزرار تصفية الفيد ── -->
+        <div id="feedFilterBar" style="
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+            background: var(--card-bg);
+            padding: 10px 12px;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+            scrollbar-width: none;
+        ">
+            <style>
+                .feed-filter-btn {
+                    flex-shrink: 0;
+                    padding: 8px 16px;
+                    border: 1.5px solid var(--border);
+                    border-radius: 20px;
+                    background: var(--bg-main);
+                    color: var(--text-muted);
+                    font-family: 'Cairo', sans-serif;
+                    font-size: 13px;
+                    font-weight: 700;
+                    cursor: pointer;
+                    display: flex;
+                    align-items: center;
+                    gap: 6px;
+                    transition: all 0.2s;
+                    white-space: nowrap;
+                }
+                .feed-filter-btn.active {
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    color: #fff;
+                    border-color: transparent;
+                    box-shadow: 0 3px 12px rgba(99,102,241,0.35);
+                }
+                .feed-filter-btn:hover:not(.active) {
+                    border-color: #6366f1;
+                    color: #6366f1;
+                }
+                #feedFilterBar::-webkit-scrollbar { display: none; }
+            </style>
+            <button class="feed-filter-btn active" data-mode="latest" onclick="window.setFeedMode('latest')">
+                <i class="fas fa-clock"></i> الأحدث
+            </button>
+            <button class="feed-filter-btn" data-mode="top" onclick="window.setFeedMode('top')">
+                <i class="fas fa-fire"></i> الأكثر تفاعلاً
+            </button>
+            <button class="feed-filter-btn" data-mode="following" onclick="window.setFeedMode('following')">
+                <i class="fas fa-user-friends"></i> المتابَعون فقط
+            </button>
+        </div>
+
         <div id="postsFeed"></div>
     </div>
 
@@ -827,7 +880,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
 <script src="hovercard.js?v=20260808a"></script>
 <script type="module" src="video-call.js?v=20260728f"></script>
-<script type="module" src="cpx-rewards.js?v=20260823"></script>
+<script type="module" src="adgem-rewards.js?v=20260802"></script>
 <script type="module" src="app.js?v=20260806a"></script>
 
 <!-- ══════════════════════════════════════════════
