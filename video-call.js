@@ -3,7 +3,6 @@ import { db } from "./firebase-config.js";
 
 // =============== نظام مكالمات الفيديو — Metered.ca ===============
 const METERED_DOMAIN = 'eslam.metered.live';
-const METERED_API_KEY = 'MdGDNEYvyoBUfD700Hj1WNsbg1Fxo8i_AQQQZ0nrFMZjLupu';
 
 let meeting = null;
 let localStream = null;
@@ -257,11 +256,8 @@ window.startCommunityCall = async (commId, commName) => {
     if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري...'; }
 
     try {
-        const res = await fetch(`https://${METERED_DOMAIN}/api/v1/room?secretKey=${METERED_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ autoJoin: true })
-        });
+        // لا تُستدعَ واجهة Metered مباشرة من المتصفح؛ المفتاح السري يجب أن يبقى في API خادمي.
+        throw new Error('video_calls_require_secure_server_endpoint');
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const room = await res.json();
         const roomName = room.roomName;
@@ -286,7 +282,10 @@ window.startCommunityCall = async (commId, commName) => {
 
     } catch(err) {
         console.error('Metered error:', err);
-        window.dlgAlert(`فشل إنشاء الغرفة: ${err.message}`, "danger", "خطأ");
+        const message = err.message === 'video_calls_require_secure_server_endpoint'
+            ? 'تم إيقاف إنشاء المكالمات مؤقتاً لحماية مفتاح الخدمة. يلزم إعداد API خادمي آمن.'
+            : `فشل إنشاء الغرفة: ${err.message}`;
+        window.dlgAlert(message, "danger", "المكالمات غير مهيأة");
     } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fas fa-video"></i> بدء اجتماع'; }
     }

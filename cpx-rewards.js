@@ -7,62 +7,12 @@
 import { ref, get, update, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
 
-const CPX_APP_ID     = "35568";
-const CPX_SECRET_KEY = "FH2aiV3FBmvR48X5zOMk4km5xWL0od0r";
+const CPX_APP_ID = "35568";
 
 // نسبة العضو من كل عرض (70%)
 const USER_SHARE = 0.70;
 
-// ============================================================
-//  MD5 — لحساب secure_hash على الـ client
-// ============================================================
-function md5(str) {
-  function safeAdd(x, y) { const lsw=(x&0xFFFF)+(y&0xFFFF); return (((x>>16)+(y>>16)+(lsw>>16))<<16)|(lsw&0xFFFF); }
-  function bitRotateLeft(num, cnt) { return (num<<cnt)|(num>>>(32-cnt)); }
-  function md5cmn(q,a,b,x,s,t) { return safeAdd(bitRotateLeft(safeAdd(safeAdd(a,q),safeAdd(x,t)),s),b); }
-  function md5ff(a,b,c,d,x,s,t) { return md5cmn((b&c)|((~b)&d),a,b,x,s,t); }
-  function md5gg(a,b,c,d,x,s,t) { return md5cmn((b&d)|(c&(~d)),a,b,x,s,t); }
-  function md5hh(a,b,c,d,x,s,t) { return md5cmn(b^c^d,a,b,x,s,t); }
-  function md5ii(a,b,c,d,x,s,t) { return md5cmn(c^(b|(~d)),a,b,x,s,t); }
-  function md5blks(s) {
-    const m=[];for(let i=0;i<s.length*8;i+=8)m[i>>5]|=(s.charCodeAt(i/8)&0xFF)<<(i%32);
-    m[s.length*8>>5]|=0x80<<(s.length*8%32);m[((s.length+8)>>6<<4)+14]=s.length*8;return m;
-  }
-  const x=md5blks(str);
-  let a=1732584193,b=-271733879,c=-1732584194,d=271733878;
-  for(let i=0;i<x.length;i+=16){
-    const oA=a,oB=b,oC=c,oD=d;
-    a=md5ff(a,b,c,d,x[i],7,-680876936);d=md5ff(d,a,b,c,x[i+1],12,-389564586);c=md5ff(c,d,a,b,x[i+2],17,606105819);b=md5ff(b,c,d,a,x[i+3],22,-1044525330);
-    a=md5ff(a,b,c,d,x[i+4],7,-176418897);d=md5ff(d,a,b,c,x[i+5],12,1200080426);c=md5ff(c,d,a,b,x[i+6],17,-1473231341);b=md5ff(b,c,d,a,x[i+7],22,-45705983);
-    a=md5ff(a,b,c,d,x[i+8],7,1770035416);d=md5ff(d,a,b,c,x[i+9],12,-1958414417);c=md5ff(c,d,a,b,x[i+10],17,-42063);b=md5ff(b,c,d,a,x[i+11],22,-1990404162);
-    a=md5ff(a,b,c,d,x[i+12],7,1804603682);d=md5ff(d,a,b,c,x[i+13],12,-40341101);c=md5ff(c,d,a,b,x[i+14],17,-1502002290);b=md5ff(b,c,d,a,x[i+15],22,1236535329);
-    a=md5gg(a,b,c,d,x[i+1],5,-165796510);d=md5gg(d,a,b,c,x[i+6],9,-1069501632);c=md5gg(c,d,a,b,x[i+11],14,643717713);b=md5gg(b,c,d,a,x[i],20,-373897302);
-    a=md5gg(a,b,c,d,x[i+5],5,-701558691);d=md5gg(d,a,b,c,x[i+10],9,38016083);c=md5gg(c,d,a,b,x[i+15],14,-660478335);b=md5gg(b,c,d,a,x[i+4],20,-405537848);
-    a=md5gg(a,b,c,d,x[i+9],5,568446438);d=md5gg(d,a,b,c,x[i+14],9,-1019803690);c=md5gg(c,d,a,b,x[i+3],14,-187363961);b=md5gg(b,c,d,a,x[i+8],20,1163531501);
-    a=md5gg(a,b,c,d,x[i+13],5,-1444681467);d=md5gg(d,a,b,c,x[i+2],9,-51403784);c=md5gg(c,d,a,b,x[i+7],14,1735328473);b=md5gg(b,c,d,a,x[i+12],20,-1926607734);
-    a=md5hh(a,b,c,d,x[i+5],4,-378558);d=md5hh(d,a,b,c,x[i+8],11,-2022574463);c=md5hh(c,d,a,b,x[i+11],16,1839030562);b=md5hh(b,c,d,a,x[i+14],23,-35309556);
-    a=md5hh(a,b,c,d,x[i+1],4,-1530992060);d=md5hh(d,a,b,c,x[i+4],11,1272893353);c=md5hh(c,d,a,b,x[i+7],16,-155497632);b=md5hh(b,c,d,a,x[i+10],23,-1094730640);
-    a=md5hh(a,b,c,d,x[i+13],4,681279174);d=md5hh(d,a,b,c,x[i],11,-358537222);c=md5hh(c,d,a,b,x[i+3],16,-722521979);b=md5hh(b,c,d,a,x[i+6],23,76029189);
-    a=md5hh(a,b,c,d,x[i+9],4,-640364487);d=md5hh(d,a,b,c,x[i+12],11,-421815835);c=md5hh(c,d,a,b,x[i+15],16,530742520);b=md5hh(b,c,d,a,x[i+2],23,-995338651);
-    a=md5ii(a,b,c,d,x[i],6,-198630844);d=md5ii(d,a,b,c,x[i+7],10,1126891415);c=md5ii(c,d,a,b,x[i+14],15,-1416354905);b=md5ii(b,c,d,a,x[i+5],21,-57434055);
-    a=md5ii(a,b,c,d,x[i+12],6,1700485571);d=md5ii(d,a,b,c,x[i+3],10,-1894986606);c=md5ii(c,d,a,b,x[i+10],15,-1051523);b=md5ii(b,c,d,a,x[i+1],21,-2054922799);
-    a=md5ii(a,b,c,d,x[i+8],6,1873313359);d=md5ii(d,a,b,c,x[i+15],10,-30611744);c=md5ii(c,d,a,b,x[i+6],15,-1560198380);b=md5ii(b,c,d,a,x[i+13],21,1309151649);
-    a=md5ii(a,b,c,d,x[i+4],6,-145523070);d=md5ii(d,a,b,c,x[i+11],10,-1120210379);c=md5ii(c,d,a,b,x[i+2],15,718787259);b=md5ii(b,c,d,a,x[i+9],21,-343485551);
-    a=safeAdd(a,oA);b=safeAdd(b,oB);c=safeAdd(c,oC);d=safeAdd(d,oD);
-  }
-  const hex='0123456789abcdef';
-  let out='';
-  [a,b,c,d].forEach(n=>{for(let i=0;i<4;i++){const byte=(n>>(i*8))&0xFF;out+=hex[(byte>>4)&0xF]+hex[byte&0xF];}});
-  return out;
-}
-
-// ============================================================
-//  حساب الـ secure_hash لـ CPX Research
-//  الصيغة الرسمية: MD5(app_id + ext_user_id + secret_key)
-// ============================================================
-function getCpxHash(userId) {
-  return md5(CPX_APP_ID + userId + CPX_SECRET_KEY);
-}
+// لا يُحسب secure_hash في المتصفح. المفتاح السري والتوقيع موجودان في API خادمي.
 
 // ============================================================
 //  CSS
@@ -452,33 +402,25 @@ function loadCpxOfferwall() {
     return;
   }
 
-  const userData    = window.allUsersData?.[uid] || {};
-  const userEmail   = userData.email || '';
+  const userData = window.allUsersData?.[uid] || {};
   const displayName = (userData.displayName || uid).replace(/[^\w\s\u0600-\u06FF]/g, '');
+  let offerwallUrl = '';
 
-  // CPX تحتاج ext_user_id بدون أحرف عربية
-  // لو الاسم عربي نحوّله لـ hex string
-  let safeUid = uid;
-  if (/[^\x00-\x7F]/.test(uid)) {
-    safeUid = Array.from(uid).map(c => c.charCodeAt(0).toString(16).padStart(4,'0')).join('');
-  }
+  // المفتاح السري والتوقيع لا يغادران الخادم.
+  fetch('/api/cpx-offerwall', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ userId: uid, displayName })
+  }).then(async response => {
+    if (!response.ok) throw new Error('تعذر تجهيز العروض');
+    const data = await response.json();
+    offerwallUrl = data.url;
+    iframe.src = offerwallUrl;
+  }).catch(() => {
+    if (loading) loading.innerHTML = '<p style="color:#ef4444;font-size:13px;">مركز المكافآت غير مهيأ بعد. يرجى المحاولة لاحقاً.</p>';
+  });
 
-  const secureHash  = getCpxHash(safeUid);
-
-  const offerwallUrl =
-    `https://offers.cpx-research.com/index.php` +
-    `?app_id=${CPX_APP_ID}` +
-    `&ext_user_id=${safeUid}` +
-    `&secure_hash=${secureHash}` +
-    `&username=${encodeURIComponent(displayName)}` +
-    `&email=${encodeURIComponent(userEmail)}` +
-    `&subid_1=mogtam3` +
-    `&subid_2=`;
-
-  console.log('[CPX] uid:', uid, '| safeUid:', safeUid, '| hash:', secureHash);
-  console.log('[CPX] offerwallUrl:', offerwallUrl);
-
-  iframe.src = offerwallUrl;
   iframe.style.display = 'none';
   if (loading) loading.style.display = 'flex';
 
@@ -491,7 +433,7 @@ function loadCpxOfferwall() {
   setTimeout(() => {
     if (iframe.style.display === 'none') {
       if (loading) loading.style.display = 'none';
-      showOfferwallFallback(offerwallUrl);
+      if (offerwallUrl) showOfferwallFallback(offerwallUrl);
     }
   }, 10000);
 }
@@ -645,97 +587,8 @@ window.listenToPointsNotifications = () => {
   });
 };
 
-// ============================================================
-//  postback handler — استقبال النقاط من CPX عبر Cloudflare Worker
-//  ⬇ ضع هذا الكود في Cloudflare Worker الخاص بك
-// ============================================================
-/*
-  === كود Cloudflare Worker للـ Postback ===
-
-  رابط الـ postback اللي تحطه في CPX Dashboard:
-  https://red-snowflake-1dad.YOUR_SUBDOMAIN.workers.dev/cpx-postback?
-    user_id={user_id}&
-    amount={amount}&
-    offer_name={offer_name}&
-    transaction_id={transaction_id}&
-    hash={hash}
-
-  ─────────────────────────────────────────
-  addEventListener('fetch', event => {
-    event.respondWith(handleRequest(event.request));
-  });
-
-  const SECRET_KEY = 'FH2aiV3FBmvR48X5zOMk4km5xWL0od0r';
-  const FIREBASE_URL = 'https://mogtam3-1b98f-default-rtdb.firebaseio.com';
-  const USER_SHARE = 0.70;  // 70% للعضو
-
-  async function handleRequest(request) {
-    const url = new URL(request.url);
-    if (!url.pathname.includes('cpx-postback')) {
-      return new Response('not found', { status: 404 });
-    }
-
-    const userId       = url.searchParams.get('user_id');
-    const amount       = parseFloat(url.searchParams.get('amount') || '0');
-    const offerName    = url.searchParams.get('offer_name') || 'CPX Research';
-    const transId      = url.searchParams.get('transaction_id');
-    const receivedHash = url.searchParams.get('hash');
-
-    // التحقق من الـ hash
-    const expectedHash = await md5(`${userId}${SECRET_KEY}`);
-    if (receivedHash !== expectedHash) {
-      return new Response('invalid hash', { status: 403 });
-    }
-
-    if (!userId || amount <= 0) {
-      return new Response('invalid params', { status: 400 });
-    }
-
-    // حساب نقاط العضو (70%)
-    const userPoints = Math.floor(amount * USER_SHARE);
-
-    // جلب الرصيد الحالي وتحديثه
-    const userRef = `${FIREBASE_URL}/users/${userId}`;
-    const currentSnap = await fetch(`${userRef}/points.json`);
-    const currentPoints = (await currentSnap.json()) || 0;
-    const newPoints = currentPoints + userPoints;
-
-    // تحديث النقاط + إضافة للسجل + إضافة إشعار
-    const timestamp = Date.now();
-    const updates = {
-      [`/users/${userId}/points`]: newPoints,
-      [`/users/${userId}/pointsHistory/${transId}`]: {
-        offerName,
-        earned: userPoints,
-        rawAmount: amount,
-        timestamp,
-        source: 'cpx'
-      },
-      [`/users/${userId}/notifications/${transId}`]: {
-        type: 'cpx_reward',
-        points: userPoints,
-        offerName,
-        timestamp,
-        read: false
-      }
-    };
-
-    await fetch(`${FIREBASE_URL}/.json?auth=YOUR_FIREBASE_SECRET`, {
-      method: 'PATCH',
-      body: JSON.stringify(updates),
-      headers: { 'Content-Type': 'application/json' }
-    });
-
-    return new Response('1', { status: 200 });
-  }
-
-  // MD5 في Worker
-  async function md5(message) {
-    const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest('MD5', msgBuffer);  // لا يدعمه Workers
-    // استخدم مكتبة md5 خارجية أو نفس الـ pure-JS في الملف الرئيسي
-  }
-*/
+// استقبال الـ postback ومعالجة النقاط يتم في /api/cpx-postback.js فقط.
+// لا تضع مفاتيح CPX أو Firebase Admin داخل هذا الملف العام.
 
 // ============================================================
 //  تهيئة النظام — استدعها بعد تسجيل الدخول
