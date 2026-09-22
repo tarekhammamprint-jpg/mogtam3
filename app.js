@@ -1312,6 +1312,29 @@ function createPostHTML(p, cp, it=false, im=false) {
     return `<div class="post" data-post-id="${p.id}"><div class="post-header">${headerLeft}${ch}</div>${pb}<div class="post-actions-bar"><button class="action-btn" data-count="${lc}" onclick="window.toggleLike('${p.id}','${p.author}',this)"><i class="${hl?'fas':'far'} fa-heart" style="${hl ? 'color:#ef4444;' : 'color:#64748b;'}"></i> <span class="lc-count">${lt}</span></button><button class="action-btn" onclick="${im ? `$('modalCommentInput').focus()` : `window.openPostModal('${p.id}')`}"><i class="far fa-comment-alt"></i> تعليق</button><button class="action-btn" onclick="window.openShareModal('${p.id}')"><i class="fas fa-share"></i> مشاركة</button></div><div class="comments-section" id="commentsSection_${p.id}">${cmh}${cia}</div>${admC}</div>`;
 }
 
+// ── نظام الخوارزمية ──────────────────────────────
+window.feedMode = window.feedMode || 'latest'; // latest | top | following
+
+window.setFeedMode = (mode) => {
+    window.feedMode = mode;
+    window.feedLim = 5;
+    let pf = document.getElementById('postsFeed');
+    if (pf) pf.dataset.renderedIds = '';
+    // تحديث أزرار التصفية
+    document.querySelectorAll('.feed-filter-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.mode === mode);
+    });
+    renderFeed();
+    // حفظ اختيار المستخدم
+    try { localStorage.setItem('feedMode', mode); } catch(e) {}
+};
+
+// استعادة اختيار المستخدم
+try {
+    let saved = localStorage.getItem('feedMode');
+    if (saved) window.feedMode = saved;
+} catch(e) {}
+
 function renderFeed() {
     let pf = document.getElementById('postsFeed');
     if (!window.currentUser) { if (pf) pf.innerHTML = ''; return; }
@@ -1319,23 +1342,52 @@ function renderFeed() {
     let h = '', sg = window.getSuggestions ? window.getSuggestions() : [];
     let iN = window.myFriends.length === 0, vp = [], tr = [];
     let myFollowing = (window.allUsersData[window.currentUser]?.following) || {};
+    const mode = window.feedMode || 'latest';
+
     (window.allNewsPosts || []).filter(p => myFollowing[p.author]).forEach(p => vp.push({ p, it: false }));
+
     window.allPosts.forEach(p => {
         if (!window.renderedPostIds.has(p.id)) return;
         let im = p.author === window.currentUser;
         let ifR = window.myFriends.includes(p.author);
         let lc = p.likes ? Object.keys(p.likes).length : 0;
+        let cc = p.comments ? Object.keys(p.comments).length : 0;
         let it = lc >= 10;
-        if (im || ifR) vp.push({ p, it });
-        else if (it) tr.push({ p, it: true });
-    });
-    let t_i = 0, final = [...vp];
-    if (!iN) {
-        for (let i = 0; i < vp.length; i++) {
-            if ((i + 1) % 10 === 0 && t_i < tr.length) { final.splice(i + 1, 0, tr[t_i]); t_i++; }
+
+        if (mode === 'following') {
+            // فقط الأصدقاء والمتابَعون
+            if (im || ifR || myFollowing[p.author]) vp.push({ p, it });
+        } else {
+            if (im || ifR) vp.push({ p, it });
+            else if (it) tr.push({ p, it: true });
         }
-    } else { final = [...vp, ...tr]; }
-    final.sort((a, b) => (b.p.timestamp || 0) - (a.p.timestamp || 0));
+
+        // حساب نقاط التفاعل لوضع "الأكثر تفاعلاً"
+        p._score = (lc * 3) + (cc * 5) + (p.views || 0);
+    });
+
+    let t_i = 0, final = [...vp];
+    if (mode !== 'following') {
+        if (!iN) {
+            for (let i = 0; i < vp.length; i++) {
+                if ((i + 1) % 10 === 0 && t_i < tr.length) { final.splice(i + 1, 0, tr[t_i]); t_i++; }
+            }
+        } else { final = [...vp, ...tr]; }
+    }
+
+    // ── الترتيب حسب الوضع المختار ──
+    if (mode === 'top') {
+        // الأكثر تفاعلاً (آخر 7 أيام)
+        const week = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        final.sort((a, b) => {
+            let aScore = (a.p._score || 0) + (a.p.timestamp > week ? 50 : 0);
+            let bScore = (b.p._score || 0) + (b.p.timestamp > week ? 50 : 0);
+            return bScore - aScore;
+        });
+    } else {
+        // الأحدث (latest & following)
+        final.sort((a, b) => (b.p.timestamp || 0) - (a.p.timestamp || 0));
+    }
 
     let sliced = final.slice(0, window.feedLim || 5);
     let newIds = sliced.map(v => v.p.id).join(',');
@@ -1612,28 +1664,8 @@ window.previewMedia = (e, type) => {
         for (let f of files) { if (f.size > 50*1024*1024) { window.dlgAlert("الفيديو كبير جداً! الحد الأقصى 50 ميجا.", "warning", "تنبيه"); return; } }
     }
     if (type === 'reel') {
-        // التحقق من مدة الفيديو أولاً
-        const reelFile = files[0];
-        const tmpVid = document.createElement('video');
-        tmpVid.preload = 'metadata';
-        tmpVid.src = URL.createObjectURL(reelFile);
-        tmpVid.onloadedmetadata = async () => {
-            URL.revokeObjectURL(tmpVid.src);
-            // لو الفيديو أقل من 30 ثانية — استخدمه مباشرة
-            if (tmpVid.duration <= 30) {
-                window.selectedMediaFiles = [{ file: reelFile, type: 'reel', previewUrl: URL.createObjectURL(reelFile) }];
-                window.renderMediaPreviewGrid();
-            } else {
-                // افتح التريمر
-                const result = await window.openReelTrimmer(reelFile);
-                if (!result) return; // ألغى المستخدم
-                const trimmedFile = result instanceof Blob ? result : result.file;
-                const previewUrl = URL.createObjectURL(trimmedFile);
-                window.selectedMediaFiles = [{ file: trimmedFile, type: 'reel', previewUrl }];
-                window.renderMediaPreviewGrid();
-            }
-        };
-        return; // لا تكمل حتى يتم الفحص
+        // الريلز عنصر واحد فقط، ويستبدل أي تحديد سابق
+        window.selectedMediaFiles = [{ file: files[0], type: 'reel', previewUrl: URL.createObjectURL(files[0]) }];
     } else {
         // إزالة أي ريلز محدد سابقًا عند اختيار صور/فيديوهات عادية
         window.selectedMediaFiles = window.selectedMediaFiles.filter(m => m.type !== 'reel');
@@ -3705,286 +3737,3 @@ window.fbSharePost = () => { let p = window._fbCurrentPost; if(p) { window.close
 window.fbOpenComments = () => { window.openMvCommentsSheet?.(true); };
 window.fbCloseComments = () => { window.closeMvCommentsSheet?.(); };
 window.fbSubmitComment = () => { window.mvAddComment?.(window._fbCurrentPost?.id, window._fbCurrentPost?.author); };
-
-
-
-// ═══════════════════════════════════════════════════════
-//  نظام تريمر الريلز — 30 ثانية كحد أقصى
-// ═══════════════════════════════════════════════════════
-(function() {
-    const MAX_REEL_DURATION = 30;
-    let _file = null, _resolve = null;
-    let _vidDuration = 0, _startT = 0, _endT = 30;
-    let _dragging = null, _trackRect = null;
-    let _previewInterval = null;
-
-    function injectStyles() {
-        if (document.getElementById('reelTrimmerStyle')) return;
-        const s = document.createElement('style');
-        s.id = 'reelTrimmerStyle';
-        s.textContent = `
-#reelTrimmerOverlay{display:none;position:fixed;inset:0;z-index:999999;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;flex-direction:column;font-family:'Cairo',sans-serif;direction:rtl;}
-#reelTrimmerOverlay.show{display:flex;}
-#reelTrimmerBox{background:#0f172a;border-radius:20px;width:min(480px,95vw);overflow:hidden;box-shadow:0 24px 80px rgba(0,0,0,0.6);}
-#reelTrimmerHeader{background:linear-gradient(135deg,#6366f1,#8b5cf6);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;color:#fff;font-weight:800;font-size:15px;}
-#reelTrimmerVideo{width:100%;max-height:280px;object-fit:contain;background:#000;display:block;}
-#reelTrimmerBody{padding:16px;}
-#reelTrimmerInfo{display:flex;justify-content:space-between;font-size:12px;color:#94a3b8;margin-bottom:10px;font-weight:600;}
-#reelTrimmerInfo span{color:#a5b4fc;font-weight:800;}
-#reelTrimmerTrack{position:relative;height:48px;background:#1e293b;border-radius:10px;margin-bottom:14px;overflow:visible;cursor:pointer;user-select:none;}
-#reelTrimmerFill{position:absolute;top:0;bottom:0;background:rgba(99,102,241,0.35);border:2px solid #6366f1;border-radius:8px;pointer-events:none;}
-#reelTrimmerStart,#reelTrimmerEnd{position:absolute;top:0;bottom:0;width:18px;background:#6366f1;border-radius:6px;cursor:ew-resize;display:flex;align-items:center;justify-content:center;z-index:2;}
-#reelTrimmerStart{transform:translateX(-50%);}
-#reelTrimmerEnd{transform:translateX(50%);}
-#reelTrimmerStart i,#reelTrimmerEnd i{color:#fff;font-size:10px;}
-#reelPlayhead{position:absolute;top:0;bottom:0;width:2px;background:#f59e0b;pointer-events:none;z-index:3;}
-#reelThumbnailStrip{position:absolute;inset:0;display:flex;overflow:hidden;border-radius:10px;}
-.reel-thumb-frame{flex:1;object-fit:cover;height:100%;filter:brightness(0.6);}
-#reelTrimmerControls{display:flex;gap:8px;margin-bottom:14px;}
-.rtc-btn{flex:1;padding:10px;border:none;border-radius:12px;font-family:'Cairo',sans-serif;font-size:13px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
-.rtc-play{background:#1e293b;color:#e2e8f0;}
-.rtc-confirm{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;}
-.rtc-cancel{background:#1e293b;color:#94a3b8;}
-#reelTrimmerDuration{text-align:center;font-size:13px;color:#64748b;font-weight:600;}
-#reelTrimmerDuration strong{color:#6366f1;}
-@keyframes rtSlideIn{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
-#reelTrimmerBox{animation:rtSlideIn 0.3s ease;}
-        `;
-        document.head.appendChild(s);
-    }
-
-    function createTrimmerDOM() {
-        if (document.getElementById('reelTrimmerOverlay')) return;
-        injectStyles();
-        const div = document.createElement('div');
-        div.id = 'reelTrimmerOverlay';
-        div.innerHTML = `
-            <div id="reelTrimmerBox">
-                <div id="reelTrimmerHeader">
-                    <span><i class="fas fa-cut"></i> تقليم الريلز</span>
-                    <span id="reelTrimmerTimer" style="background:rgba(255,255,255,0.2);padding:4px 10px;border-radius:20px;font-size:13px;">0:00 / 0:30</span>
-                </div>
-                <video id="reelTrimmerVideo" playsinline muted></video>
-                <div id="reelTrimmerBody">
-                    <div id="reelTrimmerInfo">
-                        <span>البداية: <span id="rtStartLbl">0:00</span></span>
-                        <span id="rtDurLbl" style="color:#10b981;font-weight:800;">المدة: 0:00</span>
-                        <span>النهاية: <span id="rtEndLbl">0:30</span></span>
-                    </div>
-                    <div id="reelTrimmerTrack">
-                        <div id="reelThumbnailStrip"></div>
-                        <div id="reelTrimmerFill"></div>
-                        <div id="reelTrimmerStart"><i class="fas fa-grip-lines-vertical"></i></div>
-                        <div id="reelTrimmerEnd"><i class="fas fa-grip-lines-vertical"></i></div>
-                        <div id="reelPlayhead"></div>
-                    </div>
-                    <div id="reelTrimmerControls">
-                        <button class="rtc-btn rtc-cancel" onclick="window._reelTrimmerCancel()"><i class="fas fa-times"></i> إلغاء</button>
-                        <button class="rtc-btn rtc-play" id="reelPlayBtn" onclick="window._reelTrimmerTogglePlay()"><i class="fas fa-play"></i> معاينة</button>
-                        <button class="rtc-btn rtc-confirm" onclick="window._reelTrimmerConfirm()"><i class="fas fa-check"></i> تأكيد</button>
-                    </div>
-                    <div id="reelTrimmerDuration">من <strong id="rtFromLbl">0:00</strong> إلى <strong id="rtToLbl">0:30</strong></div>
-                </div>
-            </div>`;
-        document.body.appendChild(div);
-        setupDragHandlers();
-    }
-
-    const fmt = (t) => `${Math.floor(t/60)}:${Math.floor(t%60).toString().padStart(2,'0')}`;
-
-    function updateUI() {
-        const dur = _endT - _startT;
-        const pct = (t) => (_vidDuration > 0 ? (t/_vidDuration)*100 : 0) + '%';
-        const fill  = document.getElementById('reelTrimmerFill');
-        const startH = document.getElementById('reelTrimmerStart');
-        const endH   = document.getElementById('reelTrimmerEnd');
-        if (!fill) return;
-        fill.style.left  = pct(_startT);
-        fill.style.width = pct(dur);
-        startH.style.left = pct(_startT);
-        endH.style.left   = pct(_endT);
-        document.getElementById('rtStartLbl').innerText = fmt(_startT);
-        document.getElementById('rtEndLbl').innerText   = fmt(_endT);
-        document.getElementById('rtDurLbl').innerText   = 'المدة: ' + fmt(dur);
-        document.getElementById('rtDurLbl').style.color = dur > MAX_REEL_DURATION ? '#ef4444' : '#10b981';
-        document.getElementById('rtFromLbl').innerText  = fmt(_startT);
-        document.getElementById('rtToLbl').innerText    = fmt(_endT);
-        document.getElementById('reelTrimmerTimer').innerText = fmt(dur) + ' / 0:30';
-    }
-
-    function setupDragHandlers() {
-        const track  = document.getElementById('reelTrimmerTrack');
-        const startH = document.getElementById('reelTrimmerStart');
-        const endH   = document.getElementById('reelTrimmerEnd');
-
-        const onDown = (handle) => (e) => {
-            e.preventDefault();
-            _dragging = handle;
-            _trackRect = track.getBoundingClientRect();
-            document.addEventListener('mousemove', onMove);
-            document.addEventListener('touchmove', onMove, {passive:false});
-            document.addEventListener('mouseup', onUp);
-            document.addEventListener('touchend', onUp);
-        };
-        startH.addEventListener('mousedown', onDown('start'));
-        startH.addEventListener('touchstart', onDown('start'), {passive:false});
-        endH.addEventListener('mousedown', onDown('end'));
-        endH.addEventListener('touchstart', onDown('end'), {passive:false});
-    }
-
-    function onMove(e) {
-        if (!_dragging || !_trackRect) return;
-        e.preventDefault();
-        const cx = e.touches ? e.touches[0].clientX : e.clientX;
-        let pct = Math.max(0, Math.min(1, (cx - _trackRect.left) / _trackRect.width));
-        const t = pct * _vidDuration;
-        if (_dragging === 'start') {
-            _startT = Math.min(t, _endT - 1);
-            if (_endT - _startT > MAX_REEL_DURATION) _endT = _startT + MAX_REEL_DURATION;
-        } else {
-            _endT = Math.max(t, _startT + 1);
-            if (_endT - _startT > MAX_REEL_DURATION) _startT = _endT - MAX_REEL_DURATION;
-        }
-        _startT = Math.max(0, _startT);
-        _endT   = Math.min(_vidDuration, _endT);
-        updateUI();
-    }
-
-    function onUp() {
-        _dragging = null;
-        document.removeEventListener('mousemove', onMove);
-        document.removeEventListener('touchmove', onMove);
-        document.removeEventListener('mouseup', onUp);
-        document.removeEventListener('touchend', onUp);
-    }
-
-    window.openReelTrimmer = (file) => {
-        return new Promise((resolve) => {
-            _file = file; _resolve = resolve;
-            createTrimmerDOM();
-            const vid = document.getElementById('reelTrimmerVideo');
-            vid.src = URL.createObjectURL(file);
-            vid.onloadedmetadata = () => {
-                _vidDuration = vid.duration;
-                _startT = 0;
-                _endT = Math.min(MAX_REEL_DURATION, _vidDuration);
-                generateThumbnails(vid);
-                updateUI();
-            };
-            document.getElementById('reelTrimmerOverlay').classList.add('show');
-            document.body.style.overflow = 'hidden';
-        });
-    };
-
-    function generateThumbnails(vid) {
-        const strip = document.getElementById('reelThumbnailStrip');
-        strip.innerHTML = '';
-        const count = 8;
-        const canvas = document.createElement('canvas');
-        canvas.width = 60; canvas.height = 48;
-        const ctx = canvas.getContext('2d');
-        for (let i = 0; i < count; i++) {
-            const img = document.createElement('img');
-            img.className = 'reel-thumb-frame';
-            strip.appendChild(img);
-            const tmpV = document.createElement('video');
-            tmpV.src = vid.src; tmpV.muted = true;
-            tmpV.currentTime = (_vidDuration / count) * i;
-            tmpV.addEventListener('seeked', () => {
-                ctx.drawImage(tmpV, 0, 0, canvas.width, canvas.height);
-                img.src = canvas.toDataURL('image/jpeg', 0.5);
-            }, {once:true});
-        }
-    }
-
-    window._reelTrimmerTogglePlay = () => {
-        const vid = document.getElementById('reelTrimmerVideo');
-        const btn = document.getElementById('reelPlayBtn');
-        if (vid.paused) {
-            vid.currentTime = _startT; vid.muted = false; vid.play();
-            btn.innerHTML = '<i class="fas fa-pause"></i> إيقاف';
-            _previewInterval = setInterval(() => {
-                const ph = document.getElementById('reelPlayhead');
-                if (ph && _vidDuration) ph.style.left = (vid.currentTime/_vidDuration*100)+'%';
-                if (vid.currentTime >= _endT) {
-                    vid.pause(); vid.currentTime = _startT;
-                    btn.innerHTML = '<i class="fas fa-play"></i> معاينة';
-                    clearInterval(_previewInterval);
-                }
-            }, 100);
-        } else {
-            vid.pause();
-            btn.innerHTML = '<i class="fas fa-play"></i> معاينة';
-            clearInterval(_previewInterval);
-        }
-    };
-
-    window._reelTrimmerConfirm = async () => {
-        const dur = _endT - _startT;
-        if (dur > MAX_REEL_DURATION) { window.dlgAlert('الريلز يجب أن يكون 30 ثانية كحد أقصى.','warning','تنبيه'); return; }
-        const btn = document.querySelector('.rtc-confirm');
-        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري المعالجة...';
-        btn.disabled = true;
-        try {
-            const blob = await trimVideo(_file, _startT, _endT);
-            closeTrimmer();
-            _resolve(blob);
-        } catch(e) {
-            console.error('Trim error:', e);
-            closeTrimmer();
-            _resolve(_file);
-        }
-    };
-
-    async function trimVideo(file, startTime, endTime) {
-        return new Promise((resolve, reject) => {
-            const vid = document.createElement('video');
-            vid.src = URL.createObjectURL(file);
-            vid.muted = true;
-            vid.onloadedmetadata = () => {
-                const canvas = document.createElement('canvas');
-                vid.currentTime = startTime;
-                vid.onseeked = () => {
-                    canvas.width  = vid.videoWidth  || 720;
-                    canvas.height = vid.videoHeight || 1280;
-                    const ctx = canvas.getContext('2d');
-                    const stream = canvas.captureStream(30);
-                    try {
-                        const ac = new AudioContext();
-                        const src = ac.createMediaElementSource(vid);
-                        const dest = ac.createMediaStreamDestination();
-                        src.connect(dest); src.connect(ac.destination);
-                        dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
-                    } catch(e) {}
-                    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-                        ? 'video/webm;codecs=vp9' : 'video/webm';
-                    const recorder = new MediaRecorder(stream, {mimeType, videoBitsPerSecond:2500000});
-                    const chunks = [];
-                    recorder.ondataavailable = e => { if(e.data.size>0) chunks.push(e.data); };
-                    recorder.onstop = () => resolve(new Blob(chunks, {type:'video/webm'}));
-                    recorder.start(100);
-                    vid.muted = false; vid.play();
-                    const draw = () => {
-                        if (vid.currentTime >= endTime || vid.ended) { recorder.stop(); vid.pause(); return; }
-                        ctx.drawImage(vid, 0, 0, canvas.width, canvas.height);
-                        requestAnimationFrame(draw);
-                    };
-                    requestAnimationFrame(draw);
-                    setTimeout(() => { if(recorder.state==='recording') recorder.stop(); }, (endTime-startTime)*1000+500);
-                };
-            };
-            vid.onerror = reject;
-        });
-    }
-
-    window._reelTrimmerCancel = () => { closeTrimmer(); _resolve(null); };
-
-    function closeTrimmer() {
-        const o = document.getElementById('reelTrimmerOverlay');
-        if (o) o.classList.remove('show');
-        document.body.style.overflow = 'auto';
-        clearInterval(_previewInterval);
-        const vid = document.getElementById('reelTrimmerVideo');
-        if (vid) { vid.pause(); vid.src = ''; }
-    }
-})();
