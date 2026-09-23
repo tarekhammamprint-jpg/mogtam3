@@ -47,7 +47,8 @@
 <style>
 /* ── شريط تصفية الفيد الثابت ── */
 #feedFilterSticky {
-    position: fixed;
+    /* يبقى في تدفق الصفحة حتى لا يغطي الملف الشخصي أو المنشورات */
+    position: sticky;
     top: 70px;
     left: 0;
     right: 0;
@@ -110,7 +111,8 @@ body.dark-mode .ff-btn {
 }
 
 /* تعويض ارتفاع الـ navbar + الشريط */
-body { padding-top: calc(70px + 46px) !important; }
+/* الـNavbar ثابت وخارج تدفق الصفحة؛ الشريط نفسه داخل التدفق ويحجز ارتفاعه */
+body { padding-top: 70px !important; }
 
 @media (max-width: 600px) {
     #feedFilterSticky { gap: 6px; padding: 6px 10px; }
