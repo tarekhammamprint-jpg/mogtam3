@@ -393,9 +393,19 @@ window.openCommunityViewDirect = (commId) => {
     }
 };
 
+// شريط تصفية اليوميات يظهر فقط في الصفحة الرئيسية وللمستخدم المسجل.
+function updateFeedFilterVisibility() {
+    const filter = document.getElementById('feedFilterSticky');
+    if (!filter) return;
+    const hash = window.location.hash;
+    const isDiaryPage = hash === '' || hash === '#' || hash === '#/';
+    filter.style.display = window.currentUser && isDiaryPage ? 'flex' : 'none';
+}
+
 // دالة routing الرئيسية
 function handleRouting() {
     let hash = window.location.hash;
+    updateFeedFilterVisibility();
 
     // إغلاق نافذة البروفايل المحسّنة قبل أي توجيه آخر لمنع تعارض الطبقات (z-index)
     // هذا يحل مشكلة عدم عمل اللايك/التعليق/أزرار النافبار عند فتح صفحة أخرى من داخل البروفايل
@@ -3413,6 +3423,7 @@ window.rU = function() {
     window.alertedNotifs = new Set(); 
     localStorage.removeItem('savedUser'); 
     window.currentUser = null; 
+    updateFeedFilterVisibility();
     
     let b = $('loginBtn'); 
     if(b){ 
