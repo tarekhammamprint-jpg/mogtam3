@@ -53,11 +53,6 @@ window.generateHandles = (n) => {
 };
 
 window.showRegisterModal = () => { 
-    // احفظ الصفحة الحالية للرجوع إليها بعد تسجيل الدخول
-    let currentHash = window.location.hash;
-    if (currentHash && currentHash !== '#/login' && currentHash !== '#/' && currentHash !== '') {
-        window._returnAfterLogin = currentHash;
-    }
     let s = document.getElementById('hideLoginStyle'); 
     if(s) s.remove();
     let lw = document.getElementById('loginModal');
@@ -76,7 +71,6 @@ window.showRegisterModal = () => {
 };
 
 window.closeRegisterModal = () => { 
-    window._returnAfterLogin = null; // إلغاء الرجوع التلقائي لو أغلق بدون تسجيل
     let lw = $('loginModal'); 
     if(lw) { 
         lw.style.opacity = '0'; 
@@ -118,15 +112,7 @@ window.topLogin = () => {
         }
         if(s.exists()){ 
             if(s.val().password === p) { 
-                window.closeRegisterModal();
-                window.fL(u, s.val());
-                // رجوع للصفحة التي كان عليها الزائر قبل نافذة الدخول
-                if (window._returnAfterLogin) {
-                    setTimeout(() => {
-                        window.location.hash = window._returnAfterLogin;
-                        window._returnAfterLogin = null;
-                    }, 400);
-                } 
+                window.fL(u, s.val()); 
             } else { 
                 window.dlgAlert("كلمة المرور غير صحيحة.", "danger", "خطأ في الدخول"); 
             }
@@ -170,14 +156,7 @@ window.login = () => {
             clearTimeout(timeoutId); 
             if(s.exists()){ 
                 if(s.val().password === p) {
-                    window.closeRegisterModal();
-                    window.fL(u, s.val());
-                    if (window._returnAfterLogin) {
-                        setTimeout(() => {
-                            window.location.hash = window._returnAfterLogin;
-                            window._returnAfterLogin = null;
-                        }, 400);
-                    }
+                    window.fL(u, s.val()); 
                 } else { 
                     window.dlgAlert("كلمة المرور غير صحيحة.", "danger", "خطأ في الدخول"); 
                     b.innerText = ot; 
@@ -221,11 +200,6 @@ window.registerUser = () => {
     
     if(!d || !dbv || !p || !sh) return window.dlgAlert("الرجاء إكمال جميع البيانات المطلوبة.", "warning", "بيانات ناقصة"); 
     if(p.length < 6) return window.dlgAlert("كلمة المرور يجب أن تكون 6 أحرف على الأقل.", "warning", "كلمة مرور ضعيفة");
-
-    let regAge = window.calcAge ? window.calcAge(dbv) : null;
-    if(regAge == null || isNaN(regAge)) return window.dlgAlert("تاريخ الميلاد غير صحيح.", "warning", "تاريخ ميلاد غير صالح");
-    if(regAge < 13) return window.dlgAlert("يجب أن يكون عمرك 13 سنة على الأقل لإنشاء حساب.", "warning", "العمر غير كافٍ");
-    if(regAge > 100) return window.dlgAlert("تاريخ الميلاد المُدخل غير منطقي، يرجى التأكد منه.", "warning", "تاريخ ميلاد غير صالح");
     
     let btn = $('regBtn'), ot = btn.innerText; 
     btn.innerText = "جاري..."; 
@@ -435,8 +409,12 @@ window.fL = function(u, d) {
         console.error("Error setting online status:", e);
     }
     
-    // عرض خطوات الإعداد المطلوبة (الاهتمامات ثم تحديد الموقع الجغرافي) إذا لزم الأمر
-    if(window.runOnboardingChecks) window.runOnboardingChecks(d);
+    // عرض نافذة الاهتمامات إذا لزم الأمر
+    if(!d.interests || d.interests.length === 0) { 
+        setTimeout(() => {
+            if(window.renderInterestsModal) window.renderInterestsModal();
+        }, 1000); 
+    }
     
     // بدء المستمعين - نستخدم setTimeout للتأكد من تحميل كل شيء
     setTimeout(() => {
