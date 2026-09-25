@@ -627,6 +627,10 @@ window.addEventListener('popstate', () => {
     else if (hash === '#/communities' && !document.getElementById('communitiesModal')?.classList.contains('show')) {
         handleRouting();
     }
+    else {
+        // المسارات المستقلة مثل الرسائل وطلبات الصداقة تحتاج إعادة التوجيه بعد رجوع الهاتف.
+        handleRouting();
+    }
 });
 
 window.openProfile = (u) => { window.location.hash = '#/@' + u; }; 
@@ -981,13 +985,14 @@ window.openMessagesPage = () => {
     if (!window.currentUser) return window.showRegisterModal();
     if (window.location.hash !== '#/messages') {
         window.messagesReturnHash = window.location.hash || '#/';
-        window.location.hash = '#/messages';
+        history.pushState({ ...(history.state || {}), __messagesRoute: true, returnHash: window.messagesReturnHash }, '', '#/messages');
+        handleRouting();
     }
 };
 window.closeMessagesPage = () => {
-    if (window.location.hash === '#/messages') {
-        window.location.hash = window.messagesReturnHash || '#/';
-    }
+    if (window.location.hash !== '#/messages') return;
+    if (history.state && history.state.__messagesRoute) history.back();
+    else window.location.hash = window.messagesReturnHash || '#/';
 }; window.switchProfileTab = (t) => { ['posts','reels','photos','friends','about'].forEach(x => { let e = $('tab-'+x), b = $('btnTab'+x.charAt(0).toUpperCase()+x.slice(1)); if(e) e.style.display = 'none'; if(b) b.classList.remove('active'); }); $('tab-'+t).style.display = 'block'; $('btnTab'+t.charAt(0).toUpperCase()+t.slice(1)).classList.add('active'); };
 window.handleGlobalSearch = (q) => { let r = $('searchResults'); if(!q.trim()){ r.style.display='none'; return; } let h=''; for(let u in window.allUsersData) { let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())) { h += `<a href="#/@${u}" class="search-result-item" onclick="$('searchResults').style.display='none'; $('globalSearch').value='';" style="text-decoration:none; color:inherit;"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"> <div style="display:flex;flex-direction:column;line-height:1.2;"><span>${d}</span><span style="font-size:11px;color:#64748b;">@${u}</span></div></a>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#666;">لا توجد نتائج</div>'; r.style.display='block'; }; window.searchChatUsers = (q) => { let r=$('chatSearchBox'), f=$('friendsList'), rh=$('msgRequestsHeader'), rl=$('msgRequestsList'); if(!q.trim()){ r.style.display='none'; f.style.display='block'; if(rl&&rl.innerHTML!==''){ rh.style.display='block'; rl.style.display='block'; } return; } f.style.display='none'; rh.style.display='none'; rl.style.display='none'; let h=''; for(let u in window.allUsersData){ if(u===window.currentUser) continue; let d = window.getDisplayName(u); if(d.toLowerCase().includes(q.toLowerCase()) || u.toLowerCase().includes(q.toLowerCase())){ h += `<div class="user-row" onclick="window.openChat('${u}')"><div class="user-info"><img src="${window.allUsersData[u].profilePic||dA}" class="avatar-small"><span>${d}</span></div><button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:4px;"><i class="fas fa-comment-dots"></i></button></div>`; } } r.innerHTML = h || '<div style="padding:10px;text-align:center;color:#64748b;font-size:14px;">لا توجد نتائج</div>'; r.style.display='block'; };
 
@@ -3764,11 +3769,15 @@ if(window.currentUser){
 
     // زر الرجوع (فعلي من المتصفح/الهاتف) بيقفل آخر طبقة مفتوحة بس ولا يخرج من الصفحة نهائياً
     window.addEventListener('popstate', () => {
-        if (!window._backStack.length) return;
+        if (!window._backStack.length) {
+            if (typeof handleRouting === 'function') handleRouting();
+            return;
+        }
         let topId = window._backStack[window._backStack.length - 1];
         let cfg = BACK_TARGETS[topId];
         popLayer(topId);
         if (cfg) cfg.close();
+        if (typeof handleRouting === 'function') handleRouting();
     });
 })();
 
