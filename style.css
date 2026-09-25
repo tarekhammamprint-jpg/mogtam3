@@ -310,7 +310,12 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
   .messages-page-modal .messages-page-inner{min-height:100%;}
   .messages-page-list-col{width:100%;max-width:none;}
   .messages-page-thread-col{min-height:420px;}
+  .messages-page-modal.mobile-thread-open .messages-page-list-col{display:none;}
+  .messages-page-modal.mobile-thread-open .messages-page-thread-col{display:flex;min-height:100%;}
+  .mp-mobile-back{display:flex !important;align-items:center;justify-content:center;background:var(--border-soft);border:0;color:var(--text-main);width:34px;height:34px;border-radius:50%;cursor:pointer;margin-left:10px;}
 }
+
+.mp-mobile-back{display:none;}
 
 .floating-chat{position:fixed;bottom:90px;left:25px;width:65px;height:65px;background:var(--primary);border-radius:var(--radius-pill);box-shadow:0 8px 20px rgba(37,99,235,.3);display:none;align-items:center;justify-content:center;cursor:pointer;z-index:3600;transition:all .3s cubic-bezier(.175,.885,.32,1.275)}
 .floating-chat:hover{transform:scale(1.08) translateY(-5px);box-shadow:0 12px 25px rgba(37,99,235,.4)}

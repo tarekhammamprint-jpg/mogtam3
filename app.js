@@ -2847,8 +2847,10 @@ window.openMessagesLogic = () => {
     if (!window.currentUser) { window.location.hash = ''; return; }
     const sidebar = $('sidebarArea');
     if (sidebar) sidebar.classList.remove('mobile-show');
+    const messagesModal = $('messagesPageModal');
+    if (messagesModal) messagesModal.classList.remove('mobile-thread-open');
     document.querySelectorAll('.modal').forEach(m => { if (m.id !== 'messagesPageModal') m.classList.remove('show'); });
-    let mpm = $('messagesPageModal');
+    let mpm = messagesModal;
     mpm.classList.add('show');
     document.body.style.overflow = 'hidden';
     window.renderMessagesPageList();
@@ -2889,6 +2891,8 @@ window.searchMessagesPageList = (q) => window.renderMessagesPageList(q);
 window.openMessagesPageChat = (t) => {
     if (!window.currentUser) return window.showRegisterModal();
     window.mpCurrentTarget = t;
+    const messagesModal = $('messagesPageModal');
+    if (messagesModal && window.innerWidth <= 900) messagesModal.classList.add('mobile-thread-open');
     $('messagesPageEmpty').style.display = 'none';
     $('messagesPageThread').style.display = 'flex';
     $('mpThreadName').innerText = window.getDisplayName(t);
@@ -2922,6 +2926,24 @@ window.openMessagesPageChat = (t) => {
 
     if (window.mpTypingUnsubscribe) window.mpTypingUnsubscribe();
     window.mpTypingUnsubscribe = onValue(ref(db, `chats_typing/${rid}/${t}`), s => { $('mpThreadStatus').style.display = s.val() ? 'inline-block' : 'none'; });
+};
+
+window.closeMessagesPageChat = () => {
+    const messagesModal = $('messagesPageModal');
+    if (messagesModal) messagesModal.classList.remove('mobile-thread-open');
+    window.mpCurrentTarget = null;
+    const empty = $('messagesPageEmpty');
+    const thread = $('messagesPageThread');
+    if (empty) empty.style.display = 'flex';
+    if (thread) thread.style.display = 'none';
+    if (window.mpChatUnsubscribe) {
+        window.mpChatUnsubscribe();
+        window.mpChatUnsubscribe = null;
+    }
+    if (window.mpTypingUnsubscribe) {
+        window.mpTypingUnsubscribe();
+        window.mpTypingUnsubscribe = null;
+    }
 };
 
 window.handleMessagesPageInput = () => {
