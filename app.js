@@ -416,6 +416,8 @@ function handleRouting() {
         if (pme) {
             pme.classList.remove('show');
             pme.remove();
+            window.currentProfileUser = null;
+            window.currentProfileData = null;
             if (!hash.startsWith('#/post/')) document.body.style.overflow = 'auto';
         }
     }
@@ -581,6 +583,8 @@ window.closeModal = (id) => {
     else if (id === 'profileModalEnhanced') {
         modal.classList.remove('show');
         document.body.style.overflow = 'auto';
+        window.currentProfileUser = null;
+        window.currentProfileData = null;
         setTimeout(() => modal.remove(), 300);
         if (window.history.length > 2 && window.location.hash !== '') {
             window.history.back();
@@ -2873,7 +2877,8 @@ function listenToFriendRequests() { onValue(ref(db, `friendRequests/${window.cur
 function listenToFollowData() {
     onValue(ref(db, `following/${window.currentUser}`), s => {
         window.currentFollowing = s.exists() ? s.val() : {};
-        if (window.currentProfileUser && window.allUsersData[window.currentProfileUser]) window.renderProfileData(window.currentProfileUser, window.allUsersData[window.currentProfileUser]);
+        const openProfile = document.getElementById('profileModalEnhanced');
+        if (openProfile && openProfile.classList.contains('show') && window.currentProfileUser && window.allUsersData[window.currentProfileUser]) window.renderProfileData(window.currentProfileUser, window.allUsersData[window.currentProfileUser]);
     });
     onValue(ref(db, `followers/${window.currentUser}`), s => { window.currentFollowers = s.exists() ? s.val() : {}; });
     onValue(ref(db, `followRequests/${window.currentUser}`), s => {
@@ -2882,7 +2887,8 @@ function listenToFollowData() {
     });
     onValue(ref(db, `outgoingFollowRequests/${window.currentUser}`), s => {
         window.sentFollowRequests = s.exists() ? s.val() : {};
-        if (window.currentProfileUser && window.allUsersData[window.currentProfileUser]) window.renderProfileData(window.currentProfileUser, window.allUsersData[window.currentProfileUser]);
+        const openProfile = document.getElementById('profileModalEnhanced');
+        if (openProfile && openProfile.classList.contains('show') && window.currentProfileUser && window.allUsersData[window.currentProfileUser]) window.renderProfileData(window.currentProfileUser, window.allUsersData[window.currentProfileUser]);
     });
 }
 
