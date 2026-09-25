@@ -434,6 +434,7 @@ function handleRouting() {
             if (window.mpChatUnsubscribe) { window.mpChatUnsubscribe(); window.mpChatUnsubscribe = null; }
             if (window.mpTypingUnsubscribe) { window.mpTypingUnsubscribe(); window.mpTypingUnsubscribe = null; }
         }
+        document.body.classList.remove('messages-route-open');
     } else {
         const sidebar = $('sidebarArea');
         if (sidebar) sidebar.classList.remove('mobile-show');
@@ -2849,6 +2850,7 @@ window.openMessagesLogic = () => {
     if (sidebar) sidebar.classList.remove('mobile-show');
     const messagesModal = $('messagesPageModal');
     if (messagesModal) messagesModal.classList.remove('mobile-thread-open');
+    document.body.classList.add('messages-route-open');
     document.querySelectorAll('.modal').forEach(m => { if (m.id !== 'messagesPageModal') m.classList.remove('show'); });
     let mpm = messagesModal;
     mpm.classList.add('show');
