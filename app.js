@@ -2164,6 +2164,7 @@ window.renderProfileData = (u, d) => {
     const isOwnProfile = (u === window.currentUser);
     const isFriend = window.currentUser ? window.myFriends.includes(u) : false;
     const isFollowing = window.currentUser ? !!(window.currentFollowing[u] || isFriend) : false;
+    const isFollowedByTarget = window.currentUser ? !!(window.currentFollowers[u]) : false;
     const hasRequest = window.currentRequests && window.currentRequests[u];
     const sentRequest = window.sentFollowRequests && window.sentFollowRequests[u];
     
@@ -2205,12 +2206,12 @@ window.renderProfileData = (u, d) => {
                             </div>
                             <div class="stat-item-enhanced">
                                 <span class="stat-number-enhanced" id="profStatFriendsEnhanced">0</span>
-                                <span class="stat-label-enhanced">أصدقاء</span>
+                                <span class="stat-label-enhanced">متابعون</span>
                             </div>
                         </div>
                         
                         <div class="profile-actions-enhanced" id="profActionsEnhanced">
-                            ${window.generateProfileActions(u, isOwnProfile, isFollowing, hasRequest, sentRequest)}
+                            ${window.generateProfileActions(u, isOwnProfile, isFollowing, isFollowedByTarget, sentRequest)}
                         </div>
                         
                         ${d.interests && d.interests.length > 0 ? `
@@ -2276,8 +2277,11 @@ window.renderProfileData = (u, d) => {
                         <button class="tab-btn-enhanced" data-tab="media">
                             <i class="fas fa-images"></i> الميديا
                         </button>
-                        <button class="tab-btn-enhanced" data-tab="friends">
+                        <button class="tab-btn-enhanced" data-tab="followers">
                             <i class="fas fa-users"></i> المتابعون
+                        </button>
+                        <button class="tab-btn-enhanced" data-tab="following">
+                            <i class="fas fa-user-plus"></i> أتابع
                         </button>
                         <button class="tab-btn-enhanced" data-tab="about">
                             <i class="fas fa-info-circle"></i> حول
@@ -2320,7 +2324,7 @@ window.renderProfileData = (u, d) => {
     window.updateProfileStats(u);
 };
 
-window.generateProfileActions = (u, isOwnProfile, isFollowing, hasRequest, sentRequest) => {
+window.generateProfileActions = (u, isOwnProfile, isFollowing, isFollowedByTarget, sentRequest) => {
     if (!window.currentUser) {
         return `<button class="btn-primary" onclick="window.showRegisterModal()"><i class="fas fa-sign-in-alt"></i> تسجيل الدخول للتفاعل</button>`;
     }
@@ -2341,23 +2345,15 @@ window.generateProfileActions = (u, isOwnProfile, isFollowing, hasRequest, sentR
         `;
     }
     
-    if (hasRequest) {
-        return `
-            <button class="btn-primary" style="background:#10b981;" onclick="window.acceptFollowRequest('${u}',this)"><i class="fas fa-check"></i> قبول المتابعة</button>
-            <button class="btn-secondary" onclick="window.rejectFollowRequest('${u}')"><i class="fas fa-times"></i> رفض</button>
-            <button class="btn-secondary" onclick="window.shareProfile('${u}')"><i class="fas fa-share-alt"></i> مشاركة</button>
-        `;
-    }
-    
     if (sentRequest) {
         return `
-            <button class="btn-secondary" onclick="window.cancelFollowRequest('${u}')"><i class="fas fa-user-times"></i> إلغاء الطلب</button>
+            <button class="btn-secondary" onclick="window.cancelFollowRequest('${u}')"><i class="fas fa-clock"></i> تم إرسال الطلب</button>
             <button class="btn-secondary" onclick="window.shareProfile('${u}')"><i class="fas fa-share-alt"></i> مشاركة</button>
         `;
     }
     
     return `
-        <button class="btn-primary" onclick="window.followUser('${u}',this)"><i class="fas fa-user-plus"></i> متابعة</button>
+        <button class="btn-primary" onclick="window.followUser('${u}',this)"><i class="fas fa-user-plus"></i> ${isFollowedByTarget ? 'متابعة بالمثل' : 'متابعة'}</button>
         <button class="btn-secondary" onclick="window.shareProfile('${u}')"><i class="fas fa-share-alt"></i> مشاركة</button>
     `;
 };
@@ -2378,8 +2374,11 @@ window.loadProfileTabContent = async (tab, userId) => {
         case 'media':
             await window.renderProfileMediaEnhanced(userId, container);
             break;
-        case 'friends':
-            await window.renderProfileFriendsEnhanced(userId, container);
+        case 'followers':
+            await window.renderProfileRelationsEnhanced(userId, container, 'followers');
+            break;
+        case 'following':
+            await window.renderProfileRelationsEnhanced(userId, container, 'following');
             break;
         case 'about':
             window.renderProfileAboutEnhanced(userData, container);
@@ -2596,61 +2595,30 @@ window.renderProfileMediaEnhanced = async (userId, container) => {
     container.innerHTML = html;
 };
 
-window.renderProfileFriendsEnhanced = async (userId, container) => {
-    container.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل المتابعين...</p></div>';
-    
-    const followersSnapshot = await get(ref(db, `followers/${userId}`));
-    const friendsSnapshot = followersSnapshot.exists() ? null : await get(ref(db, `friends/${userId}`));
-    const snapshot = followersSnapshot.exists() ? followersSnapshot : friendsSnapshot;
-    const friends = [];
-    
-    if (snapshot.exists()) {
-        const friendIds = Object.keys(snapshot.val());
-        // جلب بيانات الأصدقاء الغير موجودة في allUsersData
-        const missingIds = friendIds.filter(id => !window.allUsersData[id]);
-        if (missingIds.length > 0) {
-            await Promise.all(missingIds.map(async id => {
-                try {
-                    const s = await get(ref(db, `users/${id}`));
-                    if (s.exists()) window.allUsersData[id] = s.val();
-                } catch(e) {}
-            }));
-        }
-        friendIds.forEach(friendId => {
-            const data = window.allUsersData[friendId] || {};
-            friends.push({ id: friendId, data });
-        });
-    }
-    
-    if (friends.length === 0) {
-        container.innerHTML = `
-            <div style="text-align:center; padding:60px 20px; background:var(--card-bg); border-radius:var(--radius-md); border:1px solid var(--border-color);">
-                <i class="fas fa-users" style="font-size:48px; color:var(--text-muted); margin-bottom:15px; display:block;"></i>
-                <p style="color:var(--text-muted);">لا يوجد متابعون بعد</p>
-                ${userId === window.currentUser ? '<button class="btn-primary" onclick="window.openRequestsModal()"><i class="fas fa-user-plus"></i> ابحث عن أشخاص لمتابعتهم</button>' : ''}
-            </div>
-        `;
+window.renderProfileRelationsEnhanced = async (userId, container, mode) => {
+    const label = mode === 'followers' ? 'المتابعين' : 'الحسابات التي يتابعها';
+    container.innerHTML = `<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل ${label}...</p></div>`;
+    let snapshot = await get(ref(db, `${mode}/${userId}`));
+    // توافق مع الحسابات القديمة: الصديق القديم يُعتبر متابعة متبادلة.
+    if (!snapshot.exists()) snapshot = await get(ref(db, `friends/${userId}`));
+    const ids = snapshot.exists() ? Object.keys(snapshot.val()) : [];
+    if (!ids.length) {
+        container.innerHTML = `<div style="text-align:center;padding:60px 20px;background:var(--card-bg);border-radius:var(--radius-md);border:1px solid var(--border-color);"><i class="fas fa-users" style="font-size:48px;color:var(--text-muted);margin-bottom:15px;display:block;"></i><p style="color:var(--text-muted);">لا يوجد ${label} بعد</p>${userId === window.currentUser && mode === 'following' ? '<button class="btn-primary" onclick="window.openRequestsModal()"><i class="fas fa-user-plus"></i> ابحث عن أشخاص لمتابعتهم</button>' : ''}</div>`;
         return;
     }
-    
+    const missing = ids.filter(id => !window.allUsersData[id]);
+    await Promise.all(missing.map(async id => { try { const u = await get(ref(db, `users/${id}`)); if (u.exists()) window.allUsersData[id] = u.val(); } catch(e) {} }));
     let html = '<div class="friends-grid-enhanced">';
-    friends.forEach(friend => {
-        const mutualCount = window.calculateMutualFriends(userId, friend.id);
-        const name = (friend.data && friend.data.displayName) ? friend.data.displayName : friend.id;
-        const pic = (friend.data && friend.data.profilePic) ? friend.data.profilePic : dA;
-        html += `
-            <div class="friend-card-enhanced" onclick="window.openProfile('${friend.id}')">
-                <img src="${pic}" loading="lazy">
-                <div class="friend-name-enhanced">${name}</div>
-                <div class="friend-handle-enhanced">@${friend.id}</div>
-                ${mutualCount > 0 ? `<div class="friend-mutual-enhanced"><i class="fas fa-user-friends"></i> ${mutualCount} مشترك</div>` : ''}
-            </div>
-        `;
+    ids.forEach(id => {
+        const d = window.allUsersData[id] || {};
+        const name = d.displayName || id;
+        const pic = d.profilePic || dA;
+        html += `<div class="friend-card-enhanced" onclick="window.openProfile('${id}')"><img src="${pic}" loading="lazy"><div class="friend-name-enhanced">${name}</div><div class="friend-handle-enhanced">@${id}</div></div>`;
     });
-    html += '</div>';
-    container.innerHTML = html;
+    container.innerHTML = html + '</div>';
 };
-
+// الاسم القديم يبقى كواجهة توافقية لأي كود قديم.
+window.renderProfileFriendsEnhanced = (userId, container) => window.renderProfileRelationsEnhanced(userId, container, 'followers');
 window.calculateMutualFriends = (userId, otherId) => {
     if (!window.currentUser) return 0;
     const userFriends = window.allFriendsData[userId] ? Object.keys(window.allFriendsData[userId]) : [];
@@ -2716,7 +2684,8 @@ window.updateProfileStats = async (userId) => {
         });
     }
     
-    const friendsCount = window.allFriendsData[userId] ? Object.keys(window.allFriendsData[userId]).length : 0;
+    const followersSnap = await get(ref(db, `followers/${userId}`));
+    const friendsCount = followersSnap.exists() ? Object.keys(followersSnap.val()).length : (window.allFriendsData[userId] ? Object.keys(window.allFriendsData[userId]).length : 0);
     
     const postsEl = document.getElementById('profStatPostsEnhanced');
     const mediaEl = document.getElementById('profStatPhotosEnhanced');
@@ -2847,7 +2816,7 @@ window.followUser = (target, button) => {
 };
 window.unfollowUser = (target) => {
     if (!window.currentUser) return;
-    const updates = { [`following/${window.currentUser}/${target}`]: null, [`followers/${target}/${window.currentUser}`]: null };
+    const updates = { [`following/${window.currentUser}/${target}`]: null, [`followers/${target}/${window.currentUser}`]: null, [`friends/${window.currentUser}/${target}`]: null, [`friends/${target}/${window.currentUser}`]: null };
     update(ref(db), updates).then(() => window.openProfile(target));
 };
 window.cancelFollowRequest = (target) => {
