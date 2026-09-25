@@ -218,7 +218,7 @@ window.CLOUDINARY_CLOUD_NAME = "diwaqfsap"; window.CLOUDINARY_UPLOAD_PRESET = "m
 window.currentUser = localStorage.getItem('savedUser') || null;
 window.currentChatTarget = null; window.allUsersData = {}; window.allFriendsData = {};
 window.myFriends = []; window.allPosts = []; window.postCache = {}; window.renderedPostIds = new Set(); window.activeAds = [];
-window.isInitialLoad = true; window.currentRequests = {}; window.sentRequests = {}; window.feedLim = 5; 
+window.isInitialLoad = true; window.currentRequests = {}; window.sentRequests = {}; window.currentFollowing = {}; window.currentFollowers = {}; window.sentFollowRequests = {}; window.feedLim = 5; 
 window.usersListenerActive = false; window.privateListenersStarted = false;
 window.allCommunities = {}; window.currentCommunityId = null; window.currentCommunitySearchQuery = "";
 window.activeMentionInput = null; window.previousUnreadChats = {}; window.isChatBoxVisible = false;
@@ -629,7 +629,7 @@ window.addEventListener('popstate', () => {
         handleRouting();
     }
     else {
-        // المسارات المستقلة مثل الرسائل وطلبات الصداقة تحتاج إعادة التوجيه بعد رجوع الهاتف.
+        // المسارات المستقلة مثل الرسائل وطلبات المتابعة تحتاج إعادة التوجيه بعد رجوع الهاتف.
         handleRouting();
     }
 });
@@ -797,7 +797,7 @@ function listenToNotifications() { onValue(ref(db, `users/${window.currentUser}/
 window.handleNotifClick = (id, t, f, p) => { update(ref(db, `users/${window.currentUser}/notifications/${id}`), {read:true}); $('notifDropdown').style.display='none'; if(t==='friend_req') window.openRequestsModal(); else if(t==='accept_req' || t==='system') window.openProfile(f); else if(['comment','like','share','reply','mention','comment_like'].includes(t) && p && p!=='undefined') window.openPostModal(p); };
 window.markNotifsAsRead = () => { get(ref(db, `users/${window.currentUser}/notifications`)).then(s => { if(s.exists()) { let updates = {}; s.forEach(c => { if(c.val().read === false) updates[`${c.key}/read`] = true; }); if(Object.keys(updates).length > 0) update(ref(db, `users/${window.currentUser}/notifications`), updates); } }); };
 
-function renderSidebarTop() { let h=''; let reqArr = Object.entries(window.currentRequests||{}).map(([k,v]) => ({id:k, time: v===true ? 0 : v})).sort((a,b) => b.time - a.time); let rc = reqArr.length; if(rc > 0) { h += `<div class="sidebar-title" style="color:var(--primary);"><em class="fas fa-user-friends"></em> طلبات الصداقة (${rc})</div>`; let maxReq = Math.min(rc, 3); for(let i=0; i<maxReq; i++) { let s = reqArr[i].id, p = window.allUsersData[s]?.profilePic || dA, d = window.getDisplayName(s); h += `<div class="user-row"><a href="#/@${s}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${p}" class="avatar-small"><span>${d}</span></a><div style="display:flex;gap:5px;"><button class="btn-primary" style="background:#10b981;padding:4px 10px;border-radius:6px;" onclick="window.acceptRequest('${s}')"><i class="fas fa-check"></i></button><button class="btn-secondary" style="padding:4px 10px;border-radius:6px;" onclick="window.rejectRequest('${s}')"><i class="fas fa-times"></i></button></div></div>`; } } else { let sg = window.getSuggestions ? window.getSuggestions().filter(x => !window.sentRequests[x.name]) : [], t3 = sg.slice(0,3); if(t3.length > 0) { h += `<div class="sidebar-title" style="color:var(--secondary);"><em class="fas fa-user-plus"></em> مقترحون</div>`; t3.forEach(s => { let p = s.data.profilePic || dA, d = window.getDisplayName(s.name); h += `<div class="user-row"><a href="#/@${s.name}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${p}" class="avatar-small"><span>${d}</span></a><button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:6px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${s.name}',this)"><i class="fas fa-user-plus"></i></button></div>`; }); } } let c = $('sidebarTopSection'); if(c) c.innerHTML = h; }; window.renderSidebarTop = renderSidebarTop;
+function renderSidebarTop() { let h=''; let reqArr = Object.entries(window.currentRequests||{}).map(([k,v]) => ({id:k, time: v===true ? 0 : v})).sort((a,b) => b.time - a.time); let rc = reqArr.length; if(rc > 0) { h += `<div class="sidebar-title" style="color:var(--primary);"><em class="fas fa-user-friends"></em> طلبات المتابعة (${rc})</div>`; let maxReq = Math.min(rc, 3); for(let i=0; i<maxReq; i++) { let s = reqArr[i].id, p = window.allUsersData[s]?.profilePic || dA, d = window.getDisplayName(s); h += `<div class="user-row"><a href="#/@${s}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${p}" class="avatar-small"><span>${d}</span></a><div style="display:flex;gap:5px;"><button class="btn-primary" style="background:#10b981;padding:4px 10px;border-radius:6px;" onclick="window.acceptFollowRequest('${s}',this)"><i class="fas fa-check"></i></button><button class="btn-secondary" style="padding:4px 10px;border-radius:6px;" onclick="window.rejectFollowRequest('${s}')"><i class="fas fa-times"></i></button></div></div>`; } } else { let sg = window.getSuggestions ? window.getSuggestions().filter(x => !window.sentFollowRequests[x.name]) : [], t3 = sg.slice(0,3); if(t3.length > 0) { h += `<div class="sidebar-title" style="color:var(--secondary);"><em class="fas fa-user-plus"></em> مقترحون</div>`; t3.forEach(s => { let p = s.data.profilePic || dA, d = window.getDisplayName(s.name); h += `<div class="user-row"><a href="#/@${s.name}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${p}" class="avatar-small"><span>${d}</span></a><button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:6px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${s.name}',this)"><i class="fas fa-user-plus"></i></button></div>`; }); } } let c = $('sidebarTopSection'); if(c) c.innerHTML = h; }; window.renderSidebarTop = renderSidebarTop;
 const eRE = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); window.formatMentions = (t) => { if(!t) return ''; let s = t.replace(/</g, "&lt;").replace(/>/g, "&gt;"); if(window.myFriends) { window.myFriends.forEach(f => { s = s.replace(new RegExp('@'+eRE(f)+'(?=\\s|$)', 'g'), `<a href="#/@${f}" style="color:var(--primary);cursor:pointer;background:#eef2ff;padding:2px 5px;border-radius:4px;text-decoration:none;" onclick="event.stopPropagation();">@${f}</a>`); }); } return s; };
 window.handleMentionInput = (e) => { window.activeMentionInput = e; let v = e.value, c = e.selectionStart, tb = v.substring(0,c), la = tb.lastIndexOf('@'), mb = $('globalMentionBox'); if(la !== -1 && (la === 0 || tb[la-1] === ' ')) { let q = tb.substring(la+1), m = window.myFriends.filter(f => f.toLowerCase().includes(q.toLowerCase()) || window.getDisplayName(f).toLowerCase().includes(q.toLowerCase())); if(m.length > 0) { let h = ''; m.forEach(x => { h += `<div class="mention-item" onclick="window.insertMention('${x}')"><img src="${window.allUsersData[x]?.profilePic||dA}"> <span>${window.getDisplayName(x)} (@${x})</span></div>`; }); mb.innerHTML = h; mb.style.display = 'block'; let r = e.getBoundingClientRect(); mb.style.left = r.left + 'px'; mb.style.top = (r.top - mb.offsetHeight - 5) + 'px'; if(r.top < mb.offsetHeight) mb.style.top = (r.bottom + 5) + 'px'; } else mb.style.display = 'none'; } else mb.style.display = 'none'; }; window.insertMention = (f) => { let e = window.activeMentionInput; if(!e) return; let v = e.value, c = e.selectionStart, tb = v.substring(0,c), la = tb.lastIndexOf('@'), ta = v.substring(c); if(la !== -1) { let n = v.substring(0,la) + '@' + f + ' '; e.value = n + ta; e.focus(); e.selectionStart = e.selectionEnd = n.length; } $('globalMentionBox').style.display = 'none'; };
 
@@ -2122,7 +2122,7 @@ window.confirmLocationStep = () => {
     });
 };
 
-window.openEditProfileLogic = () => { let d = window.allUsersData[window.currentUser] || {}; $('editModalPicPreview').src = d.profilePic || dA; $('editPicBase64').value = d.profilePic || ''; $('editBio').value = d.bio || ''; $('editJob').value = d.job || ''; $('editEducation').value = d.education || ''; $('editHobbies').value = d.hobbies || ''; $('editDobProfile').value = d.birthdate || ''; $('editGender').value = d.gender || ''; if ($('geoLocStatus')) $('geoLocStatus').innerText = ''; let loc = window.parseLocationValue(d.location); window.populateCountrySelect($('editCountrySelect'), loc.country); window.populateGovernorateSelect($('editGovernorateSelect'), loc.country, loc.gov); $('editLocation').value = d.location || ''; $('editProfileModal').classList.add('show'); document.body.style.overflow = 'hidden'; };
+window.openEditProfileLogic = () => { let d = window.allUsersData[window.currentUser] || {}; $('editModalPicPreview').src = d.profilePic || dA; $('editPicBase64').value = d.profilePic || ''; $('editBio').value = d.bio || ''; $('editAccountPrivacy').value = d.accountPrivacy || 'public'; $('editJob').value = d.job || ''; $('editEducation').value = d.education || ''; $('editHobbies').value = d.hobbies || ''; $('editDobProfile').value = d.birthdate || ''; $('editGender').value = d.gender || ''; if ($('geoLocStatus')) $('geoLocStatus').innerText = ''; let loc = window.parseLocationValue(d.location); window.populateCountrySelect($('editCountrySelect'), loc.country); window.populateGovernorateSelect($('editGovernorateSelect'), loc.country, loc.gov); $('editLocation').value = d.location || ''; $('editProfileModal').classList.add('show'); document.body.style.overflow = 'hidden'; };
 
 // =============== دوال البروفايل المطور (عامودين) ===============
 
@@ -2159,8 +2159,9 @@ window.renderProfileData = (u, d) => {
     
     const isOwnProfile = (u === window.currentUser);
     const isFriend = window.currentUser ? window.myFriends.includes(u) : false;
+    const isFollowing = window.currentUser ? !!(window.currentFollowing[u] || isFriend) : false;
     const hasRequest = window.currentRequests && window.currentRequests[u];
-    const sentRequest = window.sentRequests && window.sentRequests[u];
+    const sentRequest = window.sentFollowRequests && window.sentFollowRequests[u];
     
     modal.innerHTML = `
         <div class="modal-content" style="max-width: 1100px; padding: 20px;">
@@ -2205,7 +2206,7 @@ window.renderProfileData = (u, d) => {
                         </div>
                         
                         <div class="profile-actions-enhanced" id="profActionsEnhanced">
-                            ${window.generateProfileActions(u, isOwnProfile, isFriend, hasRequest, sentRequest)}
+                            ${window.generateProfileActions(u, isOwnProfile, isFollowing, hasRequest, sentRequest)}
                         </div>
                         
                         ${d.interests && d.interests.length > 0 ? `
@@ -2272,7 +2273,7 @@ window.renderProfileData = (u, d) => {
                             <i class="fas fa-images"></i> الميديا
                         </button>
                         <button class="tab-btn-enhanced" data-tab="friends">
-                            <i class="fas fa-users"></i> الأصدقاء
+                            <i class="fas fa-users"></i> المتابعون
                         </button>
                         <button class="tab-btn-enhanced" data-tab="about">
                             <i class="fas fa-info-circle"></i> حول
@@ -2315,7 +2316,7 @@ window.renderProfileData = (u, d) => {
     window.updateProfileStats(u);
 };
 
-window.generateProfileActions = (u, isOwnProfile, isFriend, hasRequest, sentRequest) => {
+window.generateProfileActions = (u, isOwnProfile, isFollowing, hasRequest, sentRequest) => {
     if (!window.currentUser) {
         return `<button class="btn-primary" onclick="window.showRegisterModal()"><i class="fas fa-sign-in-alt"></i> تسجيل الدخول للتفاعل</button>`;
     }
@@ -2328,30 +2329,31 @@ window.generateProfileActions = (u, isOwnProfile, isFriend, hasRequest, sentRequ
         `;
     }
     
-    if (isFriend) {
+    if (isFollowing) {
         return `
             <button class="btn-primary" onclick="window.openChat('${u}')"><i class="fas fa-comment-dots"></i> رسالة</button>
-            <button class="btn-secondary" onclick="window.unfriend('${u}')" style="background:#ef4444; color:#fff;"><i class="fas fa-user-minus"></i> إلغاء الصداقة</button>
+            <button class="btn-secondary" onclick="window.unfollowUser('${u}')" style="background:#ef4444; color:#fff;"><i class="fas fa-user-minus"></i> إلغاء المتابعة</button>
             <button class="btn-secondary" onclick="window.shareProfile('${u}')"><i class="fas fa-share-alt"></i> مشاركة</button>
         `;
     }
     
     if (hasRequest) {
         return `
-            <button class="btn-primary" style="background:#10b981;" onclick="window.acceptRequestFromProfile('${u}',this)"><i class="fas fa-check"></i> قبول طلب الصداقة</button>
+            <button class="btn-primary" style="background:#10b981;" onclick="window.acceptFollowRequest('${u}',this)"><i class="fas fa-check"></i> قبول المتابعة</button>
+            <button class="btn-secondary" onclick="window.rejectFollowRequest('${u}')"><i class="fas fa-times"></i> رفض</button>
             <button class="btn-secondary" onclick="window.shareProfile('${u}')"><i class="fas fa-share-alt"></i> مشاركة</button>
         `;
     }
     
     if (sentRequest) {
         return `
-            <button class="btn-secondary" onclick="window.cancelFriendRequest('${u}')"><i class="fas fa-user-times"></i> إلغاء الطلب</button>
+            <button class="btn-secondary" onclick="window.cancelFollowRequest('${u}')"><i class="fas fa-user-times"></i> إلغاء الطلب</button>
             <button class="btn-secondary" onclick="window.shareProfile('${u}')"><i class="fas fa-share-alt"></i> مشاركة</button>
         `;
     }
     
     return `
-        <button class="btn-primary" onclick="window.sendFriendRequestToFromFeed('${u}',this)"><i class="fas fa-user-plus"></i> إضافة صديق</button>
+        <button class="btn-primary" onclick="window.followUser('${u}',this)"><i class="fas fa-user-plus"></i> متابعة</button>
         <button class="btn-secondary" onclick="window.shareProfile('${u}')"><i class="fas fa-share-alt"></i> مشاركة</button>
     `;
 };
@@ -2591,10 +2593,11 @@ window.renderProfileMediaEnhanced = async (userId, container) => {
 };
 
 window.renderProfileFriendsEnhanced = async (userId, container) => {
-    container.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل الأصدقاء...</p></div>';
+    container.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل المتابعين...</p></div>';
     
-    const friendsRef = ref(db, `friends/${userId}`);
-    const snapshot = await get(friendsRef);
+    const followersSnapshot = await get(ref(db, `followers/${userId}`));
+    const friendsSnapshot = followersSnapshot.exists() ? null : await get(ref(db, `friends/${userId}`));
+    const snapshot = followersSnapshot.exists() ? followersSnapshot : friendsSnapshot;
     const friends = [];
     
     if (snapshot.exists()) {
@@ -2619,8 +2622,8 @@ window.renderProfileFriendsEnhanced = async (userId, container) => {
         container.innerHTML = `
             <div style="text-align:center; padding:60px 20px; background:var(--card-bg); border-radius:var(--radius-md); border:1px solid var(--border-color);">
                 <i class="fas fa-users" style="font-size:48px; color:var(--text-muted); margin-bottom:15px; display:block;"></i>
-                <p style="color:var(--text-muted);">لا يوجد أصدقاء بعد</p>
-                ${userId === window.currentUser ? '<button class="btn-primary" onclick="window.openRequestsModal()"><i class="fas fa-user-plus"></i> ابحث عن أصدقاء</button>' : ''}
+                <p style="color:var(--text-muted);">لا يوجد متابعون بعد</p>
+                ${userId === window.currentUser ? '<button class="btn-primary" onclick="window.openRequestsModal()"><i class="fas fa-user-plus"></i> ابحث عن أشخاص لمتابعتهم</button>' : ''}
             </div>
         `;
         return;
@@ -2813,7 +2816,7 @@ window.uploadReelFromProfile = async (event) => {
 // =============== نهاية دوال البروفايل المطور ===============
 
 function renderProfileData(u, d) { $('profPic').src = d.profilePic || dA; $('profName').innerText = window.getDisplayName(u); $('profHandle').innerText = '@' + u; $('profBio').innerText = d.bio || "لا نبذة."; $('profLocText').innerText = d.location || "غير محدد"; $('profileAboutArea').innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;border:1px solid var(--border-color);text-align:right;"><h4 style="margin-top:0;color:var(--primary);border-bottom:1px solid #e2e8f0;padding-bottom:10px;">معلومات</h4><div><strong>المدينة:</strong> <br>${d.location||'غير محدد'}</div><div><strong>تاريخ الميلاد:</strong> <br>${d.birthdate||'غير محدد'}</div><div><strong>المهنة:</strong> <br>${d.job||'غير محدد'}</div><div><strong>الدراسة:</strong> <br>${d.education||'غير محدد'}</div><div><strong>الهوايات:</strong> <br>${d.hobbies||'غير محدد'}</div></div>`; let intArea = $('profInterestsArea'); if(d.interests && d.interests.length > 0) { intArea.style.display = 'flex'; intArea.innerHTML = d.interests.map(i => `<span style="background:#eef2ff; color:var(--primary); padding:4px 10px; border-radius:12px; font-size:12px; font-weight:700;">${i}</span>`).join(''); } else { intArea.style.display = 'none'; } let ce = $('profCoverImg'); if(d.coverPic) { ce.src = d.coverPic; ce.style.display = 'block'; } else ce.style.display = 'none'; $('statPosts').innerText = window.allPosts.filter(p => p.author === u && !p.isReel).length; $('statPhotos').innerText = window.allPosts.filter(p => p.author === u && (p.image || p.video) && !p.isReel).length; $('statFriends').innerText = Object.keys(window.allFriendsData[u] || {}).length; let ac = $('profActions'); let ism = (u === window.currentUser), isf = window.currentUser ? window.myFriends.includes(u) : false, rr = window.currentRequests && window.currentRequests[u]; if(!window.currentUser) { $('coverEditBtn').style.display = 'none'; ac.innerHTML = `<button class="btn-primary" onclick="window.showRegisterModal()"><i class="fas fa-user-plus"></i> تسجيل الدخول للتفاعل</button>`; } else if(ism) { $('coverEditBtn').style.display = 'flex'; ac.innerHTML = `<button class="btn-primary" onclick="window.openEditProfileModal()"><i class="fas fa-edit"></i> تعديل</button><a href="ads.html" target="_blank" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;padding:8px 16px;border-radius:20px;border:1px solid #e2e8f0;font-weight:700;font-size:14px;font-family:Cairo,sans-serif;background:#fff;color:#0f172a;"><i class="fas fa-bullhorn" style="color:#f59e0b;"></i> إعلان ممول</a><button class="btn-secondary" onclick="window.location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); let c = $('postContent'); c.value = 'حساب رائع: @${u} ✨'; c.focus();"><i class="fas fa-share"></i> مشاركة</button>`; } else { $('coverEditBtn').style.display = 'none'; let sb = `<button class="btn-secondary" onclick="window.location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); let c = $('postContent'); c.value = 'حساب رائع: @${u} ✨'; c.focus();"><i class="fas fa-share"></i> مشاركة</button>`; if(isf) ac.innerHTML = `<button class="btn-secondary" style="background:#ef4444;color:#fff;" onclick="window.unfriend('${u}')"><i class="fas fa-user-minus"></i></button><button class="btn-primary" onclick="window.location.hash=''; setTimeout(()=>window.openChat('${u}'),300)"><i class="fas fa-comment-dots"></i> رسالة</button> ${sb}`; else if(rr) ac.innerHTML = `<button class="btn-primary" style="background:#10b981;" onclick="window.acceptRequestFromProfile('${u}',this)"><i class="fas fa-check"></i> قبول</button> ${sb}`; else if(window.sentRequests && window.sentRequests[u]) ac.innerHTML = `<button class="btn-secondary" onclick="window.cancelFriendRequest('${u}')"><i class="fas fa-user-times"></i> إلغاء</button> ${sb}`; else { ac.innerHTML = `<button class="btn-secondary" disabled>جاري...</button>`; get(ref(db, `friendRequests/${u}/${window.currentUser}`)).then(s => { if($('profHandle').innerText.replace('@', '') === u) { if(s.exists()) { window.sentRequests[u] = true; ac.innerHTML = `<button class="btn-secondary" onclick="window.cancelFriendRequest('${u}')"><i class="fas fa-user-times"></i> إلغاء</button> ${sb}`; } else ac.innerHTML = `<button class="btn-primary" data-action="add" data-target="${u}" onclick="window.sendFriendRequestToFromFeed('${u}',this)"><i class="fas fa-user-plus"></i> إضافة</button> ${sb}`; } }).catch(e => console.log(e)); } } $('profileModal').classList.add('show'); document.body.style.overflow = 'hidden'; try { renderProfilePosts(u) } catch(e) {} }
-window.previewCoverImage = async (e) => { let f = e.target.files[0]; if(!f) return; let bt = $('coverEditBtn'), ot = bt.innerHTML; bt.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; try { let url = await window.uploadToCloudinary(f, 'image'); $('profCoverImg').src = url; $('profCoverImg').style.display = 'block'; await update(ref(db, `users/${window.currentUser}`), {coverPic:url}); } catch(err) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); } bt.innerHTML = ot; }; window.saveProfile = async () => { let p = $('editPicBase64').value; if(p && p.startsWith('data:')) { let b = $('saveProfileBtn'), ot = b.innerHTML; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...'; b.disabled = true; try { p = await window.uploadToCloudinary(p, 'image'); } catch(e) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); b.innerHTML = ot; b.disabled = false; return; } b.innerHTML = ot; b.disabled = false; } let locVal = $('editLocation').value.trim(); let dobVal = $('editDobProfile').value; if(dobVal) { let ageChk = window.calcAge(dobVal); if(ageChk == null || isNaN(ageChk)) return window.dlgAlert("تاريخ الميلاد غير صحيح.", "warning", "تاريخ ميلاد غير صالح"); if(ageChk < 13) return window.dlgAlert("يجب أن يكون عمرك 13 سنة على الأقل.", "warning", "العمر غير كافٍ"); if(ageChk > 100) return window.dlgAlert("تاريخ الميلاد المُدخل غير منطقي، يرجى التأكد منه.", "warning", "تاريخ ميلاد غير صالح"); } let up = {bio:$('editBio').value.trim(), location:locVal, job:$('editJob').value.trim(), education:$('editEducation').value.trim(), hobbies:$('editHobbies').value.trim(), birthdate:dobVal, gender:$('editGender').value}; if(locVal) up.locationPrecise = true; if(p) up.profilePic = p; await update(ref(db, `users/${window.currentUser}`), up); if(p) { $('myNavAvatar').src = p; $('mobileNavAvatar').src = p; } window.location.hash = '#/@' + window.currentUser; };
+window.previewCoverImage = async (e) => { let f = e.target.files[0]; if(!f) return; let bt = $('coverEditBtn'), ot = bt.innerHTML; bt.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; try { let url = await window.uploadToCloudinary(f, 'image'); $('profCoverImg').src = url; $('profCoverImg').style.display = 'block'; await update(ref(db, `users/${window.currentUser}`), {coverPic:url}); } catch(err) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); } bt.innerHTML = ot; }; window.saveProfile = async () => { let p = $('editPicBase64').value; if(p && p.startsWith('data:')) { let b = $('saveProfileBtn'), ot = b.innerHTML; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...'; b.disabled = true; try { p = await window.uploadToCloudinary(p, 'image'); } catch(e) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); b.innerHTML = ot; b.disabled = false; return; } b.innerHTML = ot; b.disabled = false; } let locVal = $('editLocation').value.trim(); let dobVal = $('editDobProfile').value; if(dobVal) { let ageChk = window.calcAge(dobVal); if(ageChk == null || isNaN(ageChk)) return window.dlgAlert("تاريخ الميلاد غير صحيح.", "warning", "تاريخ ميلاد غير صالح"); if(ageChk < 13) return window.dlgAlert("يجب أن يكون عمرك 13 سنة على الأقل.", "warning", "العمر غير كافٍ"); if(ageChk > 100) return window.dlgAlert("تاريخ الميلاد المُدخل غير منطقي، يرجى التأكد منه.", "warning", "تاريخ ميلاد غير صالح"); } let up = {bio:$('editBio').value.trim(), location:locVal, job:$('editJob').value.trim(), education:$('editEducation').value.trim(), hobbies:$('editHobbies').value.trim(), birthdate:dobVal, gender:$('editGender').value, accountPrivacy:$('editAccountPrivacy').value}; if(locVal) up.locationPrecise = true; if(p) up.profilePic = p; await update(ref(db, `users/${window.currentUser}`), up); if(p) { $('myNavAvatar').src = p; $('mobileNavAvatar').src = p; } window.location.hash = '#/@' + window.currentUser; };
 function renderProfilePosts(u) { 
     let pp = window.allUsersData[u]?.profilePic || dA; 
     $('profilePostsFeed').innerHTML = '<div style="text-align:center;padding:20px;color:var(--primary);"><i class="fas fa-spinner fa-spin fa-2x"></i><br>جاري جلب المنشورات...</div>';
@@ -2821,7 +2824,38 @@ function renderProfilePosts(u) {
     let postsRef = isNewsBot ? ref(db, 'newsPosts') : ref(db, 'posts');
     get(postsRef).then(s => { let h = '', ph = ''; ph += `<a href="#/@${u}"><img src="${pp}" style="cursor:pointer;"></a>`; if(s.exists()) { let userPosts = []; s.forEach(c => { let p = c.val(); p.id = c.key; if(p.author === u) { userPosts.push(p); window.postCache[p.id] = p; } }); userPosts.sort((a,b) => b.timestamp - a.timestamp); userPosts.forEach(p => { if(!p.isReel) { let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10; h += createPostHTML(p, 'profile', it, false); if(p.image || p.images) { let imgs2 = (p.images&&p.images.length)?p.images:(p.image?[p.image]:[]); ph += `<div style="cursor:pointer;" onclick="window.openMediaViewerFor('${p.id}',0)"><img src="${imgs2[0]}" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:6px;"></div>`; } if(p.video&&!p.isReel) ph += `<div style="cursor:pointer;" onclick="window.openMediaViewerFor('${p.id}',0)"><video src="${p.video}" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:6px;" muted playsinline></video></div>`; } }); } $('profilePostsFeed').innerHTML = h || '<p style="text-align:center;color:#666;font-size:13px;">لا مقالات.</p>'; $('profilePhotosGrid').innerHTML = ph; document.querySelectorAll('#profilePostsFeed video').forEach(v => window.videoObserver.observe(v)); }).catch(e => { $('profilePostsFeed').innerHTML = '<p style="text-align:center;color:#ef4444;">حدث خطأ في جلب المنشورات.</p>'; }); let rh = ''; let userReels = window.allReels.filter(r => r.author === u); if(userReels.length > 0) { userReels.forEach(r => { let globalIdx = window.allReels.findIndex(x => x.id === r.id); let vc = r.views ? Object.keys(r.views).length : 0; rh += `<div class="reel-thumb" style="width:100%; height:180px;" onclick="window.openReelsViewer(${globalIdx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto" poster="${reelPoster}" style="pointer-events:none; background:#1e293b; object-fit:cover;"></video><span class="r-views"><i class="fas fa-play"></i> ${vc}</span></div>`; }); } $('profileReelsGrid').innerHTML = rh || '<p style="text-align:center;color:#666;grid-column:span 3;">لا يوجد ريلز لهذا الحساب.</p>'; get(ref(db, `friends/${u}`)).then(s => { let fh = ''; if(s.exists()) { Object.keys(s.val()).forEach(f => { let pic = window.allUsersData[f]?.profilePic || dA, dn = window.getDisplayName(f), mc = 0; if(f !== window.currentUser) { let tf = window.allFriendsData[f] ? Object.keys(window.allFriendsData[f]) : []; mc = tf.filter(x => window.myFriends.includes(x)).length; } let mt = f === window.currentUser ? '' : (mc > 0 ? `<span class="f-mutual"><i class="fas fa-user-friends"></i> ${mc} مشتركون</span>` : `<span class="f-mutual">لا مشتركون</span>`); fh += `<a href="#/@${f}" class="friend-card" style="color:inherit; text-decoration:none;"><img src="${pic}"><div style="display:flex;flex-direction:column;justify-content:center;"><span class="f-name">${dn}</span>${mt}</div></a>`; }); } $('profileFriendsList').innerHTML = fh || '<p style="text-align:center;color:#666;font-size:13px;grid-column:span 2;">لا أصدقاء.</p>'; }); }
 
-window.sendFriendRequestToFromFeed = (t, b) => { if(!window.currentUser) { window.showRegisterModal(); return; } if(t === window.currentUser) return; window.sentRequests[t] = true; document.querySelectorAll(`button[data-action="add"][data-target="${t}"]`).forEach(x => { x.innerHTML = `<i class="fas fa-clock"></i> أرسل`; x.style.background = "#e2e8f0"; x.style.color = "#0f172a"; x.disabled = true; }); if(b && !b.hasAttribute('data-target')) { b.innerHTML = `<i class="fas fa-clock"></i> أرسل`; b.style.background = "#e2e8f0"; b.style.color = "#0f172a"; b.disabled = true; } set(ref(db, `friendRequests/${t}/${window.currentUser}`), Date.now()).then(() => push(ref(db, `users/${t}/notifications`), {type:'friend_req', from:window.currentUser, timestamp:Date.now(), read:false})); };
+window.followUser = (target, button) => {
+    if (!window.currentUser) return window.showRegisterModal();
+    if (target === window.currentUser) return;
+    const targetData = window.allUsersData[target] || {};
+    const isPrivate = targetData.accountPrivacy === 'private';
+    const base = `following/${window.currentUser}/${target}`;
+    const reverse = `followers/${target}/${window.currentUser}`;
+    if (!isPrivate) window.currentFollowing[target] = true;
+    if (button) { button.innerHTML = isPrivate ? '<i class="fas fa-clock"></i> تم إرسال الطلب' : '<i class="fas fa-check"></i> تتابع'; button.disabled = true; }
+    const updates = isPrivate ? {
+        [`followRequests/${target}/${window.currentUser}`]: Date.now(),
+        [`outgoingFollowRequests/${window.currentUser}/${target}`]: Date.now()
+    } : { [base]: true, [reverse]: true };
+    update(ref(db), updates).then(() => push(ref(db, `users/${target}/notifications`), {type: isPrivate ? 'follow_request' : 'follow', from:window.currentUser, timestamp:Date.now(), read:false}));
+};
+window.unfollowUser = (target) => {
+    if (!window.currentUser) return;
+    const updates = { [`following/${window.currentUser}/${target}`]: null, [`followers/${target}/${window.currentUser}`]: null };
+    update(ref(db), updates).then(() => window.openProfile(target));
+};
+window.cancelFollowRequest = (target) => {
+    if (!window.currentUser) return;
+    update(ref(db), { [`followRequests/${target}/${window.currentUser}`]: null, [`outgoingFollowRequests/${window.currentUser}/${target}`]: null }).then(() => window.openProfile(target));
+};
+window.acceptFollowRequest = (from, button) => {
+    if (!window.currentUser) return;
+    const updates = { [`following/${from}/${window.currentUser}`]: true, [`followers/${window.currentUser}/${from}`]: true, [`followRequests/${window.currentUser}/${from}`]: null, [`outgoingFollowRequests/${from}/${window.currentUser}`]: null };
+    update(ref(db), updates).then(() => { if(button) button.disabled = true; push(ref(db, `users/${from}/notifications`), {type:'follow_accept', from:window.currentUser, timestamp:Date.now(), read:false}); });
+};
+window.rejectFollowRequest = (from) => { if (!window.currentUser) return; update(ref(db), { [`followRequests/${window.currentUser}/${from}`]: null, [`outgoingFollowRequests/${from}/${window.currentUser}`]: null }); };
+
+window.sendFriendRequestToFromFeed = (t, b) => window.followUser(t, b);
 window.cancelFriendRequest = (t) => { if(!window.currentUser) return; delete window.sentRequests[t]; remove(ref(db, `friendRequests/${t}/${window.currentUser}`)).then(() => window.openProfile(t)); };
 window.acceptRequestFromProfile = (t, b) => { if(!window.currentUser) return; if(b) { b.innerHTML = `<i class="fas fa-user-friends"></i> تم القبول`; b.style.background = "#e2e8f0"; b.style.color = "#0f172a"; b.disabled = true; } let up = {}; up[`friends/${window.currentUser}/${t}`] = true; up[`friends/${t}/${window.currentUser}`] = true; update(ref(db), up).then(() => { remove(ref(db, `friendRequests/${window.currentUser}/${t}`)); push(ref(db, `users/${t}/notifications`), {type:'accept_req', from:window.currentUser, timestamp:Date.now(), read:false}); }); };
 window.acceptRequestFromFeed = (t) => { if(!window.currentUser) return; let up = {}; up[`friends/${window.currentUser}/${t}`] = true; up[`friends/${t}/${window.currentUser}`] = true; update(ref(db), up).then(() => { remove(ref(db, `friendRequests/${window.currentUser}/${t}`)); push(ref(db, `users/${t}/notifications`), {type:'accept_req', from:window.currentUser, timestamp:Date.now(), read:false}); }); };
@@ -2832,8 +2866,23 @@ window.unfriend = (t) => { if(!window.currentUser) return; window.dlgDanger("ه�
 window.openRequestsLogic = () => { window.renderSuggestedUsersModal(); $('requestsModal').classList.add('show'); document.body.style.overflow = 'hidden'; };
 window.openStatsLogic = () => { $('statsModal').classList.add('show'); document.body.style.overflow = 'hidden'; get(ref(db, 'users')).then(us => { let r=0, o=0; if(us.exists()) { let v = us.val(); for(let k in v) { r++; if(v[k].online) o++; } } $('statReal').innerText = r; let sb = document.getElementById('statBots'); if(sb) sb.innerText = 0; $('statOnline').innerText = o; }); get(ref(db, 'posts')).then(ps => { $('statPosts').innerText = ps.exists() ? Object.keys(ps.val()).length : 0; }); };
 
-function renderRequests() { let c = 0, h = ''; let reqArr = Object.entries(window.currentRequests||{}).map(([k,v]) => ({id:k, time: v===true ? 0 : v})).sort((a,b) => b.time - a.time); for(let req of reqArr) { let s = req.id; c++; h += `<div class="req-row"><a href="#/@${s}" style="display:flex;align-items:center;gap:8px;color:inherit;text-decoration:none;"><img src="${window.allUsersData[s]?.profilePic || dA}" class="avatar-small"><strong>${window.getDisplayName(s)}</strong></a><div class="req-actions"><button class="btn-accept" onclick="window.acceptRequest('${s}')"><i class="fas fa-check"></i></button><button class="btn-reject" onclick="window.rejectRequest('${s}')"><i class="fas fa-times"></i></button></div></div>`; } let b1 = $('reqBadge'), b2 = $('reqBadgeMobile'); if(c > 0) { b1.style.display = 'inline-block'; b1.innerText = c; b2.style.display = 'inline-block'; b2.innerText = c; } else { b1.style.display = 'none'; b2.style.display = 'none'; h = '<p style="color:#666;text-align:center;">لا طلبات.</p>'; } $('requestsList').innerHTML = h; window.renderSidebarTop(); }
+function renderRequests() { let c = 0, h = ''; let reqArr = Object.entries(window.currentRequests||{}).map(([k,v]) => ({id:k, time: v===true ? 0 : v})).sort((a,b) => b.time - a.time); for(let req of reqArr) { let s = req.id; c++; h += `<div class="req-row"><a href="#/@${s}" style="display:flex;align-items:center;gap:8px;color:inherit;text-decoration:none;"><img src="${window.allUsersData[s]?.profilePic || dA}" class="avatar-small"><strong>${window.getDisplayName(s)}</strong></a><div class="req-actions"><button class="btn-accept" onclick="window.acceptFollowRequest('${s}',this)"><i class="fas fa-check"></i></button><button class="btn-reject" onclick="window.rejectFollowRequest('${s}')"><i class="fas fa-times"></i></button></div></div>`; } let b1 = $('reqBadge'), b2 = $('reqBadgeMobile'); if(c > 0) { b1.style.display = 'inline-block'; b1.innerText = c; b2.style.display = 'inline-block'; b2.innerText = c; } else { b1.style.display = 'none'; b2.style.display = 'none'; h = '<p style="color:#666;text-align:center;">لا طلبات.</p>'; } $('requestsList').innerHTML = h; window.renderSidebarTop(); }
 function listenToFriendRequests() { onValue(ref(db, `friendRequests/${window.currentUser}`), s => { window.currentRequests = s.exists() ? s.val() : {}; renderRequests(); }); }
+function listenToFollowData() {
+    onValue(ref(db, `following/${window.currentUser}`), s => {
+        window.currentFollowing = s.exists() ? s.val() : {};
+        if (window.currentProfileUser && window.allUsersData[window.currentProfileUser]) window.renderProfileData(window.currentProfileUser, window.allUsersData[window.currentProfileUser]);
+    });
+    onValue(ref(db, `followers/${window.currentUser}`), s => { window.currentFollowers = s.exists() ? s.val() : {}; });
+    onValue(ref(db, `followRequests/${window.currentUser}`), s => {
+        window.currentRequests = s.exists() ? s.val() : {};
+        renderRequests();
+    });
+    onValue(ref(db, `outgoingFollowRequests/${window.currentUser}`), s => {
+        window.sentFollowRequests = s.exists() ? s.val() : {};
+        if (window.currentProfileUser && window.allUsersData[window.currentProfileUser]) window.renderProfileData(window.currentProfileUser, window.allUsersData[window.currentProfileUser]);
+    });
+}
 
 function renderSidebarUsers() { let fh = '', fa = [], rh = '', ra = []; window.myFriends.forEach(f => { if(window.allUsersData[f]) fa.push({name:f, time:window.recentChatsData[f] || 0, uc:window.unreadChatsData[f] || 0, d:window.allUsersData[f]}); }); let cu = new Set([...Object.keys(window.recentChatsData || {}), ...Object.keys(window.unreadChatsData || {})]); cu.forEach(c => { if(!window.myFriends.includes(c) && c !== window.currentUser && window.allUsersData[c]) ra.push({name:c, time:window.recentChatsData[c] || 0, uc:window.unreadChatsData[c] || 0, d:window.allUsersData[c]}); }); fa.sort((a,b) => b.time - a.time); fa.forEach(f => { fh += `<div class="user-row"><a href="#/@${f.name}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${f.d.profilePic||dA}" class="avatar-small"><span>${window.getDisplayName(f.name)}</span></a><div style="display:flex;align-items:center;gap:10px;">${f.uc>0?`<span class="unread-msg-badge">${f.uc}</span>`:''}<button class="btn-primary" style="padding:4px 10px;font-size:12px;border-radius:4px;" onclick="event.stopPropagation();window.openChat('${f.name}')"><i class="fas fa-comment-dots"></i></button><span class="status-dot ${f.d.online?'online':'offline'}"></span></div></div>`; }); $('friendsList').innerHTML = fh || '<span style="color:#888;font-size:13px;">لا أصدقاء</span>'; ra.sort((a,b) => b.time - a.time); ra.forEach(r => { rh += `<div class="user-row" style="background:#fffbeb;border:1px solid #fde68a;"><a href="#/@${r.name}" class="user-info" style="color:inherit; text-decoration:none;"><img src="${r.d.profilePic||dA}" class="avatar-small"><span>${window.getDisplayName(r.name)}</span></a><div style="display:flex;align-items:center;gap:10px;">${r.uc>0?`<span class="unread-msg-badge">${r.uc}</span>`:''}<button class="btn-primary" style="background:#f59e0b;padding:4px 10px;font-size:12px;border-radius:4px;" onclick="event.stopPropagation();window.openChat('${r.name}')"><i class="fas fa-comment-dots"></i></button></div></div>`; }); let h = $('msgRequestsHeader'); if(ra.length > 0) { h.style.display = 'block'; $('msgRequestsList').innerHTML = rh; } else { h.style.display = 'none'; $('msgRequestsList').innerHTML = ''; } }
 
@@ -3286,7 +3335,7 @@ window.openNewsImageViewer = (imgSrc, sourceName) => {
     document.body.appendChild(viewer);
 };
 
-window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFriendRequests(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); if(window.initRewardsSystem) window.initRewardsSystem(); };
+window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFollowData(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); if(window.initRewardsSystem) window.initRewardsSystem(); };
 
 window.showBanScreen = function(d) {
     let now = Date.now();

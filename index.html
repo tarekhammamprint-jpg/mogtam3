@@ -300,6 +300,11 @@ body { padding-top: 70px !important; }
         <input type="hidden" id="editPicBase64" />
         <label style="display:block;margin-bottom:5px;font-weight:700;color:var(--text-muted);font-size:13px;">النبذة التعريفية</label>
         <input type="text" id="editBio" class="modal-input" placeholder="اكتب نبذة قصيرة عنك..." />
+        <label style="display:block;margin-bottom:5px;font-weight:700;color:var(--text-muted);font-size:13px;">خصوصية الحساب</label>
+        <select id="editAccountPrivacy" class="modal-input">
+            <option value="public">حساب عام — يمكن لأي شخص متابعتي</option>
+            <option value="private">حساب خاص — أوافق على طلبات المتابعة</option>
+        </select>
         <label style="display:block;margin-bottom:5px;font-weight:700;color:var(--text-muted);font-size:13px;">الموقع/البلد</label>
         <button type="button" onclick="window.detectMyLocation()" style="width:100%;margin-bottom:8px;background:var(--accent-soft);color:var(--accent);border:1.5px solid var(--border-accent);padding:10px;border-radius:var(--r-sm);cursor:pointer;font-family:'Cairo',sans-serif;font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px;transition:.2s;">
             <em class="fas fa-location-crosshairs"></em> تحديد موقعي تلقائيًا
@@ -396,7 +401,7 @@ body { padding-top: 70px !important; }
 </div>
 
 <!-- ══════════════════════════════════════════════
-     مودال طلبات الصداقة
+     مودال طلبات المتابعة
 ══════════════════════════════════════════════ -->
 <div class="modal" id="requestsModal">
     <div class="modal-content" style="padding:26px;max-width:620px;">
@@ -405,7 +410,7 @@ body { padding-top: 70px !important; }
             <span style="width:36px;height:36px;background:var(--accent-soft);border-radius:10px;display:inline-flex;align-items:center;justify-content:center;color:var(--accent);font-size:16px;">
                 <em class="fas fa-user-friends"></em>
             </span>
-            طلبات الصداقة
+            طلبات المتابعة
         </h3>
         <div id="requestsList"></div>
         <h3 style="margin-top:22px;border-top:1px solid var(--border);padding-top:20px;color:var(--text-main);font-weight:900;font-size:16px;display:flex;align-items:center;gap:8px;">
@@ -550,7 +555,7 @@ body { padding-top: 70px !important; }
         </div>
         <div class="rs-section-title"><i class="fas fa-bolt"></i> روابط سريعة</div>
         <div class="rs-links">
-            <a href="#/requests" class="rs-link-item"><i class="fas fa-user-plus"></i> طلبات الصداقة</a>
+            <a href="#/requests" class="rs-link-item"><i class="fas fa-user-plus"></i> طلبات المتابعة</a>
             <span onclick="window.openCommunitiesModal()" class="rs-link-item"><i class="fas fa-globe"></i> اكتشف مجتمعات</span>
             <span onclick="window.location.hash='#/stats'" class="rs-link-item"><i class="fas fa-chart-bar"></i> الإحصائيات</span>
         </div>
@@ -597,7 +602,7 @@ body { padding-top: 70px !important; }
             <em class="fas fa-comment-dots"></em>
             <span class="badge" id="chatBadge">0</span>
         </button>
-        <button onclick="window.openRequestsModal()" class="nav-btn hide-on-mobile" title="طلبات الصداقة">
+        <button onclick="window.openRequestsModal()" class="nav-btn hide-on-mobile" title="طلبات المتابعة">
             <em class="fas fa-user-friends"></em>
             <span class="badge" id="reqBadge">0</span>
         </button>
@@ -920,7 +925,7 @@ body { padding-top: 70px !important; }
 <script src="hovercard.js?v=20260808a"></script>
 <script type="module" src="video-call.js?v=20260728f"></script>
 <script type="module" src="cpx-rewards.js?v=20260823"></script>
-<script type="module" src="app.js?v=20260926-messages"></script>
+<script type="module" src="app.js?v=20260926-follow-system"></script>
 
 <!-- ══════════════════════════════════════════════
      القائمة الكاملة (Full Menu Overlay)
