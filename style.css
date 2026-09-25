@@ -305,7 +305,12 @@ body{margin:0;padding:0;background:var(--bg-color);font-family:'Cairo',sans-seri
 .messages-page-messages{flex:1;overflow-y:auto;padding:22px 26px;display:flex;flex-direction:column;gap:14px;}
 .messages-page-input-area{display:flex;align-items:center;gap:10px;padding:14px 20px;border-top:1px solid var(--border-color);background:var(--card-bg);flex-shrink:0;}
 .mp-media-btn{cursor:pointer;font-size:21px;padding:4px;flex-shrink:0;}
-@media(max-width:900px){.messages-page-modal{display:none !important;}}
+@media(max-width:900px){
+  .messages-page-modal{display:block !important;}
+  .messages-page-modal .messages-page-inner{min-height:100%;}
+  .messages-page-list-col{width:100%;max-width:none;}
+  .messages-page-thread-col{min-height:420px;}
+}
 
 .floating-chat{position:fixed;bottom:90px;left:25px;width:65px;height:65px;background:var(--primary);border-radius:var(--radius-pill);box-shadow:0 8px 20px rgba(37,99,235,.3);display:none;align-items:center;justify-content:center;cursor:pointer;z-index:3600;transition:all .3s cubic-bezier(.175,.885,.32,1.275)}
 .floating-chat:hover{transform:scale(1.08) translateY(-5px);box-shadow:0 12px 25px rgba(37,99,235,.4)}
