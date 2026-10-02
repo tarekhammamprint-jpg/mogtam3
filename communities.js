@@ -3,6 +3,10 @@ import { db } from "./firebase-config.js";
 
 const $ = (id) => document.getElementById(id);
 const dA = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+const notifyCommunityUser = (uid, data) => {
+    if (!uid || uid === window.currentUser) return;
+    return push(ref(db, `users/${uid}/notifications`), { ...data, timestamp: Date.now(), read: false });
+};
 
 window.openCommunitiesModal = () => {
     if(!window.currentUser) return window.showRegisterModal();
@@ -24,7 +28,9 @@ window.createCommunity = async () => {
 
 window.requestJoinCommunity = (commId) => {
     if(!window.currentUser) return;
+    const comm = window.allCommunities[commId] || {};
     update(ref(db, `communities/${commId}/requests`), { [window.currentUser]: true }).then(() => {
+        notifyCommunityUser(comm.admin, { type: 'community_request', from: window.currentUser, communityId: commId, communityName: comm.name || '' });
         window.showToast("تم إرسال الطلب", "في انتظار موافقة المسئول", window.allUsersData[window.currentUser]?.profilePic || dA);
         window.renderCommunitiesList();
     });
@@ -91,7 +97,7 @@ window.manageCommunityRequests = (commId) => {
     $('communityFeedArea').innerHTML = h;
 };
 
-window.approveCommRequest = (commId, uid) => { let updates = {}; updates[`communities/${commId}/members/${uid}`] = true; updates[`communities/${commId}/requests/${uid}`] = null; update(ref(db), updates).then(() => window.manageCommunityRequests(commId)); };
+window.approveCommRequest = (commId, uid) => { let updates = {}; updates[`communities/${commId}/members/${uid}`] = true; updates[`communities/${commId}/requests/${uid}`] = null; update(ref(db), updates).then(() => { const comm = window.allCommunities[commId] || {}; notifyCommunityUser(uid, { type: 'community_approved', from: window.currentUser, communityId: commId, communityName: comm.name || '' }); window.manageCommunityRequests(commId); }); };
 window.rejectCommRequest = (commId, uid) => { remove(ref(db, `communities/${commId}/requests/${uid}`)).then(() => window.manageCommunityRequests(commId)); };
 
 // startCommunityCall مُعرَّفة في video-call.js
@@ -99,11 +105,12 @@ window.rejectCommRequest = (commId, uid) => { remove(ref(db, `communities/${comm
 window.publishCommunityPost = () => {
     let txt = $('communityPostContent').value.trim(); if(!txt || !window.currentCommunityId) return;
     let btn = $('publishCommBtn'); let ot = btn.innerHTML; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; btn.disabled = true;
-    push(ref(db, `communityPosts/${window.currentCommunityId}`), { author: window.currentUser, text: txt, timestamp: Date.now() }).then(() => { $('communityPostContent').value = ''; btn.innerHTML = ot; btn.disabled = false; });
+    const commId = window.currentCommunityId, comm = window.allCommunities[commId] || {};
+    push(ref(db, `communityPosts/${commId}`), { author: window.currentUser, text: txt, timestamp: Date.now() }).then(postRef => { Object.keys(comm.members || {}).forEach(uid => notifyCommunityUser(uid, { type: 'community_post', from: window.currentUser, communityId: commId, communityName: comm.name || '', postId: postRef.key })); $('communityPostContent').value = ''; btn.innerHTML = ot; btn.disabled = false; });
 };
 
-window.toggleCommPostLike = (commId, postId) => { let r = ref(db, `communityPosts/${commId}/${postId}/likes/${window.currentUser}`); get(r).then(s => { if(s.exists()) remove(r); else set(r, true); }); };
-window.addCommPostComment = (commId, postId) => { let inp = document.getElementById(`commComment_${postId}`); let txt = inp.value.trim(); if(!txt) return; push(ref(db, `communityPosts/${commId}/${postId}/comments`), { author: window.currentUser, text: txt, timestamp: Date.now() }).then(() => { inp.value = ''; }); };
+window.toggleCommPostLike = (commId, postId) => { let r = ref(db, `communityPosts/${commId}/${postId}/likes/${window.currentUser}`); get(r).then(s => { if(s.exists()) remove(r); else set(r, true).then(() => get(ref(db, `communityPosts/${commId}/${postId}`)).then(p => { const post = p.val() || {}, comm = window.allCommunities[commId] || {}; notifyCommunityUser(post.author, { type: 'community_like', from: window.currentUser, communityId: commId, communityName: comm.name || '', postId }); })); }); };
+window.addCommPostComment = (commId, postId) => { let inp = document.getElementById(`commComment_${postId}`); let txt = inp.value.trim(); if(!txt) return; push(ref(db, `communityPosts/${commId}/${postId}/comments`), { author: window.currentUser, text: txt, timestamp: Date.now() }).then(() => get(ref(db, `communityPosts/${commId}/${postId}`)).then(p => { const post = p.val() || {}, comm = window.allCommunities[commId] || {}; notifyCommunityUser(post.author, { type: 'community_comment', from: window.currentUser, communityId: commId, communityName: comm.name || '', postId }); Object.keys(window.allUsersData || {}).forEach(uid => { if (uid !== window.currentUser && new RegExp(`(^|\\s)@${uid}(?=\\s|$)`, 'i').test(txt)) notifyCommunityUser(uid, { type: 'mention', from: window.currentUser, communityId: commId, communityName: comm.name || '', postId }); }); inp.value = ''; })); };
 window.deleteCommPost = (commId, postId) => { window.dlgDanger("هل تريد حذف هذا المنشور؟").then(ok => { if(ok) remove(ref(db, `communityPosts/${commId}/${postId}`)); }); };
 
 window.renderCommunityFeed = (commId) => {
