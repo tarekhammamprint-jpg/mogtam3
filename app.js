@@ -2826,6 +2826,47 @@ function renderProfilePosts(u) {
     let postsRef = isNewsBot ? ref(db, 'newsPosts') : ref(db, 'posts');
     get(postsRef).then(s => { let h = '', ph = ''; ph += `<a href="#/@${u}"><img src="${pp}" style="cursor:pointer;"></a>`; if(s.exists()) { let userPosts = []; s.forEach(c => { let p = c.val(); p.id = c.key; if(p.author === u) { userPosts.push(p); window.postCache[p.id] = p; } }); userPosts.sort((a,b) => b.timestamp - a.timestamp); userPosts.forEach(p => { if(!p.isReel) { let lc = p.likes ? Object.keys(p.likes).length : 0, it = lc >= 10; h += createPostHTML(p, 'profile', it, false); if(p.image || p.images) { let imgs2 = (p.images&&p.images.length)?p.images:(p.image?[p.image]:[]); ph += `<div style="cursor:pointer;" onclick="window.openMediaViewerFor('${p.id}',0)"><img src="${imgs2[0]}" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:6px;"></div>`; } if(p.video&&!p.isReel) ph += `<div style="cursor:pointer;" onclick="window.openMediaViewerFor('${p.id}',0)"><video src="${p.video}" style="width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:6px;" muted playsinline></video></div>`; } }); } $('profilePostsFeed').innerHTML = h || '<p style="text-align:center;color:#666;font-size:13px;">لا مقالات.</p>'; $('profilePhotosGrid').innerHTML = ph; document.querySelectorAll('#profilePostsFeed video').forEach(v => window.videoObserver.observe(v)); }).catch(e => { $('profilePostsFeed').innerHTML = '<p style="text-align:center;color:#ef4444;">حدث خطأ في جلب المنشورات.</p>'; }); let rh = ''; let userReels = window.allReels.filter(r => r.author === u); if(userReels.length > 0) { userReels.forEach(r => { let globalIdx = window.allReels.findIndex(x => x.id === r.id); let vc = r.views ? Object.keys(r.views).length : 0; rh += `<div class="reel-thumb" style="width:100%; height:180px;" onclick="window.openReelsViewer(${globalIdx})"><video src="${r.video}" autoplay loop muted playsinline preload="auto" poster="${reelPoster}" style="pointer-events:none; background:#1e293b; object-fit:cover;"></video><span class="r-views"><i class="fas fa-play"></i> ${vc}</span></div>`; }); } $('profileReelsGrid').innerHTML = rh || '<p style="text-align:center;color:#666;grid-column:span 3;">لا يوجد ريلز لهذا الحساب.</p>'; get(ref(db, `friends/${u}`)).then(s => { let fh = ''; if(s.exists()) { Object.keys(s.val()).forEach(f => { let pic = window.allUsersData[f]?.profilePic || dA, dn = window.getDisplayName(f), mc = 0; if(f !== window.currentUser) { let tf = window.allFriendsData[f] ? Object.keys(window.allFriendsData[f]) : []; mc = tf.filter(x => window.myFriends.includes(x)).length; } let mt = f === window.currentUser ? '' : (mc > 0 ? `<span class="f-mutual"><i class="fas fa-user-friends"></i> ${mc} مشتركون</span>` : `<span class="f-mutual">لا مشتركون</span>`); fh += `<a href="#/@${f}" class="friend-card" style="color:inherit; text-decoration:none;"><img src="${pic}"><div style="display:flex;flex-direction:column;justify-content:center;"><span class="f-name">${dn}</span>${mt}</div></a>`; }); } $('profileFriendsList').innerHTML = fh || '<p style="text-align:center;color:#666;font-size:13px;grid-column:span 2;">لا أصدقاء.</p>'; }); }
 
+window.updateSuggestedFollowButtons = (target, following, isPrivate = false) => {
+    const buttons = Array.from(document.querySelectorAll('[data-follow-target]'))
+        .filter(el => el.getAttribute('data-follow-target') === target);
+    buttons.forEach(btn => {
+        btn.disabled = false;
+        btn.style.background = following ? '#10b981' : '';
+        btn.style.color = following ? '#fff' : '';
+        btn.innerHTML = following
+            ? `<i class="fas fa-check"></i> ${isPrivate ? 'تم إرسال الطلب' : 'تمت المتابعة'}`
+            : '<i class="fas fa-user-plus"></i> متابعة';
+        btn.onclick = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            if (following) window.undoSuggestedFollow(target, isPrivate);
+            else window.followUser(target, btn);
+            return false;
+        };
+    });
+};
+
+window.undoSuggestedFollow = (target, isPrivate = false) => {
+    if (!window.currentUser) return window.showRegisterModal();
+    const action = isPrivate ? 'إلغاء طلب المتابعة' : 'التراجع عن المتابعة';
+    window.dlgConfirm(`هل تريد ${action} لـ ${window.getDisplayName(target)}؟`, action, 'question', 'تأكيد التراجع')
+        .then(ok => {
+            if (!ok) return;
+            const updates = isPrivate ? {
+                [`followRequests/${target}/${window.currentUser}`]: null,
+                [`outgoingFollowRequests/${window.currentUser}/${target}`]: null
+            } : {
+                [`following/${window.currentUser}/${target}`]: null,
+                [`followers/${target}/${window.currentUser}`]: null
+            };
+            update(ref(db), updates).then(() => {
+                if (isPrivate) delete window.sentFollowRequests[target];
+                else delete window.currentFollowing[target];
+                window.updateSuggestedFollowButtons(target, false, isPrivate);
+            });
+        });
+};
+
 window.followUser = (target, button) => {
     if (!window.currentUser) return window.showRegisterModal();
     if (target === window.currentUser) return;
@@ -2836,7 +2877,8 @@ window.followUser = (target, button) => {
     if (isPrivate) window.sentFollowRequests[target] = Date.now(); else window.currentFollowing[target] = true;
     const followButtons = Array.from(document.querySelectorAll('[data-follow-target]')).filter(el => el.getAttribute('data-follow-target') === target);
     if (button && !followButtons.includes(button)) followButtons.push(button);
-    followButtons.forEach(btn => { btn.innerHTML = isPrivate ? '<i class="fas fa-clock"></i> تم إرسال الطلب' : '<i class="fas fa-check"></i> تتابع'; btn.disabled = true; btn.style.background = isPrivate ? '#e2e8f0' : '#10b981'; btn.style.color = isPrivate ? '#0f172a' : '#fff'; });
+    window.updateSuggestedFollowButtons(target, true, isPrivate);
+    followButtons.forEach(btn => { btn.innerHTML = isPrivate ? '<i class="fas fa-clock"></i> تم إرسال الطلب' : '<i class="fas fa-check"></i> تمت المتابعة'; });
     const updates = isPrivate ? {
         [`followRequests/${target}/${window.currentUser}`]: Date.now(),
         [`outgoingFollowRequests/${window.currentUser}/${target}`]: Date.now()
