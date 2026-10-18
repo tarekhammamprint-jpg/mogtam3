@@ -22,8 +22,7 @@ const app = initializeApp({
 });
 const db = getDatabase(app);
 
-const CLOUDINARY_CLOUD = "izpbzzqc";
-const CLOUDINARY_PRESET = "mogtam3_ads";
+const MEDIA_WORKER_URL = 'https://red-snowflake-1dad.tarek-hammam-print.workers.dev';
 
 // نفس قائمة الاهتمامات المستخدمة فعلياً عند تسجيل الأعضاء (auth.js)
 // حتى يكون استهداف الإعلان مطابقاً لبيانات المستخدمين الحقيقية
@@ -227,8 +226,9 @@ window.uploadAdMedia = async (e) => {
     try {
         const fd = new FormData();
         fd.append('file', file);
-        fd.append('upload_preset', CLOUDINARY_PRESET);
-        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/${type}/upload`, { method: 'POST', body: fd });
+        fd.append('type', type);
+        fd.append('user_id', 'admin');
+        const res = await fetch(MEDIA_WORKER_URL + '/upload', { method: 'POST', body: fd });
         const data = await res.json();
         adData.mediaUrl = data.secure_url;
         adData.mediaType = type;
