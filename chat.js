@@ -27,7 +27,7 @@ window.openChat = (t) => {
                 let ci = ''; if(mc === 'me') { if(m.read) ci = '<i class="fas fa-check-double" style="color:#38bdf8;opacity:1;margin-right:4px;"></i>'; else if(to) ci = '<i class="fas fa-check-double" style="color:#cbd5e1;opacity:0.9;margin-right:4px;"></i>'; else ci = '<i class="fas fa-check" style="color:#cbd5e1;opacity:0.9;margin-right:4px;"></i>'; }
                 let th = `<div style="font-size:10px;opacity:0.9;margin-top:4px;display:flex;align-items:center;justify-content:${mc==='me'?'flex-end':'flex-start'};gap:4px;">${ci} ${ts}</div>`;
                 let co = m.text || '';
-                if(m.image) co = `<img src="${m.image}" style="max-width:100%;border-radius:10px;margin-bottom:5px;cursor:pointer;" onclick="window.open('${m.image}','_blank')"><br>${co}`;
+                if(m.image) co = `<img src="${m.image}" data-file-id="${m.imageFileId||''}" style="max-width:100%;border-radius:10px;margin-bottom:5px;cursor:pointer;" onerror="if(this.dataset.fileId&&!this.dataset.fixed){this.dataset.fixed=1;this.src=(window.MEDIA_WORKER_URL||'')+'/media/'+this.dataset.fileId;}" onclick="window.open('${m.image}','_blank')"><br>${co}`;
                 if(m.video) co = `<video src="${m.video}" controls style="max-width:100%;border-radius:10px;margin-bottom:5px;background:#1e293b;"></video><br>${co}`;
                 h += `<div class="msg ${mc}">${co}${th}</div>`;
             });
@@ -51,7 +51,14 @@ window.sendChatMedia = async (e, type) => {
     let t = window.currentChatTarget, rid = [window.currentUser, t].sort().join('_'), n = Date.now();
     try {
         let url = await window.uploadToCloudinary(f, type);
-        let d = {sender:window.currentUser, timestamp:n, read:false}; if(type === 'image') d.image = url; else d.video = url;
+        let d = {sender:window.currentUser, timestamp:n, read:false};
+        if(type === 'image') {
+            d.image = url;
+            if (window._lastUploadFileId) { d.imageFileId = window._lastUploadFileId; window._lastUploadFileId = null; }
+        } else {
+            d.video = url;
+            if (window._lastUploadFileId) { d.videoFileId = window._lastUploadFileId; window._lastUploadFileId = null; }
+        }
         push(ref(db, `chats/${rid}`), d).then(() => { update(ref(db, `users/${window.currentUser}/recentChats`), {[t]:n}); update(ref(db, `users/${t}/recentChats`), {[window.currentUser]:n}); let ur = ref(db, `users/${t}/unreadChats/${window.currentUser}`); get(ur).then(s => set(ur, (s.exists() ? s.val() : 0) + 1)); });
     } catch(err) { window.dlgAlert('فشل رفع الملف، يرجى المحاولة مجدداً.', 'danger', 'خطأ'); }
 };
