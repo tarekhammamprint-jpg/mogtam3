@@ -8,6 +8,7 @@
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
 import { getDatabase, ref, push, set, get } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { COUNTRIES_DATA, COUNTRY_NAMES } from "./locations-data.js?v=20260728f";
 
@@ -21,6 +22,7 @@ const app = initializeApp({
     appId: "1:948636671408:web:501b87559ed12ff09a8a75"
 });
 const db = getDatabase(app);
+const auth = getAuth(app);
 
 const MEDIA_WORKER_URL = 'https://red-snowflake-1dad.tarek-hammam-print.workers.dev';
 
@@ -35,7 +37,7 @@ const PLATFORM_INTERESTS = [
 ];
 
 const savedUser = localStorage.getItem('savedUser');
-if (!savedUser) { alert('يجب تسجيل الدخول أولاً'); window.location.href = 'index.html'; }
+if (!savedUser) { alert('يجب تسجيل الدخول أولاً'); window.location.href = 'index.html#/login'; }
 
 let adData = {
     owner: savedUser,
@@ -227,7 +229,8 @@ window.uploadAdMedia = async (e) => {
         const fd = new FormData();
         fd.append('file', file);
         fd.append('type', type);
-        fd.append('user_id', 'admin');
+        fd.append('user_id', savedUser || 'authenticated-user');
+        if (file.size > 25 * 1024 * 1024) throw new Error('حجم الملف أكبر من 25MB');
         const res = await fetch(MEDIA_WORKER_URL + '/upload', { method: 'POST', body: fd });
         const data = await res.json();
         adData.mediaUrl = data.secure_url;
@@ -257,6 +260,7 @@ window.selectPayment = (method, el) => {
 
 window.submitAd = async () => {
     if (!adData.paymentMethod) return showMsg('اختر طريقة الدفع', 'error');
+    return showMsg('لم يتم تفعيل بوابة الدفع بعد. لن يتم قبول الإعلان أو خصم أي مبلغ حتى ربط بوابة دفع موثوقة.', 'error');
     const btn = document.getElementById('payNowBtn');
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري المعالجة...';
     btn.disabled = true;

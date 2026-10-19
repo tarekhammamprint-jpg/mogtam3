@@ -1,5 +1,7 @@
 import { ref, set, get, update, push, remove, onValue, query, orderByChild, limitToLast, equalTo, onDisconnect } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
-import { db } from "./firebase-config.js";
+import { db, app } from "./firebase-config.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+const auth = getAuth(app);
 import "./auth.js?v=20260728f";
 import "./communities.js?v=20260926-notifications";
 import "./chat.js?v=20260728f";
@@ -725,6 +727,7 @@ window.uploadToCloudinary = (file, type, onProgress, bucket) => {
       fd.append('user_id', window.currentUser || 'guest');
       const xhr = new XMLHttpRequest();
       xhr.open('POST', window.MEDIA_WORKER_URL + '/upload');
+      if (auth.currentUser) xhr.setRequestHeader('Authorization', `Bearer ${await auth.currentUser.getIdToken()}`);
       xhr.upload.onprogress = e => { if (onProgress && e.lengthComputable) onProgress(Math.round(e.loaded/e.total*100)); };
       xhr.onload = () => {
         try {

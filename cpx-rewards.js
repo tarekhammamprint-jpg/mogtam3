@@ -5,7 +5,9 @@
 // ============================================================
 
 import { ref, get, update, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
-import { db } from "./firebase-config.js";
+import { db, app } from "./firebase-config.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+const auth = getAuth(app);
 
 const CPX_APP_ID = "35568";
 
@@ -390,7 +392,7 @@ window.closeRewardsModal = () => {
 // ============================================================
 //  تحميل CPX Research Offerwall
 // ============================================================
-function loadCpxOfferwall() {
+async function loadCpxOfferwall() {
   const iframe  = document.getElementById('cpxIframe');
   const loading = document.getElementById('rwLoadingOverlay');
   if (!iframe) return;
@@ -409,7 +411,7 @@ function loadCpxOfferwall() {
   // المفتاح السري والتوقيع لا يغادران الخادم.
   fetch('/api/cpx-offerwall', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...(auth.currentUser ? { Authorization: `Bearer ${await auth.currentUser.getIdToken()}` } : {}) },
     credentials: 'include',
     body: JSON.stringify({ userId: uid, displayName })
   }).then(async response => {

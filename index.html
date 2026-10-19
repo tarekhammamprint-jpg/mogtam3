@@ -264,7 +264,7 @@ body{padding-top:calc(70px + 46px)!important;}
         <div class="login-box">
             <!-- نموذج الدخول -->
             <div id="loginFormContent" style="width:100%;">
-                <input placeholder="المعرّف (@eslam)" class="login-input" id="usernameInput" type="text" dir="ltr" />
+                <input placeholder="البريد الإلكتروني" class="login-input" id="emailInput" type="email" dir="ltr" autocomplete="email" />
                 <input placeholder="كلمة المرور" class="login-input" id="passwordInput" type="password" />
                 <button onclick="window.login()" class="login-btn" id="loginBtn">تسجيل الدخول</button>
                 <div class="login-divider"></div>
@@ -279,8 +279,9 @@ body{padding-top:calc(70px + 46px)!important;}
                 <input placeholder="مثال: إسلام أبو همام" class="login-input" id="regDisplayName" type="text" oninput="window.generateHandles(this.value)" />
                 <div style="color:rgba(255,255,255,0.55);font-size:12px;font-weight:600;margin-bottom:6px;text-align:right;">تاريخ الميلاد</div>
                 <input type="date" class="login-input" id="regDob" />
-                <div style="color:rgba(255,255,255,0.55);font-size:12px;font-weight:600;margin-bottom:6px;text-align:right;">كلمة المرور</div>
-                <input placeholder="كلمة المرور" class="login-input" id="regPassword" type="password" />
+                <div style="color:rgba(255,255,255,0.55);font-size:12px;font-weight:600;margin-bottom:6px;text-align:right;">البريد الإلكتروني</div>
+                <input placeholder="البريد الإلكتروني" class="login-input" id="regEmail" type="email" dir="ltr" autocomplete="email" />
+                <input placeholder="كلمة المرور (8 أحرف على الأقل)" class="login-input" id="regPassword" type="password" autocomplete="new-password" />
                 <div id="handleSuggestions" style="display:flex;flex-direction:column;margin-bottom:14px;gap:6px;"></div>
                 <button onclick="window.registerUser()" class="login-btn" id="regBtn" style="background:linear-gradient(135deg,#10b981,#059669);margin-top:8px;">
                     <em class="fas fa-user-plus"></em> إنشاء الحساب
@@ -600,8 +601,8 @@ body{padding-top:calc(70px + 46px)!important;}
     <!-- أزرار الضيف -->
     <div class="nav-actions" id="guestNav" style="display:none;align-items:center;gap:8px;">
         <div class="hide-on-mobile" style="display:flex;gap:8px;align-items:center;">
-            <input type="text" id="topLoginUser" placeholder="المعرّف (@)" style="width:110px;padding:7px 12px;border-radius:var(--r-pill);border:1.5px solid var(--border);outline:none;font-size:13px;background:var(--border-soft);color:var(--text-main);">
-            <input type="password" id="topLoginPass" placeholder="المرور" style="width:100px;padding:7px 12px;border-radius:var(--r-pill);border:1.5px solid var(--border);outline:none;font-size:13px;background:var(--border-soft);color:var(--text-main);">
+            <input type="email" id="topLoginEmail" placeholder="البريد الإلكتروني" style="width:150px;padding:7px 12px;border-radius:var(--r-pill);border:1.5px solid var(--border);outline:none;font-size:13px;background:var(--border-soft);color:var(--text-main);">
+            <input type="password" id="topLoginPass" placeholder="كلمة المرور" style="width:120px;padding:7px 12px;border-radius:var(--r-pill);border:1.5px solid var(--border);outline:none;font-size:13px;background:var(--border-soft);color:var(--text-main);">
             <button onclick="window.topLogin()" class="btn-primary" style="padding:7px 16px;font-size:13px;border-radius:var(--r-pill);">دخول</button>
         </div>
         <button onclick="window.showRegisterModal()" class="btn-secondary" style="padding:7px 16px;font-size:13px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-color:var(--border-accent);border-radius:var(--r-pill);">إنشاء حساب</button>
