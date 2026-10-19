@@ -214,7 +214,6 @@ if (document.readyState === 'loading') {
 }
 
 // -- المتغيرات والإعدادات العامة --
-// Telegram Bot Storage via Cloudflare Worker
 window.MEDIA_WORKER_URL = 'https://red-snowflake-1dad.tarek-hammam-print.workers.dev';
 window.currentUser = localStorage.getItem('savedUser') || null;
 window.currentChatTarget = null; window.allUsersData = {}; window.allFriendsData = {};
@@ -717,8 +716,7 @@ window.uploadToCloudinary = (file, type, onProgress, bucket) => {
     try {
       let uploadFile = file;
       if (typeof file === 'string' && file.startsWith('data:')) {
-        const res = await fetch(file);
-        uploadFile = await res.blob();
+        const r = await fetch(file); uploadFile = await r.blob();
       }
       const mediaType = (type === 'video' || type === 'reel') ? 'video' : 'image';
       const fd = new FormData();
@@ -727,78 +725,20 @@ window.uploadToCloudinary = (file, type, onProgress, bucket) => {
       fd.append('user_id', window.currentUser || 'guest');
       const xhr = new XMLHttpRequest();
       xhr.open('POST', window.MEDIA_WORKER_URL + '/upload');
-      xhr.upload.onprogress = (e) => {
-        if (onProgress && e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
-      };
+      xhr.upload.onprogress = e => { if (onProgress && e.lengthComputable) onProgress(Math.round(e.loaded/e.total*100)); };
       xhr.onload = () => {
         try {
-          const data = JSON.parse(xhr.responseText);
-          if (xhr.status >= 200 && xhr.status < 300 && data.secure_url) {
-            // حفظ الـ file_id عشان نقدر نستعيد الصورة لو الـ URL اتكسر
-            if (data.file_id) {
-              window._lastUploadFileId   = data.file_id;
-              window._lastUploadProxyUrl = window.MEDIA_WORKER_URL + '/media/' + data.file_id;
-            }
-            resolve(data.secure_url);
-          } else {
-            reject(new Error(data.error || 'فشل الرفع'));
-          }
-        } catch (e) { reject(e); }
+          const d = JSON.parse(xhr.responseText);
+          if (xhr.status >= 200 && xhr.status < 300 && d.secure_url) {
+            if (d.file_id) { window._lastFileId = d.file_id; window._lastProxyUrl = window.MEDIA_WORKER_URL + '/media/' + d.file_id; }
+            resolve(d.secure_url);
+          } else reject(new Error(d.error || 'فشل الرفع'));
+        } catch(e) { reject(e); }
       };
       xhr.onerror = () => reject(new Error('فشل الاتصال بالخادم'));
       xhr.send(fd);
-    } catch (err) { reject(err); }
+    } catch(err) { reject(err); }
   });
-};
-
-// ── جلب URL بديل من file_id لو الرابط الأصلي اتكسر ──
-window.getMediaUrl = async (url, fileId) => {
-  if (!url && !fileId) return '';
-  if (!fileId) return url;
-  // اختبار الـ URL الأصلي
-  try {
-    const res = await fetch(url, { method: 'HEAD' });
-    if (res.ok) return url;
-  } catch(e) {}
-  // الـ URL اتكسر — رجّع proxy URL
-  return window.MEDIA_WORKER_URL + '/media/' + fileId;
-};
-
-// ── إصلاح الصور المكسورة في الصفحة تلقائياً ──
-window.fixBrokenImages = () => {
-  document.querySelectorAll('img[data-file-id]').forEach(async img => {
-    if (!img.complete || img.naturalWidth === 0) {
-      const fileId = img.dataset.fileId;
-      if (fileId) {
-        img.src = window.MEDIA_WORKER_URL + '/media/' + fileId;
-      }
-    }
-  });
-};
-window.videoObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { if(entry.isIntersecting) { try { entry.target.muted = true; let playPromise = entry.target.play(); if(playPromise !== undefined) { playPromise.catch(error => {}); } } catch(e){} } else { try { if(!entry.target.paused) entry.target.pause(); } catch(e){} } }); }, {threshold: 0.5});
-reelsObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { let video = entry.target.querySelector('video'); if(!video) return; if(entry.isIntersecting) { try { video.muted = false; video.currentTime = 0; let p = video.play(); if(p !== undefined) p.catch(e => {}); } catch(e) {} let rid = entry.target.getAttribute('data-id'); if(rid && window.currentUser) { let vRef = ref(db, `posts/${rid}/views/${window.currentUser}`); get(vRef).then(s => { if(!s.exists()) set(vRef, true); }); } } else { try { if(!video.paused) video.pause(); } catch(e) {} } }); }, {threshold: 0.7});
-
-window.playNotifSound = () => { try { let audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); audio.volume = 0.5; audio.play().catch(e => {}); } catch(err) {} };
-window.toastTimeout = null;
-window.showToast = (t, x, i) => { try { $('toastTitle').innerText = t; $('toastBody').innerText = x; $('toastImg').src = i || dA; let o = $('toastNotification'); o.classList.add('show'); if(window.toastTimeout) clearTimeout(window.toastTimeout); window.toastTimeout = setTimeout(() => o.classList.remove('show'), 5000); window.playNotifSound(); if("Notification" in window && Notification.permission === "granted") { try { let s = new Notification(t, {body:x, icon:i||dA}); setTimeout(() => s.close(), 5000); } catch(e) {} } } catch(err) {} };
-window.fullDateTime = (ts) => { if(!ts) return ''; let dt = new Date(ts); if(isNaN(dt)) return ''; return dt.toLocaleString('ar-EG', {day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'}); };
-window.timeAgo = (ts) => {
-    if(!ts) return "منذ فترة";
-    let s = Math.floor((Date.now()-ts)/1000); if(s<0) s = 0;
-    const unit = (n, one, two, plural) => n === 1 ? one : n === 2 ? two : `منذ ${n} ${plural}`;
-    if(s<60) return "الآن";
-    let m = Math.floor(s/60);
-    if(m<60) return unit(m, "منذ دقيقة", "منذ دقيقتين", "دقائق");
-    let h = Math.floor(m/60);
-    if(h<24) return unit(h, "منذ ساعة", "منذ ساعتين", "ساعات");
-    let d = Math.floor(h/24);
-    if(d<7) return unit(d, "منذ يوم", "منذ يومين", "أيام");
-    let w = Math.floor(d/7);
-    if(w<4) return unit(w, "منذ أسبوع", "منذ أسبوعين", "أسابيع");
-    let mo = Math.floor(d/30);
-    if(mo<12) return unit(mo, "منذ شهر", "منذ شهرين", "أشهر");
-    let y = Math.floor(d/365);
-    return unit(y, "منذ عام", "منذ عامين", "أعوام");
 };
 
 // باقي دوال النظام
@@ -2881,27 +2821,7 @@ window.uploadReelFromProfile = async (event) => {
 // =============== نهاية دوال البروفايل المطور ===============
 
 function renderProfileData(u, d) { $('profPic').src = d.profilePic || dA; $('profName').innerText = window.getDisplayName(u); $('profHandle').innerText = '@' + u; $('profBio').innerText = d.bio || "لا نبذة."; $('profLocText').innerText = d.location || "غير محدد"; $('profileAboutArea').innerHTML = `<div style="background:#fff;border-radius:12px;padding:20px;border:1px solid var(--border-color);text-align:right;"><h4 style="margin-top:0;color:var(--primary);border-bottom:1px solid #e2e8f0;padding-bottom:10px;">معلومات</h4><div><strong>المدينة:</strong> <br>${d.location||'غير محدد'}</div><div><strong>تاريخ الميلاد:</strong> <br>${d.birthdate||'غير محدد'}</div><div><strong>المهنة:</strong> <br>${d.job||'غير محدد'}</div><div><strong>الدراسة:</strong> <br>${d.education||'غير محدد'}</div><div><strong>الهوايات:</strong> <br>${d.hobbies||'غير محدد'}</div></div>`; let intArea = $('profInterestsArea'); if(d.interests && d.interests.length > 0) { intArea.style.display = 'flex'; intArea.innerHTML = d.interests.map(i => `<span style="background:#eef2ff; color:var(--primary); padding:4px 10px; border-radius:12px; font-size:12px; font-weight:700;">${i}</span>`).join(''); } else { intArea.style.display = 'none'; } let ce = $('profCoverImg'); if(d.coverPic) { ce.src = d.coverPic; ce.style.display = 'block'; } else ce.style.display = 'none'; $('statPosts').innerText = window.allPosts.filter(p => p.author === u && !p.isReel).length; $('statPhotos').innerText = window.allPosts.filter(p => p.author === u && (p.image || p.video) && !p.isReel).length; $('statFriends').innerText = Object.keys(window.allFriendsData[u] || {}).length; let ac = $('profActions'); let ism = (u === window.currentUser), isf = window.currentUser ? window.myFriends.includes(u) : false, rr = window.currentRequests && window.currentRequests[u]; if(!window.currentUser) { $('coverEditBtn').style.display = 'none'; ac.innerHTML = `<button class="btn-primary" onclick="window.showRegisterModal()"><i class="fas fa-user-plus"></i> تسجيل الدخول للتفاعل</button>`; } else if(ism) { $('coverEditBtn').style.display = 'flex'; ac.innerHTML = `<button class="btn-primary" onclick="window.openEditProfileModal()"><i class="fas fa-edit"></i> تعديل</button><a href="ads.html" target="_blank" style="display:inline-flex;align-items:center;gap:6px;text-decoration:none;padding:8px 16px;border-radius:20px;border:1px solid #e2e8f0;font-weight:700;font-size:14px;font-family:Cairo,sans-serif;background:#fff;color:#0f172a;"><i class="fas fa-bullhorn" style="color:#f59e0b;"></i> إعلان ممول</a><button class="btn-secondary" onclick="window.location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); let c = $('postContent'); c.value = 'حساب رائع: @${u} ✨'; c.focus();"><i class="fas fa-share"></i> مشاركة</button>`; } else { $('coverEditBtn').style.display = 'none'; let sb = `<button class="btn-secondary" onclick="window.location.hash=''; window.scrollTo({top:0, behavior:'smooth'}); let c = $('postContent'); c.value = 'حساب رائع: @${u} ✨'; c.focus();"><i class="fas fa-share"></i> مشاركة</button>`; if(isf) ac.innerHTML = `<button class="btn-secondary" style="background:#ef4444;color:#fff;" onclick="window.unfriend('${u}')"><i class="fas fa-user-minus"></i></button><button class="btn-primary" onclick="window.location.hash=''; setTimeout(()=>window.openChat('${u}'),300)"><i class="fas fa-comment-dots"></i> رسالة</button> ${sb}`; else if(rr) ac.innerHTML = `<button class="btn-primary" style="background:#10b981;" onclick="window.acceptRequestFromProfile('${u}',this)"><i class="fas fa-check"></i> قبول</button> ${sb}`; else if(window.sentRequests && window.sentRequests[u]) ac.innerHTML = `<button class="btn-secondary" onclick="window.cancelFriendRequest('${u}')"><i class="fas fa-user-times"></i> إلغاء</button> ${sb}`; else { ac.innerHTML = `<button class="btn-secondary" disabled>جاري...</button>`; get(ref(db, `friendRequests/${u}/${window.currentUser}`)).then(s => { if($('profHandle').innerText.replace('@', '') === u) { if(s.exists()) { window.sentRequests[u] = true; ac.innerHTML = `<button class="btn-secondary" onclick="window.cancelFriendRequest('${u}')"><i class="fas fa-user-times"></i> إلغاء</button> ${sb}`; } else ac.innerHTML = `<button class="btn-primary" data-action="add" data-target="${u}" onclick="window.sendFriendRequestToFromFeed('${u}',this)"><i class="fas fa-user-plus"></i> إضافة</button> ${sb}`; } }).catch(e => console.log(e)); } } $('profileModal').classList.add('show'); document.body.style.overflow = 'hidden'; try { renderProfilePosts(u) } catch(e) {} }
-window.previewCoverImage = async (e) => { let f = e.target.files[0]; if(!f) return; let bt = $('coverEditBtn'), ot = bt.innerHTML; bt.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; try { let url = await window.uploadToCloudinary(f, 'image');
-    $('profCoverImg').src = url;
-    $('profCoverImg').style.display = 'block';
-    let coverUpdate = {coverPic: url};
-    if (window._lastUploadFileId) {
-        coverUpdate.coverPicFileId = window._lastUploadFileId;
-        window._lastUploadFileId = null;
-    }
-    await update(ref(db, `users/${window.currentUser}`), coverUpdate); } catch(err) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); } bt.innerHTML = ot; }; window.saveProfile = async () => { let p = $('editPicBase64').value; if(p && p.startsWith('data:')) { let b = $('saveProfileBtn'), ot = b.innerHTML; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...'; b.disabled = true; try {
-        p = await window.uploadToCloudinary(p, 'image');
-        if (window._lastUploadFileId) {
-            window._profilePicFileId = window._lastUploadFileId;
-            window._lastUploadFileId = null;
-        }
-      } catch(e) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); b.innerHTML = ot; b.disabled = false; return; } b.innerHTML = ot; b.disabled = false; } let locVal = $('editLocation').value.trim(); let dobVal = $('editDobProfile').value; if(dobVal) { let ageChk = window.calcAge(dobVal); if(ageChk == null || isNaN(ageChk)) return window.dlgAlert("تاريخ الميلاد غير صحيح.", "warning", "تاريخ ميلاد غير صالح"); if(ageChk < 13) return window.dlgAlert("يجب أن يكون عمرك 13 سنة على الأقل.", "warning", "العمر غير كافٍ"); if(ageChk > 100) return window.dlgAlert("تاريخ الميلاد المُدخل غير منطقي، يرجى التأكد منه.", "warning", "تاريخ ميلاد غير صالح"); } let up = {bio:$('editBio').value.trim(), location:locVal, job:$('editJob').value.trim(), education:$('editEducation').value.trim(), hobbies:$('editHobbies').value.trim(), birthdate:dobVal, gender:$('editGender').value, accountPrivacy:$('editAccountPrivacy').value}; if(locVal) up.locationPrecise = true; if(p) {
-        up.profilePic = p;
-        if (window._profilePicFileId) {
-            up.profilePicFileId = window._profilePicFileId;
-            window._profilePicFileId = null;
-        }
-    } await update(ref(db, `users/${window.currentUser}`), up); if(p) { $('myNavAvatar').src = p; $('mobileNavAvatar').src = p; } window.location.hash = '#/@' + window.currentUser; };
+window.previewCoverImage = async (e) => { let f = e.target.files[0]; if(!f) return; let bt = $('coverEditBtn'), ot = bt.innerHTML; bt.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; try { let url = await window.uploadToCloudinary(f, 'image'); $('profCoverImg').src = url; $('profCoverImg').style.display = 'block'; await update(ref(db, `users/${window.currentUser}`), {coverPic:url}); } catch(err) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); } bt.innerHTML = ot; }; window.saveProfile = async () => { let p = $('editPicBase64').value; if(p && p.startsWith('data:')) { let b = $('saveProfileBtn'), ot = b.innerHTML; b.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الرفع...'; b.disabled = true; try { p = await window.uploadToCloudinary(p, 'image'); } catch(e) { window.dlgAlert('فشل رفع الصورة، حاول مجدداً.', 'danger', 'خطأ'); b.innerHTML = ot; b.disabled = false; return; } b.innerHTML = ot; b.disabled = false; } let locVal = $('editLocation').value.trim(); let dobVal = $('editDobProfile').value; if(dobVal) { let ageChk = window.calcAge(dobVal); if(ageChk == null || isNaN(ageChk)) return window.dlgAlert("تاريخ الميلاد غير صحيح.", "warning", "تاريخ ميلاد غير صالح"); if(ageChk < 13) return window.dlgAlert("يجب أن يكون عمرك 13 سنة على الأقل.", "warning", "العمر غير كافٍ"); if(ageChk > 100) return window.dlgAlert("تاريخ الميلاد المُدخل غير منطقي، يرجى التأكد منه.", "warning", "تاريخ ميلاد غير صالح"); } let up = {bio:$('editBio').value.trim(), location:locVal, job:$('editJob').value.trim(), education:$('editEducation').value.trim(), hobbies:$('editHobbies').value.trim(), birthdate:dobVal, gender:$('editGender').value, accountPrivacy:$('editAccountPrivacy').value}; if(locVal) up.locationPrecise = true; if(p) up.profilePic = p; await update(ref(db, `users/${window.currentUser}`), up); if(p) { $('myNavAvatar').src = p; $('mobileNavAvatar').src = p; } window.location.hash = '#/@' + window.currentUser; };
 function renderProfilePosts(u) { 
     let pp = window.allUsersData[u]?.profilePic || dA; 
     $('profilePostsFeed').innerHTML = '<div style="text-align:center;padding:20px;color:var(--primary);"><i class="fas fa-spinner fa-spin fa-2x"></i><br>جاري جلب المنشورات...</div>';
@@ -3489,15 +3409,6 @@ window.openNewsImageViewer = (imgSrc, sourceName) => {
     document.body.appendChild(viewer);
 };
 
-// ── نظام تصفية الفيد ────────────────────────────────
-window.feedMode = (() => { try { return localStorage.getItem('feedMode') || 'latest'; } catch(e) { return 'latest'; } })();
-window.setFeedMode = (mode) => {
-    window.feedMode = mode;
-    document.querySelectorAll('.ff-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
-    try { localStorage.setItem('feedMode', mode); } catch(e) {}
-    renderFeed();
-};
-
 window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFollowData(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); if(window.initRewardsSystem) window.initRewardsSystem(); };
 
 window.showBanScreen = function(d) {
@@ -4029,48 +3940,50 @@ window.fbCloseComments = () => { window.closeMvCommentsSheet?.(); };
 window.fbSubmitComment = () => { window.mvAddComment?.(window._fbCurrentPost?.id, window._fbCurrentPost?.author); };
 
 
-// ═══════════════════════════════════════════════════════
-//  فحص الصور المكسورة تلقائياً
-// ═══════════════════════════════════════════════════════
-window.checkBrokenProfilePic = () => {
-    if (!window.currentUser) return;
-    const userData = window.allUsersData?.[window.currentUser];
-    if (!userData) return;
-    const dA = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-    const checkImg = (url, type) => {
-        if (!url || url === dA) return;
-        const img = new Image();
-        img.onerror = () => window.showBrokenPicBanner(type);
-        img.src = url + '?t=' + Date.now();
-    };
-    checkImg(userData.profilePic, 'profile');
-    checkImg(userData.coverPic, 'cover');
+// ══ Telegram Proxy & Broken Image System ══
+window.getMediaUrl = async (url, fileId) => {
+    if (!fileId) return url;
+    try { const r = await fetch(url, {method:'HEAD'}); if(r.ok) return url; } catch(e) {}
+    return window.MEDIA_WORKER_URL + '/media/' + fileId;
 };
 
-window.showBrokenPicBanner = (type) => {
-    if (document.getElementById('brokenPicBanner')) return;
-    const banner = document.createElement('div');
-    banner.id = 'brokenPicBanner';
-    banner.style.cssText = 'position:fixed;top:120px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;padding:12px 20px;border-radius:14px;font-family:Cairo,sans-serif;font-size:14px;font-weight:700;display:flex;align-items:center;gap:10px;box-shadow:0 8px 30px rgba(239,68,68,0.4);cursor:pointer;max-width:90vw;';
-    banner.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>${type==='profile'?'صورتك الشخصية':'صورة غلافك'} تعطلت — اضغط لتحديثها</span><button onclick="event.stopPropagation();this.parentElement.remove();" style="background:rgba(255,255,255,0.25);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;"><i class="fas fa-times"></i></button>`;
-    banner.addEventListener('click', () => { banner.remove(); window.location.hash = '#/@' + window.currentUser; });
-    document.body.appendChild(banner);
-    setTimeout(() => banner?.remove(), 10000);
+window.checkBrokenProfilePic = () => {
+    if (!window.currentUser) return;
+    const d = window.allUsersData?.[window.currentUser];
+    if (!d) return;
+    const dA = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+    const check = (url, fid, type) => {
+        if (!url || url === dA) return;
+        const img = new Image();
+        img.onerror = () => {
+            if (!document.getElementById('brokenBanner_'+type)) {
+                const b = document.createElement('div');
+                b.id = 'brokenBanner_'+type;
+                b.style.cssText = 'position:fixed;top:120px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;padding:12px 20px;border-radius:14px;font-family:Cairo,sans-serif;font-size:14px;font-weight:700;display:flex;align-items:center;gap:10px;box-shadow:0 8px 30px rgba(239,68,68,.4);cursor:pointer;max-width:90vw;white-space:nowrap;';
+                b.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>${type==='profile'?'صورتك الشخصية':'صورة غلافك'} تعطلت — اضغط لتحديثها</span><button onclick="event.stopPropagation();this.parentElement.remove();" style="background:rgba(255,255,255,.25);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;"><i class="fas fa-times"></i></button>`;
+                b.onclick = () => { b.remove(); window.location.hash = '#/@' + window.currentUser; };
+                document.body.appendChild(b);
+                setTimeout(() => b?.remove(), 10000);
+            }
+        };
+        img.src = url + '?t=' + Date.now();
+    };
+    check(d.profilePic, d.profilePicFileId, 'profile');
+    check(d.coverPic,   d.coverPicFileId,   'cover');
 };
 
 window.startBrokenPicWatcher = () => {
     setTimeout(window.checkBrokenProfilePic, 5000);
-    setInterval(window.checkBrokenProfilePic, 30 * 60 * 1000);
+    setInterval(window.checkBrokenProfilePic, 30*60*1000);
 };
 
-
-// ── معالج عام للصور المكسورة ────────────────────────
-document.addEventListener('error', (e) => {
+// معالج عام للصور المكسورة
+document.addEventListener('error', e => {
     const img = e.target;
     if (img.tagName !== 'IMG') return;
-    const fileId = img.dataset?.fileId;
-    if (fileId && !img.dataset?.fixed) {
+    const fid = img.dataset?.fileId;
+    if (fid && !img.dataset?.fixed) {
         img.dataset.fixed = '1';
-        img.src = window.MEDIA_WORKER_URL + '/media/' + fileId;
+        img.src = (window.MEDIA_WORKER_URL||'') + '/media/' + fid;
     }
 }, true);
