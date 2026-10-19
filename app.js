@@ -740,6 +740,31 @@ window.uploadToCloudinary = (file, type, onProgress, bucket) => {
     } catch(err) { reject(err); }
   });
 };
+window.videoObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { if(entry.isIntersecting) { try { entry.target.muted = true; let playPromise = entry.target.play(); if(playPromise !== undefined) { playPromise.catch(error => {}); } } catch(e){} } else { try { if(!entry.target.paused) entry.target.pause(); } catch(e){} } }); }, {threshold: 0.5});
+reelsObserver = new IntersectionObserver((entries) => { entries.forEach(entry => { let video = entry.target.querySelector('video'); if(!video) return; if(entry.isIntersecting) { try { video.muted = false; video.currentTime = 0; let p = video.play(); if(p !== undefined) p.catch(e => {}); } catch(e) {} let rid = entry.target.getAttribute('data-id'); if(rid && window.currentUser) { let vRef = ref(db, `posts/${rid}/views/${window.currentUser}`); get(vRef).then(s => { if(!s.exists()) set(vRef, true); }); } } else { try { if(!video.paused) video.pause(); } catch(e) {} } }); }, {threshold: 0.7});
+
+window.playNotifSound = () => { try { let audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3'); audio.volume = 0.5; audio.play().catch(e => {}); } catch(err) {} };
+window.toastTimeout = null;
+window.showToast = (t, x, i) => { try { $('toastTitle').innerText = t; $('toastBody').innerText = x; $('toastImg').src = i || dA; let o = $('toastNotification'); o.classList.add('show'); if(window.toastTimeout) clearTimeout(window.toastTimeout); window.toastTimeout = setTimeout(() => o.classList.remove('show'), 5000); window.playNotifSound(); if("Notification" in window && Notification.permission === "granted") { try { let s = new Notification(t, {body:x, icon:i||dA}); setTimeout(() => s.close(), 5000); } catch(e) {} } } catch(err) {} };
+window.fullDateTime = (ts) => { if(!ts) return ''; let dt = new Date(ts); if(isNaN(dt)) return ''; return dt.toLocaleString('ar-EG', {day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'}); };
+window.timeAgo = (ts) => {
+    if(!ts) return "منذ فترة";
+    let s = Math.floor((Date.now()-ts)/1000); if(s<0) s = 0;
+    const unit = (n, one, two, plural) => n === 1 ? one : n === 2 ? two : `منذ ${n} ${plural}`;
+    if(s<60) return "الآن";
+    let m = Math.floor(s/60);
+    if(m<60) return unit(m, "منذ دقيقة", "منذ دقيقتين", "دقائق");
+    let h = Math.floor(m/60);
+    if(h<24) return unit(h, "منذ ساعة", "منذ ساعتين", "ساعات");
+    let d = Math.floor(h/24);
+    if(d<7) return unit(d, "منذ يوم", "منذ يومين", "أيام");
+    let w = Math.floor(d/7);
+    if(w<4) return unit(w, "منذ أسبوع", "منذ أسبوعين", "أسابيع");
+    let mo = Math.floor(d/30);
+    if(mo<12) return unit(mo, "منذ شهر", "منذ شهرين", "أشهر");
+    let y = Math.floor(d/365);
+    return unit(y, "منذ عام", "منذ عامين", "أعوام");
+};
 
 // باقي دوال النظام
 window.isInitialNotifLoad = true; window.alertedNotifs = new Set();
@@ -2422,21 +2447,56 @@ window.loadProfileTabContent = async (tab, userId) => {
 
 window.renderProfilePostsEnhanced = async (userId, container) => {
     container.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل المنشورات...</p></div>';
-    
+
     const isNewsBot = window.allUsersData[userId]?.isNewsBot;
-    const snapshot = await get(ref(db, isNewsBot ? 'newsPosts' : 'posts'));
-    const posts = [];
-    
-    if (snapshot.exists()) {
-        snapshot.forEach(child => {
-            const post = child.val();
-            post.id = child.key;
-            window.postCache[post.id] = post;
-            // إظهار المنشورات العادية والمشتركة معاً، بدون الريلز
-            if (post.author === userId && !post.isReel) posts.push(post);
-        });
-        posts.sort((a, b) => b.timestamp - a.timestamp);
+    let posts = [];
+
+    if (isNewsBot) {
+        // بوتات الأخبار — نجيب من Firebase مرة واحدة
+        try {
+            const snapshot = await get(ref(db, 'newsPosts'));
+            if (snapshot.exists()) {
+                snapshot.forEach(child => {
+                    const post = child.val(); post.id = child.key;
+                    if (post.author === userId && !post.isReel) posts.push(post);
+                });
+            }
+        } catch(e) { console.error('newsPosts fetch error:', e); }
+    } else {
+        // مستخدم عادي — استخدم allPosts المحملة مسبقاً (أسرع بكثير)
+        posts = (window.allPosts || []).filter(p => p.author === userId && !p.isReel);
+
+        // لو allPosts فاضية — انتظر تحميلها
+        if (posts.length === 0 && (!window.allPosts || window.allPosts.length === 0)) {
+            await new Promise(resolve => {
+                let tries = 0;
+                const check = setInterval(() => {
+                    tries++;
+                    if ((window.allPosts && window.allPosts.length > 0) || tries > 20) {
+                        clearInterval(check);
+                        resolve();
+                    }
+                }, 300);
+            });
+            posts = (window.allPosts || []).filter(p => p.author === userId && !p.isReel);
+        }
+
+        // لو لسه فاضية — اجلب من Firebase مباشرة
+        if (posts.length === 0) {
+            try {
+                const snapshot = await get(ref(db, 'posts'));
+                if (snapshot.exists()) {
+                    snapshot.forEach(child => {
+                        const post = child.val(); post.id = child.key;
+                        window.postCache[post.id] = post;
+                        if (post.author === userId && !post.isReel) posts.push(post);
+                    });
+                }
+            } catch(e) { console.error('posts fetch error:', e); }
+        }
     }
+
+    posts.sort((a, b) => b.timestamp - a.timestamp);
     
     if (posts.length === 0) {
         container.innerHTML = `
@@ -3946,44 +4006,28 @@ window.getMediaUrl = async (url, fileId) => {
     try { const r = await fetch(url, {method:'HEAD'}); if(r.ok) return url; } catch(e) {}
     return window.MEDIA_WORKER_URL + '/media/' + fileId;
 };
-
 window.checkBrokenProfilePic = () => {
     if (!window.currentUser) return;
-    const d = window.allUsersData?.[window.currentUser];
-    if (!d) return;
+    const d = window.allUsersData?.[window.currentUser]; if (!d) return;
     const dA = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-    const check = (url, fid, type) => {
+    const check = (url, type) => {
         if (!url || url === dA) return;
         const img = new Image();
         img.onerror = () => {
-            if (!document.getElementById('brokenBanner_'+type)) {
-                const b = document.createElement('div');
-                b.id = 'brokenBanner_'+type;
-                b.style.cssText = 'position:fixed;top:120px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;padding:12px 20px;border-radius:14px;font-family:Cairo,sans-serif;font-size:14px;font-weight:700;display:flex;align-items:center;gap:10px;box-shadow:0 8px 30px rgba(239,68,68,.4);cursor:pointer;max-width:90vw;white-space:nowrap;';
-                b.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>${type==='profile'?'صورتك الشخصية':'صورة غلافك'} تعطلت — اضغط لتحديثها</span><button onclick="event.stopPropagation();this.parentElement.remove();" style="background:rgba(255,255,255,.25);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;"><i class="fas fa-times"></i></button>`;
-                b.onclick = () => { b.remove(); window.location.hash = '#/@' + window.currentUser; };
-                document.body.appendChild(b);
-                setTimeout(() => b?.remove(), 10000);
-            }
+            if (document.getElementById('brokenBanner_'+type)) return;
+            const b = document.createElement('div'); b.id = 'brokenBanner_'+type;
+            b.style.cssText = 'position:fixed;top:120px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;padding:12px 20px;border-radius:14px;font-family:Cairo,sans-serif;font-size:14px;font-weight:700;display:flex;align-items:center;gap:10px;box-shadow:0 8px 30px rgba(239,68,68,.4);cursor:pointer;max-width:90vw;';
+            b.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>${type==='profile'?'صورتك الشخصية':'صورة غلافك'} تعطلت — اضغط لتحديثها</span><button onclick="event.stopPropagation();this.parentElement.remove();" style="background:rgba(255,255,255,.25);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;"><i class="fas fa-times"></i></button>`;
+            b.onclick = () => { b.remove(); window.location.hash = '#/@' + window.currentUser; };
+            document.body.appendChild(b); setTimeout(() => b?.remove(), 10000);
         };
         img.src = url + '?t=' + Date.now();
     };
-    check(d.profilePic, d.profilePicFileId, 'profile');
-    check(d.coverPic,   d.coverPicFileId,   'cover');
+    check(d.profilePic, 'profile'); check(d.coverPic, 'cover');
 };
-
-window.startBrokenPicWatcher = () => {
-    setTimeout(window.checkBrokenProfilePic, 5000);
-    setInterval(window.checkBrokenProfilePic, 30*60*1000);
-};
-
-// معالج عام للصور المكسورة
+window.startBrokenPicWatcher = () => { setTimeout(window.checkBrokenProfilePic, 5000); setInterval(window.checkBrokenProfilePic, 30*60*1000); };
 document.addEventListener('error', e => {
-    const img = e.target;
-    if (img.tagName !== 'IMG') return;
+    const img = e.target; if (img.tagName !== 'IMG') return;
     const fid = img.dataset?.fileId;
-    if (fid && !img.dataset?.fixed) {
-        img.dataset.fixed = '1';
-        img.src = (window.MEDIA_WORKER_URL||'') + '/media/' + fid;
-    }
+    if (fid && !img.dataset?.fixed) { img.dataset.fixed = '1'; img.src = (window.MEDIA_WORKER_URL||'') + '/media/' + fid; }
 }, true);
