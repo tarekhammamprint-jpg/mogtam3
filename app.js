@@ -2445,54 +2445,68 @@ window.loadProfileTabContent = async (tab, userId) => {
     }
 };
 
-window.renderProfilePostsEnhanced = async (userId, container) => {
-    container.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل المنشورات...</p></div>';
+// cache منشورات البوتات — مرة واحدة بس
+window._newsBotsPostsCache = window._newsBotsPostsCache || {};
+window._newsBotsPostsLoading = window._newsBotsPostsLoading || {};
 
+window.renderProfilePostsEnhanced = async (userId, container) => {
     const isNewsBot = window.allUsersData[userId]?.isNewsBot;
     let posts = [];
 
     if (isNewsBot) {
-        // بوتات الأخبار — نجيب من Firebase مرة واحدة
-        try {
-            const snapshot = await get(ref(db, 'newsPosts'));
-            if (snapshot.exists()) {
-                snapshot.forEach(child => {
-                    const post = child.val(); post.id = child.key;
-                    if (post.author === userId && !post.isReel) posts.push(post);
-                });
-            }
-        } catch(e) { console.error('newsPosts fetch error:', e); }
-    } else {
-        // مستخدم عادي — استخدم allPosts المحملة مسبقاً (أسرع بكثير)
-        posts = (window.allPosts || []).filter(p => p.author === userId && !p.isReel);
-
-        // لو allPosts فاضية — انتظر تحميلها
-        if (posts.length === 0 && (!window.allPosts || window.allPosts.length === 0)) {
+        // لو موجود في الـ cache — اعرضه فوراً
+        if (window._newsBotsPostsCache[userId]) {
+            posts = window._newsBotsPostsCache[userId];
+        } else if (window._newsBotsPostsLoading[userId]) {
+            // لو جاري التحميل — انتظر
+            container.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل المنشورات...</p></div>';
             await new Promise(resolve => {
-                let tries = 0;
                 const check = setInterval(() => {
-                    tries++;
-                    if ((window.allPosts && window.allPosts.length > 0) || tries > 20) {
-                        clearInterval(check);
-                        resolve();
-                    }
-                }, 300);
+                    if (!window._newsBotsPostsLoading[userId]) { clearInterval(check); resolve(); }
+                }, 200);
+                setTimeout(() => { clearInterval(check); resolve(); }, 8000);
             });
-            posts = (window.allPosts || []).filter(p => p.author === userId && !p.isReel);
-        }
-
-        // لو لسه فاضية — اجلب من Firebase مباشرة
-        if (posts.length === 0) {
+            posts = window._newsBotsPostsCache[userId] || [];
+        } else {
+            // أول مرة — اجلب وخزّن
+            container.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل المنشورات...</p></div>';
+            window._newsBotsPostsLoading[userId] = true;
             try {
-                const snapshot = await get(ref(db, 'posts'));
+                const snapshot = await get(ref(db, 'newsPosts'));
+                const all = [];
                 if (snapshot.exists()) {
                     snapshot.forEach(child => {
                         const post = child.val(); post.id = child.key;
                         window.postCache[post.id] = post;
-                        if (post.author === userId && !post.isReel) posts.push(post);
+                        all.push(post);
                     });
                 }
-            } catch(e) { console.error('posts fetch error:', e); }
+                // حفظ كل منشورات البوتات في الـ cache
+                const botIds = new Set(all.map(p => p.author));
+                botIds.forEach(bid => {
+                    window._newsBotsPostsCache[bid] = all.filter(p => p.author === bid && !p.isReel);
+                });
+                posts = window._newsBotsPostsCache[userId] || [];
+            } catch(e) { console.error('newsPosts fetch error:', e); }
+            window._newsBotsPostsLoading[userId] = false;
+        }
+    } else {
+        // مستخدم عادي — من allPosts فوراً
+        posts = (window.allPosts || []).filter(p => p.author === userId && !p.isReel);
+
+        // لو allPosts لسه بتتحمل — انتظر max 3 ثواني
+        if (posts.length === 0 && (!window.allPosts || window.allPosts.length === 0)) {
+            container.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل المنشورات...</p></div>';
+            await new Promise(resolve => {
+                let tries = 0;
+                const check = setInterval(() => {
+                    tries++;
+                    if ((window.allPosts && window.allPosts.length > 0) || tries > 15) {
+                        clearInterval(check); resolve();
+                    }
+                }, 200);
+            });
+            posts = (window.allPosts || []).filter(p => p.author === userId && !p.isReel);
         }
     }
 
@@ -2574,13 +2588,12 @@ window.renderProfilePostsEnhanced = async (userId, container) => {
 };
 
 window.renderProfileReelsEnhanced = async (userId, container) => {
-    container.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل الريلز...</p></div>';
-    
-    const postsRef = ref(db, 'posts');
-    const snapshot = await get(postsRef);
-    const reels = [];
-    
-    if (snapshot.exists()) {
+    // من allPosts مباشرة — بدون Firebase
+    const reels = (window.allPosts || []).filter(p => p.author === userId && p.isReel);
+    // dummy forEach compatibility
+    const fakeSnapshot = { exists: () => false, forEach: () => {} };
+    if (false) {
+        const snapshot = fakeSnapshot;
         snapshot.forEach(child => {
             const post = child.val();
             post.id = child.key;
@@ -2588,8 +2601,8 @@ window.renderProfileReelsEnhanced = async (userId, container) => {
                 reels.push(post);
             }
         });
-        reels.sort((a, b) => b.timestamp - a.timestamp);
     }
+    reels.sort((a, b) => b.timestamp - a.timestamp);
     
     if (reels.length === 0) {
         container.innerHTML = `
@@ -2637,13 +2650,9 @@ window.renderProfileReelsEnhanced = async (userId, container) => {
 };
 
 window.renderProfileMediaEnhanced = async (userId, container) => {
-    container.innerHTML = '<div style="text-align:center; padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل الوسائط...</p></div>';
-    
-    const postsRef = ref(db, 'posts');
-    const snapshot = await get(postsRef);
-    const media = [];
-    
-    if (snapshot.exists()) {
+    const media = (window.allPosts || []).filter(p => p.author === userId && (p.image || p.video || (p.media && p.media.length)));
+    if (false) {
+        const snapshot = { exists: () => false, forEach: () => {} };
         snapshot.forEach(child => {
             const post = child.val();
             post.id = child.key;
