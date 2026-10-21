@@ -1847,7 +1847,11 @@ window.publishPost = async () => {
         if (images.length === 1) d.image = images[0]; else if (images.length > 1) { d.images = images; d.image = images[0]; }
         if (videos.length === 1) d.video = videos[0]; else if (videos.length > 1) { d.videos = videos; d.video = videos[0]; }
         if (isReel) d.isReel = true;
-        let nr = push(ref(db, 'posts')); await set(nr, d);
+        // البوتات تنشر على newsPosts — المستخدمون العاديون على posts
+        const isBot = window.allUsersData[window.currentUser]?.isNewsBot;
+        const postsPath = isBot ? 'newsPosts' : 'posts';
+        if (isBot) d.isNewsBot = true;
+        let nr = push(ref(db, postsPath)); await set(nr, d);
         window.myFriends.forEach(f => { if (c.includes('@' + f)) push(ref(db, `users/${f}/notifications`), { type: 'mention', from: window.currentUser, postId: nr.key, timestamp: Date.now(), read: false }); });
         bt.innerHTML = ot; bt.disabled = false;
         let pc = $('postContent'); if(pc) pc.value = '';
@@ -3464,7 +3468,7 @@ window.openNewsImageViewer = (imgSrc, sourceName) => {
     document.body.appendChild(viewer);
 };
 
-window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFollowData(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); if(window.initRewardsSystem) window.initRewardsSystem(); };
+window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFollowData(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); if(window.initRewardsSystem) window.initRewardsSystem(); window.scheduleBotCleanup && window.scheduleBotCleanup(); };
 
 window.showBanScreen = function(d) {
     let now = Date.now();
@@ -4026,3 +4030,48 @@ document.addEventListener('error', e => {
     const fid = img.dataset?.fileId;
     if (fid && !img.dataset?.fixed) { img.dataset.fixed = '1'; img.src = (window.MEDIA_WORKER_URL||'') + '/media/' + fid; }
 }, true);
+
+
+// ═══════════════════════════════════════════════════════
+//  تنظيف منشورات البوتات القديمة (أكثر من 7 أيام)
+//  يعمل مرة واحدة عند تسجيل الدخول
+// ═══════════════════════════════════════════════════════
+window.cleanOldBotPosts = async () => {
+    if (!window.currentUser) return;
+    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - SEVEN_DAYS;
+
+    try {
+        // جلب المنشورات القديمة فقط بـ query محدود
+        const oldPostsSnap = await get(
+            query(ref(db, 'newsPosts'), orderByChild('timestamp'), limitToLast(200))
+        );
+        if (!oldPostsSnap.exists()) return;
+
+        const toDelete = [];
+        oldPostsSnap.forEach(child => {
+            const post = child.val();
+            if (post.timestamp && post.timestamp < cutoff) {
+                toDelete.push(child.key);
+            }
+        });
+
+        if (toDelete.length === 0) return;
+
+        // حذف دفعات
+        const updates = {};
+        toDelete.forEach(id => { updates[id] = null; });
+        await update(ref(db, 'newsPosts'), updates);
+
+        console.log(`[BotCleanup] حُذف ${toDelete.length} منشور قديم`);
+    } catch(e) {
+        console.error('[BotCleanup] خطأ:', e);
+    }
+};
+
+// تشغيل التنظيف مرة واحدة بعد 10 ثوان من تسجيل الدخول
+window.scheduleBotCleanup = () => {
+    setTimeout(window.cleanOldBotPosts, 10000);
+    // وكل 24 ساعة
+    setInterval(window.cleanOldBotPosts, 24 * 60 * 60 * 1000);
+};
