@@ -1864,7 +1864,14 @@ window.publishPost = async () => {
         bt.innerHTML = ot; bt.disabled = false; showProg('none');
     }
 };
-window.deletePost = (id) => { window.dlgDanger("هل تريد حذف هذا المنشور نهائياً؟").then(ok => { if(ok) { remove(ref(db, `posts/${id}`)); window.location.hash=''; } }); };
+window.deletePost = (id) => { window.dlgDanger("هل تريد حذف هذا المنشور نهائياً؟").then(ok => {
+    if(ok) {
+        const post = window.postCache?.[id] || window.allPosts?.find(p=>p.id===id) || window.allNewsPosts?.find(p=>p.id===id);
+        const isBot = post?.isNewsBot || window.allUsersData?.[post?.author]?.isNewsBot;
+        remove(ref(db, `${isBot ? 'newsPosts' : 'posts'}/${id}`));
+        window.location.hash='';
+    }
+}); };
 
 // ============ تعديل المنشور بكل مشتملاته (نص + صور + فيديوهات) ============
 window.editMediaItems = []; // {kind:'existing', mediaType:'image'|'video', url} أو {kind:'new', type:'image'|'video', file, previewUrl}
@@ -2860,11 +2867,13 @@ window.uploadReelFromProfile = async (event) => {
     
     try {
         const url = await window.uploadToCloudinary(file, 'video');
-        const newPostRef = push(ref(db, 'posts'));
+        const isBot = window.allUsersData?.[window.currentUser]?.isNewsBot;
+        const newPostRef = push(ref(db, isBot ? 'newsPosts' : 'posts'));
         await set(newPostRef, {
             author: window.currentUser,
             video: url,
             isReel: true,
+            isNewsBot: isBot || false,
             timestamp: Date.now(),
             text: ''
         });
