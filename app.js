@@ -715,14 +715,10 @@ window.uploadToCloudinary = (file, type, onProgress, bucket) => {
   return new Promise(async (resolve, reject) => {
     try {
       let uploadFile = file;
-      if (typeof file === 'string' && file.startsWith('data:')) {
-        const r = await fetch(file); uploadFile = await r.blob();
-      }
+      if (typeof file === 'string' && file.startsWith('data:')) { const r = await fetch(file); uploadFile = await r.blob(); }
       const mediaType = (type === 'video' || type === 'reel') ? 'video' : 'image';
       const fd = new FormData();
-      fd.append('file', uploadFile);
-      fd.append('type', mediaType);
-      fd.append('user_id', window.currentUser || 'guest');
+      fd.append('file', uploadFile); fd.append('type', mediaType); fd.append('user_id', window.currentUser || 'guest');
       const xhr = new XMLHttpRequest();
       xhr.open('POST', window.MEDIA_WORKER_URL + '/upload');
       xhr.upload.onprogress = e => { if (onProgress && e.lengthComputable) onProgress(Math.round(e.loaded/e.total*100)); };
@@ -730,7 +726,7 @@ window.uploadToCloudinary = (file, type, onProgress, bucket) => {
         try {
           const d = JSON.parse(xhr.responseText);
           if (xhr.status >= 200 && xhr.status < 300 && d.secure_url) {
-            if (d.file_id) { window._lastFileId = d.file_id; window._lastProxyUrl = window.MEDIA_WORKER_URL + '/media/' + d.file_id; }
+            if (d.file_id) { window._lastFileId = d.file_id; }
             resolve(d.secure_url);
           } else reject(new Error(d.error || 'فشل الرفع'));
         } catch(e) { reject(e); }
@@ -2445,72 +2441,65 @@ window.loadProfileTabContent = async (tab, userId) => {
     }
 };
 
-// cache منشورات البوتات — مرة واحدة بس
-window._newsBotsPostsCache = window._newsBotsPostsCache || {};
-window._newsBotsPostsLoading = window._newsBotsPostsLoading || {};
+// cache منشورات البوتات
+window._botPostsCache = window._botPostsCache || {};
+window._botPostsLoading = false;
 
 window.renderProfilePostsEnhanced = async (userId, container) => {
     const isNewsBot = window.allUsersData[userId]?.isNewsBot;
     let posts = [];
 
     if (isNewsBot) {
-        // لو موجود في الـ cache — اعرضه فوراً
-        if (window._newsBotsPostsCache[userId]) {
-            posts = window._newsBotsPostsCache[userId];
-        } else if (window._newsBotsPostsLoading[userId]) {
-            // لو جاري التحميل — انتظر
-            container.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل المنشورات...</p></div>';
-            await new Promise(resolve => {
-                const check = setInterval(() => {
-                    if (!window._newsBotsPostsLoading[userId]) { clearInterval(check); resolve(); }
-                }, 200);
-                setTimeout(() => { clearInterval(check); resolve(); }, 8000);
-            });
-            posts = window._newsBotsPostsCache[userId] || [];
-        } else {
-            // أول مرة — اجلب وخزّن
-            container.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل المنشورات...</p></div>';
-            window._newsBotsPostsLoading[userId] = true;
-            try {
-                const snapshot = await get(ref(db, 'newsPosts'));
-                const all = [];
-                if (snapshot.exists()) {
-                    snapshot.forEach(child => {
-                        const post = child.val(); post.id = child.key;
-                        window.postCache[post.id] = post;
-                        all.push(post);
-                    });
-                }
-                // حفظ كل منشورات البوتات في الـ cache
-                const botIds = new Set(all.map(p => p.author));
-                botIds.forEach(bid => {
-                    window._newsBotsPostsCache[bid] = all.filter(p => p.author === bid && !p.isReel);
-                });
-                posts = window._newsBotsPostsCache[userId] || [];
-            } catch(e) { console.error('newsPosts fetch error:', e); }
-            window._newsBotsPostsLoading[userId] = false;
+        // ✅ استخدم allNewsPosts المحملة في الـ memory أولاً — فورية
+        if (window.allNewsPosts && window.allNewsPosts.length > 0) {
+            posts = window.allNewsPosts.filter(p => p.author === userId && !p.isReel);
         }
-    } else {
-        // مستخدم عادي — من allPosts فوراً
-        posts = (window.allPosts || []).filter(p => p.author === userId && !p.isReel);
-
-        // لو allPosts لسه بتتحمل — انتظر max 3 ثواني
-        if (posts.length === 0 && (!window.allPosts || window.allPosts.length === 0)) {
-            container.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري تحميل المنشورات...</p></div>';
+        // لو لسه مش محملة — انتظر max 3 ثواني
+        if (posts.length === 0) {
+            container.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري التحميل...</p></div>';
             await new Promise(resolve => {
                 let tries = 0;
-                const check = setInterval(() => {
+                const t = setInterval(() => {
                     tries++;
-                    if ((window.allPosts && window.allPosts.length > 0) || tries > 15) {
-                        clearInterval(check); resolve();
-                    }
+                    if ((window.allNewsPosts && window.allNewsPosts.length > 0) || tries > 15) { clearInterval(t); resolve(); }
                 }, 200);
+            });
+            posts = (window.allNewsPosts || []).filter(p => p.author === userId && !p.isReel);
+        }
+        // لو لسه فاضية — اجلب بـ query محدود بدل كل newsPosts
+        if (posts.length === 0 && !window._botPostsLoading) {
+            window._botPostsLoading = true;
+            try {
+                const snap = await get(query(ref(db, 'newsPosts'), orderByChild('author'), equalTo(userId)));
+                if (snap.exists()) {
+                    snap.forEach(c => { const p = c.val(); p.id = c.key; window.postCache[p.id] = p; if (!p.isReel) posts.push(p); });
+                }
+            } catch(e) { console.error(e); }
+            window._botPostsLoading = false;
+        }
+    } else {
+        // ✅ مستخدم عادي — من allPosts فوراً
+        posts = (window.allPosts || []).filter(p => p.author === userId && !p.isReel);
+        if (posts.length === 0 && (!window.allPosts || window.allPosts.length === 0)) {
+            container.innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin fa-2x" style="color:var(--primary);"></i><p>جاري التحميل...</p></div>';
+            await new Promise(resolve => {
+                let tries = 0;
+                const t = setInterval(() => { tries++; if ((window.allPosts?.length > 0) || tries > 15) { clearInterval(t); resolve(); } }, 200);
             });
             posts = (window.allPosts || []).filter(p => p.author === userId && !p.isReel);
         }
     }
 
     posts.sort((a, b) => b.timestamp - a.timestamp);
+    // dummy للتوافق مع الكود التالي
+    const fakeSnap = { exists: () => false, forEach: () => {} };
+    if (false) {
+        const snapshot = fakeSnap;
+        snapshot.forEach(child => {
+            const post = child.val(); post.id = child.key; window.postCache[post.id] = post;
+            if (post.author === userId && !post.isReel) posts.push(post);
+        });
+    }
     
     if (posts.length === 0) {
         container.innerHTML = `
@@ -2588,21 +2577,18 @@ window.renderProfilePostsEnhanced = async (userId, container) => {
 };
 
 window.renderProfileReelsEnhanced = async (userId, container) => {
-    // من allPosts مباشرة — بدون Firebase
     const reels = (window.allPosts || []).filter(p => p.author === userId && p.isReel);
-    // dummy forEach compatibility
-    const fakeSnapshot = { exists: () => false, forEach: () => {} };
+    reels.sort((a, b) => b.timestamp - a.timestamp);
     if (false) {
-        const snapshot = fakeSnapshot;
+        const snapshot = { exists: () => false, forEach: () => {} };
         snapshot.forEach(child => {
-            const post = child.val();
-            post.id = child.key;
+            const post = child.val(); post.id = child.key;
             if (post.author === userId && post.video && post.isReel) {
                 reels.push(post);
             }
         });
+        reels.sort((a, b) => b.timestamp - a.timestamp);
     }
-    reels.sort((a, b) => b.timestamp - a.timestamp);
     
     if (reels.length === 0) {
         container.innerHTML = `
@@ -2651,11 +2637,11 @@ window.renderProfileReelsEnhanced = async (userId, container) => {
 
 window.renderProfileMediaEnhanced = async (userId, container) => {
     const media = (window.allPosts || []).filter(p => p.author === userId && (p.image || p.video || (p.media && p.media.length)));
+    media.sort((a, b) => b.timestamp - a.timestamp);
     if (false) {
         const snapshot = { exists: () => false, forEach: () => {} };
         snapshot.forEach(child => {
-            const post = child.val();
-            post.id = child.key;
+            const post = child.val(); post.id = child.key;
             if (post.author === userId && (post.image || (post.video && !post.isReel))) {
                 media.push(post);
             }
@@ -4009,7 +3995,7 @@ window.fbCloseComments = () => { window.closeMvCommentsSheet?.(); };
 window.fbSubmitComment = () => { window.mvAddComment?.(window._fbCurrentPost?.id, window._fbCurrentPost?.author); };
 
 
-// ══ Telegram Proxy & Broken Image System ══
+// ══ Telegram Proxy ══
 window.getMediaUrl = async (url, fileId) => {
     if (!fileId) return url;
     try { const r = await fetch(url, {method:'HEAD'}); if(r.ok) return url; } catch(e) {}
