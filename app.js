@@ -726,8 +726,15 @@ window.uploadToCloudinary = (file, type, onProgress, bucket) => {
         try {
           const d = JSON.parse(xhr.responseText);
           if (xhr.status >= 200 && xhr.status < 300 && d.secure_url) {
-            if (d.file_id) { window._lastFileId = d.file_id; }
-            resolve(d.secure_url);
+            if (d.file_id) {
+              window._lastFileId = d.file_id;
+              window._lastProxyUrl = window.MEDIA_WORKER_URL + '/media/' + d.file_id;
+            }
+            // نحفظ proxy_url الدائم بدل secure_url المؤقت من Telegram
+            const finalUrl = d.file_id
+              ? (window.MEDIA_WORKER_URL + '/media/' + d.file_id)
+              : d.secure_url;
+            resolve(finalUrl);
           } else reject(new Error(d.error || 'فشل الرفع'));
         } catch(e) { reject(e); }
       };
@@ -3477,7 +3484,7 @@ window.openNewsImageViewer = (imgSrc, sourceName) => {
     document.body.appendChild(viewer);
 };
 
-window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFollowData(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); if(window.initRewardsSystem) window.initRewardsSystem(); window.scheduleBotCleanup && window.scheduleBotCleanup(); };
+window.startPrivateListeners = () => { if(window.privateListenersStarted) return; window.privateListenersStarted = true; listenToAllFriends(); listenToFollowData(); listenToNotifications(); listenToUnreadChats(); listenToRecentChats(); listenToCommunities(); setTimeout(window.checkFriendsBirthdays, 3000); if(window.initRewardsSystem) window.initRewardsSystem(); window.scheduleBotCleanup && window.scheduleBotCleanup(); window.startBrokenPicWatcher && window.startBrokenPicWatcher(); };
 
 window.showBanScreen = function(d) {
     let now = Date.now();
