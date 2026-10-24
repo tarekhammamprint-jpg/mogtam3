@@ -1855,9 +1855,12 @@ window.publishPost = async () => {
         if (videos.length === 1) d.video = videos[0]; else if (videos.length > 1) { d.videos = videos; d.video = videos[0]; }
         if (isReel) d.isReel = true;
         // البوتات تنشر على newsPosts — المستخدمون العاديون على posts
-        const isBot = window.allUsersData[window.currentUser]?.isNewsBot;
+        // التحقق من نوع الحساب بكل الطرق الممكنة
+        const userData = window.allUsersData?.[window.currentUser] || {};
+        const isBot = userData.isNewsBot === true || userData.accountType === 'newsBot' || userData.role === 'newsBot';
         const postsPath = isBot ? 'newsPosts' : 'posts';
         if (isBot) d.isNewsBot = true;
+        console.log('[Publish] isBot:', isBot, '| path:', postsPath, '| userData:', JSON.stringify(userData).slice(0,100));
         let nr = push(ref(db, postsPath)); await set(nr, d);
         window.myFriends.forEach(f => { if (c.includes('@' + f)) push(ref(db, `users/${f}/notifications`), { type: 'mention', from: window.currentUser, postId: nr.key, timestamp: Date.now(), read: false }); });
         bt.innerHTML = ot; bt.disabled = false;
@@ -1865,6 +1868,19 @@ window.publishPost = async () => {
         window.removeMediaPreview();
         let gmb = $('globalMentionBox'); if(gmb) gmb.style.display = 'none';
         if (isReel) window.dlgAlert('تم نشر الفيديو بنجاح وإضافته للريلز! 🎬', 'success', 'تم النشر');
+        // ✅ إضافة المنشور فوراً للـ memory بدون انتظار Firebase
+        const newPostData = { ...d, id: nr.key };
+        if (isBot) {
+            if (!window.allNewsPosts) window.allNewsPosts = [];
+            window.allNewsPosts.unshift(newPostData);
+        } else {
+            if (!window.allPosts) window.allPosts = [];
+            window.allPosts.unshift(newPostData);
+            if (!window.renderedPostIds) window.renderedPostIds = new Set();
+            window.renderedPostIds.add(nr.key);
+        }
+        // تحديث الفيد فوراً
+        if (typeof renderFeed === 'function') renderFeed();
     } catch (e) {
         console.error('Publish post error:', e);
         window.dlgAlert("حدث خطأ أثناء الرفع: " + (e?.message || 'غير معروف') + " — يرجى المحاولة مجدداً.", "danger", "خطأ");
@@ -3429,12 +3445,19 @@ document.addEventListener('DOMContentLoaded', () => setTimeout(injectUploadUI, 8
 window.addEventListener('load', () => setTimeout(injectUploadUI, 1200));
 
 function listenToNewsBotPosts() {
+    // نستمع على newsPosts (منشورات جديدة) + posts القديمة التي isNewsBot=true
     onValue(query(ref(db, 'newsPosts'), orderByChild('timestamp'), limitToLast(50)), s => {
         window.allNewsPosts = [];
         if (s.exists()) {
             s.forEach(c => { let p = c.val(); p.id = c.key; window.allNewsPosts.push(p); window.postCache[p.id] = p; });
-            window.allNewsPosts.sort((a, b) => b.timestamp - a.timestamp);
         }
+        // دمج منشورات البوتات من posts القديمة (isNewsBot=true)
+        (window.allPosts || []).forEach(p => {
+            if (p.isNewsBot && !window.allNewsPosts.find(n => n.id === p.id)) {
+                window.allNewsPosts.push(p);
+            }
+        });
+        window.allNewsPosts.sort((a, b) => b.timestamp - a.timestamp);
         if (window.currentUser && !window.isInitialLoad) { renderFeed(); }
     });
 }
@@ -4021,26 +4044,45 @@ window.getMediaUrl = async (url, fileId) => {
     try { const r = await fetch(url, {method:'HEAD'}); if(r.ok) return url; } catch(e) {}
     return window.MEDIA_WORKER_URL + '/media/' + fileId;
 };
-window.checkBrokenProfilePic = () => {
+window.checkBrokenProfilePic = async () => {
     if (!window.currentUser) return;
     const d = window.allUsersData?.[window.currentUser]; if (!d) return;
     const dA = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
-    const check = (url, type) => {
+    const WORKER = window.MEDIA_WORKER_URL || '';
+
+    const check = async (url, type) => {
         if (!url || url === dA) return;
-        const img = new Image();
-        img.onerror = () => {
-            if (document.getElementById('brokenBanner_'+type)) return;
-            const b = document.createElement('div'); b.id = 'brokenBanner_'+type;
-            b.style.cssText = 'position:fixed;top:120px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;padding:12px 20px;border-radius:14px;font-family:Cairo,sans-serif;font-size:14px;font-weight:700;display:flex;align-items:center;gap:10px;box-shadow:0 8px 30px rgba(239,68,68,.4);cursor:pointer;max-width:90vw;';
-            b.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>${type==='profile'?'صورتك الشخصية':'صورة غلافك'} تعطلت — اضغط لتحديثها</span><button onclick="event.stopPropagation();this.parentElement.remove();" style="background:rgba(255,255,255,.25);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;"><i class="fas fa-times"></i></button>`;
-            b.onclick = () => { b.remove(); window.location.hash = '#/@' + window.currentUser; };
-            document.body.appendChild(b); setTimeout(() => b?.remove(), 10000);
-        };
-        img.src = url + '?t=' + Date.now();
+        // لو الصورة من الـ Worker — مش محتاجين نفحص (دايماً شغالة)
+        if (url.includes(WORKER) || url.includes('workers.dev')) return;
+        // لو من Telegram مباشرة — نفحص بـ fetch
+        try {
+            const res = await fetch(url, { method: 'HEAD', mode: 'no-cors' });
+            // no-cors دايماً بترجع opaque — مش نقدر نحكم
+            // نستخدم Image بس بعد تأخير كافي
+        } catch(e) {
+            // فشل حقيقي — نعرض البنر
+            showBrokenBanner(type);
+        }
     };
-    check(d.profilePic, 'profile'); check(d.coverPic, 'cover');
+
+    const showBrokenBanner = (type) => {
+        if (document.getElementById('brokenBanner_'+type)) return;
+        const b = document.createElement('div'); b.id = 'brokenBanner_'+type;
+        b.style.cssText = 'position:fixed;top:120px;left:50%;transform:translateX(-50%);z-index:99999;background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;padding:12px 20px;border-radius:14px;font-family:Cairo,sans-serif;font-size:14px;font-weight:700;display:flex;align-items:center;gap:10px;box-shadow:0 8px 30px rgba(239,68,68,.4);cursor:pointer;max-width:90vw;';
+        b.innerHTML = `<i class="fas fa-exclamation-circle"></i><span>${type==='profile'?'صورتك الشخصية':'صورة غلافك'} تعطلت — اضغط لتحديثها</span><button onclick="event.stopPropagation();this.parentElement.remove();" style="background:rgba(255,255,255,.25);border:none;color:#fff;width:24px;height:24px;border-radius:50%;cursor:pointer;"><i class="fas fa-times"></i></button>`;
+        b.onclick = () => { b.remove(); window.location.hash = '#/@' + window.currentUser; };
+        document.body.appendChild(b); setTimeout(() => b?.remove(), 10000);
+    };
+
+    // فحص الصور فقط لو مش من الـ Worker
+    if (d.profilePic && !d.profilePic.includes('workers.dev')) await check(d.profilePic, 'profile');
+    if (d.coverPic && !d.coverPic.includes('workers.dev')) await check(d.coverPic, 'cover');
 };
-window.startBrokenPicWatcher = () => { setTimeout(window.checkBrokenProfilePic, 5000); setInterval(window.checkBrokenProfilePic, 30*60*1000); };
+window.startBrokenPicWatcher = () => {
+    // تأخير أطول — 30 ثانية بعد الدخول
+    setTimeout(window.checkBrokenProfilePic, 30000);
+    setInterval(window.checkBrokenProfilePic, 60 * 60 * 1000); // كل ساعة بدل 30 دقيقة
+};
 document.addEventListener('error', e => {
     const img = e.target; if (img.tagName !== 'IMG') return;
     const fid = img.dataset?.fileId;
