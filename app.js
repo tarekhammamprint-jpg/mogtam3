@@ -1084,13 +1084,11 @@ function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestam
             const othersNewPosts = newPosts.filter(p => p.author !== window.currentUser);
 
             if (myNewPosts.length > 0) {
-                // ── منشوراتي الجديدة — أضفها وارسم الفيد فوراً (Optimistic UI) ──
+                // ── منشوراتي الجديدة من Firebase ──
+                // لو موجود بالفعل في الفيد (Optimistic) — أضف الـ ID فقط بدون إعادة رسم
                 myNewPosts.forEach(p => { window.renderedPostIds.add(p.id); window.postCache[p.id] = p; });
-                const pf = document.getElementById('postsFeed');
-                if (pf) pf.dataset.renderedIds = '';
-                if (window.currentUser) renderFeed();
                 $('newPostsBtn').style.display = 'none';
-                window.scrollTo({ top: 0, behavior: 'smooth' });
+                // لا تعيد الرسم — المنشور موجود من الـ Optimistic UI
             }
 
             if (othersNewPosts.length > 0) {
