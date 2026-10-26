@@ -1085,10 +1085,17 @@ function listenToPosts() { onValue(query(ref(db,'posts'), orderByChild('timestam
 
             if (myNewPosts.length > 0) {
                 // ── منشوراتي الجديدة من Firebase ──
-                // لو موجود بالفعل في الفيد (Optimistic) — أضف الـ ID فقط بدون إعادة رسم
                 myNewPosts.forEach(p => { window.renderedPostIds.add(p.id); window.postCache[p.id] = p; });
                 $('newPostsBtn').style.display = 'none';
-                // لا تعيد الرسم — المنشور موجود من الـ Optimistic UI
+                // لو _justPublished موجود — المنشور موجود في الفيد من Optimistic UI → لا تكرر
+                const hasJustPublished = myNewPosts.some(p => p.id === window._justPublished);
+                if (!hasJustPublished) {
+                    // منشور قديم رجع من Firebase (مش Optimistic) — أضفه للفيد
+                    const pf = document.getElementById('postsFeed');
+                    if (pf) pf.dataset.renderedIds = '';
+                    if (window.currentUser) renderFeed();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
             }
 
             if (othersNewPosts.length > 0) {
@@ -1924,11 +1931,13 @@ window.publishPost = async () => {
             if (!window.renderedPostIds) window.renderedPostIds = new Set();
             window.renderedPostIds.add(nr.key);
             if (!window.allPosts) window.allPosts = [];
-            // تأكد إنه مش موجود أصلاً
             if (!window.allPosts.find(p => p.id === nr.key)) {
                 window.allPosts.unshift(newPostData);
             }
             window.postCache[nr.key] = newPostData;
+            // ✅ flag يمنع الـ Listener من إعادة الرسم لمدة 3 ثواني
+            window._justPublished = nr.key;
+            setTimeout(() => { window._justPublished = null; }, 3000);
             const pf = document.getElementById('postsFeed');
             if (pf) pf.dataset.renderedIds = '';
             window.feedLim = window.feedLim || 5;
