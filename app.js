@@ -4140,7 +4140,24 @@ window.startBrokenPicWatcher = () => {
 document.addEventListener('error', e => {
     const img = e.target; if (img.tagName !== 'IMG') return;
     const fid = img.dataset?.fileId;
-    if (fid && !img.dataset?.fixed) { img.dataset.fixed = '1'; img.src = (window.MEDIA_WORKER_URL||'') + '/media/' + fid; }
+    if (fid && !img.dataset?.fixed) {
+        // لو عندها file_id — جيبها من الـ Worker
+        img.dataset.fixed = '1';
+        img.src = (window.MEDIA_WORKER_URL||'') + '/media/' + fid;
+    } else if (!img.dataset?.errHandled) {
+        // صورة قديمة بدون file_id — أظهر placeholder بدل الأسود
+        img.dataset.errHandled = '1';
+        const isAvatar = img.src?.includes('149071') || img.classList.contains('avatar');
+        if (isAvatar) {
+            img.src = 'https://cdn-icons-png.flaticon.com/512/149/149071.png';
+        } else {
+            // placeholder رمادي بأيقونة صورة
+            img.style.background = 'linear-gradient(135deg, #1e293b 0%, #334155 100%)';
+            img.style.minHeight = img.style.minHeight || '120px';
+            img.alt = '📷 الصورة غير متاحة';
+            img.style.opacity = '0.4';
+        }
+    }
 }, true);
 
 
