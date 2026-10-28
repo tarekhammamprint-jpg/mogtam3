@@ -934,6 +934,17 @@ body { padding-top: 70px !important; }
             <h4 style="margin-top:0;font-size:15px;font-weight:800;color:var(--text-main);">إنشاء مجتمع جديد</h4>
             <input type="text" id="communityNameInput" class="modal-input" placeholder="اسم المجتمع (مثال: فريق الدعم الفني)" />
             <input type="text" id="communityDescInput" class="modal-input" placeholder="وصف المجتمع (اختياري)" />
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                <input type="number" id="communityPriceInput" class="modal-input" min="0" step="0.01" placeholder="السعر (0 = مجاني)" style="flex:1;min-width:150px;margin-bottom:8px;" />
+                <select id="communityCurrencyInput" class="modal-input" style="flex:0 0 105px;margin-bottom:8px;">
+                    <option value="USD">USD</option><option value="SAR">ريال</option><option value="EGP">جنيه</option><option value="AED">درهم</option>
+                </select>
+                <select id="communityBillingInput" class="modal-input" style="flex:1;min-width:130px;margin-bottom:8px;">
+                    <option value="monthly">شهري</option><option value="yearly">سنوي</option>
+                </select>
+            </div>
+            <textarea id="communityPaymentInstructions" class="modal-input" rows="2" placeholder="تعليمات الاشتراك للمجتمع المدفوع (مثال: أرسل إيصال التحويل إلى الإدارة)..." style="display:block;"></textarea>
+            <div style="font-size:11px;color:#64748b;line-height:1.6;margin:-2px 0 10px;">المبلغ 0 يجعل المجتمع مجانيًا. الإصدار الحالي يسجل طلب الاشتراك للمراجعة اليدوية، ويحتاج بوابة دفع وخادمًا للتحصيل الإلكتروني.</div>
             <button class="btn-primary" id="createCommunityBtn" onclick="window.createCommunity()" style="width:100%;padding:12px;border-radius:var(--r-md);">
                 <i class="fas fa-plus"></i> إنشاء المجتمع
             </button>
@@ -954,9 +965,7 @@ body { padding-top: 70px !important; }
             <h2 id="communityViewTitle" style="margin:0 0 10px;font-size:22px;position:relative;">اسم المجتمع</h2>
             <p id="communityViewDesc" style="margin:0 0 18px;font-size:14px;opacity:0.85;position:relative;"></p>
             <div id="communityHeaderActions" style="display:flex;justify-content:center;gap:10px;margin-bottom:16px;flex-wrap:wrap;position:relative;"></div>
-            <button style="background:rgba(16,185,129,1);color:#fff;border:none;padding:12px 28px;border-radius:var(--r-pill);font-size:16px;font-weight:800;cursor:pointer;font-family:inherit;box-shadow:0 4px 18px rgba(16,185,129,0.4);transition:all .25s;display:inline-flex;align-items:center;gap:10px;position:relative;" onclick="window.startCommunityCall()">
-                <i class="fas fa-video"></i> بدء اجتماع فيديو/صوت
-            </button>
+            <div id="communityCallArea" style="display:flex;justify-content:center;gap:8px;flex-wrap:wrap;position:relative;"></div>
             <div style="font-size:12px;margin-top:10px;opacity:0.75;position:relative;">لا تستهلك مساحة من قاعدة البيانات الأساسية</div>
         </div>
         <div style="background:var(--card-bg);padding:16px;border-radius:var(--r-lg);border:1px solid var(--border);margin-bottom:18px;">
@@ -981,6 +990,8 @@ body { padding-top: 70px !important; }
 <script type="module" src="video-call.js?v=20260728f"></script>
 <script type="module" src="cpx-rewards.js?v=20260823"></script>
 <script type="module" src="app.js?v=20261002-suggested-follow"></script>
+<script type="module" src="paid-communities.js?v=20261028-mvp"></script>
+<script type="module" src="community-experience.js?v=20261028-preview"></script>
 
 <!-- ══════════════════════════════════════════════
      القائمة الكاملة (Full Menu Overlay)

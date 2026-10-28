@@ -1,4 +1,4 @@
-import { ref, get, set, remove, onValue, off } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+import { ref, get, set, remove, push, onValue, off } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
 
 // =============== نظام مكالمات الفيديو — Metered.ca ===============
@@ -9,6 +9,17 @@ let localStream = null;
 let callModal = null;
 let callNotifyUnsub = null;
 let currentCommId = null;
+let currentCallRole = 'listener';
+let currentCommentsUnsub = null;
+
+const chooseBroadcastAccess = () => new Promise(resolve => {
+    const old = document.getElementById('broadcastAccessChoice'); old?.remove();
+    const el = document.createElement('div'); el.id='broadcastAccessChoice'; el.style.cssText='position:fixed;inset:0;z-index:2147483005;background:rgba(15,23,42,.78);display:flex;align-items:center;justify-content:center;padding:18px;direction:rtl;';
+    el.innerHTML='<div style="background:#fff;border-radius:18px;padding:24px;max-width:390px;width:100%;text-align:center;font-family:Cairo,sans-serif"><div style="font-size:28px;color:#2563eb;margin-bottom:8px"><i class="fas fa-broadcast-tower"></i></div><h3 style="margin:0 0 7px">اختر جمهور البث</h3><p style="font-size:13px;color:#64748b;line-height:1.7">هل تريد أن يكون الدرس متاحًا لكل أعضاء المجتمع أم للمشتركين المدفوعين فقط؟</p><div style="display:flex;gap:9px;margin-top:16px"><button id="broadcastFreeBtn" style="flex:1;padding:12px;border:1px solid #10b981;background:#ecfdf5;color:#047857;border-radius:10px;font-family:inherit;font-weight:800;cursor:pointer"><i class="fas fa-globe"></i><br>مجاني للأعضاء</button><button id="broadcastPaidBtn" style="flex:1;padding:12px;border:1px solid #f59e0b;background:#fffbeb;color:#b45309;border-radius:10px;font-family:inherit;font-weight:800;cursor:pointer"><i class="fas fa-crown"></i><br>للمشتركين فقط</button></div><button id="broadcastCancelBtn" style="margin-top:12px;background:none;border:0;color:#64748b;cursor:pointer;font-family:inherit">إلغاء</button></div>';
+    document.body.appendChild(el); const close=v=>{el.remove();resolve(v)}; document.getElementById('broadcastFreeBtn').onclick=()=>close('free'); document.getElementById('broadcastPaidBtn').onclick=()=>close('paid'); document.getElementById('broadcastCancelBtn').onclick=()=>close(null);
+});
+
+window.sendLiveComment = async () => { const input=document.getElementById('vcCommentInput'); const txt=input?.value.trim(); if(!txt||!currentCommId||!window.currentUser)return; await push(ref(db,`communityLiveComments/${currentCommId}`),{author:window.currentUser,text:txt,timestamp:Date.now()}); input.value=''; };
 
 // ══════════════════════════════════════════════
 // CSS النظام
@@ -196,7 +207,7 @@ const showIncomingCall = (data, commId) => {
 
     document.getElementById('ciAcceptBtn').onclick = () => {
         clearInterval(ciTimer); hideIncomingCall();
-        joinCall(commId, data.roomName, data.communityName);
+        joinCall(commId, data.roomName, data.communityName, 'listener', data.access || 'free');
     };
     document.getElementById('ciDeclineBtn').onclick = () => {
         clearInterval(ciTimer); hideIncomingCall();
@@ -229,9 +240,11 @@ window.startCommunityCall = async (commId, commName) => {
     }
     if (!community) return window.dlgAlert("المجتمع غير موجود", "danger");
 
-    const isMember = community.members?.[window.currentUser];
-    if (!isMember && community.admin !== window.currentUser)
-        return window.dlgAlert("أنت لست عضواً في هذا المجتمع", "warning");
+    if (community.admin !== window.currentUser)
+        return window.dlgAlert("المسؤول فقط يستطيع بدء البث. يمكنك الدخول كمستمع والتعليق.", "warning", "صلاحية البث");
+
+    const audience = await chooseBroadcastAccess();
+    if (!audience) return;
 
     const resolvedName = commName || community.name || window.currentCommunityName || commId;
     const userName     = window.allUsersData?.[window.currentUser]?.displayName || window.currentUser;
@@ -246,7 +259,7 @@ window.startCommunityCall = async (commId, commName) => {
                 `يوجد اجتماع نشط بدأه ${ex.startedByName || 'أحد الأعضاء'}، هل تريد الانضمام؟`,
                 "اجتماع نشط", "question", "انضمام"
             );
-            if (join) joinCall(commId, ex.roomName, resolvedName);
+            if (join) joinCall(commId, ex.roomName, resolvedName, 'host', ex.access || 'free');
             return;
         }
     }
@@ -269,6 +282,7 @@ window.startCommunityCall = async (commId, commName) => {
             startedByName: userName,
             startTime: Date.now(),
             active: true,
+            access: audience,
             communityId: commId,
             communityName: resolvedName
         });
@@ -278,7 +292,7 @@ window.startCommunityCall = async (commId, commName) => {
             get(callRef).then(s => { if (s.exists() && s.val().roomName === roomName) remove(callRef); });
         }, 3600000);
 
-        joinCall(commId, roomName, resolvedName);
+        joinCall(commId, roomName, resolvedName, 'host', audience);
 
     } catch(err) {
         console.error('Metered error:', err);
@@ -302,7 +316,11 @@ window.joinActiveCommunityCall = async (commId) => {
             const call = snap.val();
             if (call.roomName && (Date.now() - call.startTime < 3600000)) {
                 const comm = window.allCommunities?.[commId] || {};
-                joinCall(commId, call.roomName, comm.name || window.currentCommunityName || 'المجتمع');
+                if (call.access === 'paid' && comm.admin !== window.currentUser && !comm.members?.[window.currentUser])
+                    return window.dlgAlert("هذا البث متاح للمشتركين المدفوعين فقط.", "warning", "محتوى خاص");
+                if (comm.admin !== window.currentUser && !comm.members?.[window.currentUser])
+                    return window.dlgAlert("يجب أن تكون عضوًا في المجتمع للدخول إلى البث.", "warning");
+                joinCall(commId, call.roomName, comm.name || window.currentCommunityName || 'المجتمع', comm.admin === window.currentUser ? 'host' : 'listener', call.access || 'free');
                 return;
             }
         }
@@ -313,8 +331,9 @@ window.joinActiveCommunityCall = async (commId) => {
 // ══════════════════════════════════════════════
 // فتح نافذة المكالمة والانضمام
 // ══════════════════════════════════════════════
-const joinCall = async (commId, roomName, commName) => {
+const joinCall = async (commId, roomName, commName, role = 'listener', access = 'free') => {
     currentCommId = commId;
+    currentCallRole = role;
     const userName = window.allUsersData?.[window.currentUser]?.displayName || window.currentUser;
 
     // إنشاء نافذة المكالمة
@@ -329,7 +348,7 @@ const joinCall = async (commId, roomName, commName) => {
                 </div>
                 <div>
                     <div style="color:#fff;font-weight:800;font-size:14px;">${commName || 'مكالمة المجتمع'}</div>
-                    <div id="vcTimer" style="color:#64748b;font-size:11px;">00:00</div>
+                    <div id="vcTimer" style="color:#64748b;font-size:11px;">${role === 'host' ? 'أنت مقدم البث' : 'وضع المستمع — التعليقات متاحة'}</div>
                 </div>
                 <span id="vcPartCount" style="background:#1e293b;border:1px solid #334155;padding:3px 10px;border-radius:20px;font-size:12px;color:#94a3b8;margin-right:8px;">
                     <i class="fas fa-users" style="margin-left:4px;"></i><span id="vcPartNum">0</span>
@@ -339,8 +358,15 @@ const joinCall = async (commId, roomName, commName) => {
                 <i class="fas fa-phone-slash"></i> إنهاء
             </button>
         </div>
-        <div id="vcGrid"></div>
-        <div id="vcControls">
+        <div style="display:flex;flex:1;min-height:0;overflow:hidden;">
+            <div id="vcGrid" style="flex:1;"></div>
+            <aside id="vcCommentsPanel" style="width:290px;background:#0f172a;border-right:1px solid #1e293b;display:flex;flex-direction:column;color:#fff;">
+                <div style="padding:12px;border-bottom:1px solid #1e293b;font-weight:800;font-size:13px"><i class="fas fa-comments"></i> تعليقات البث ${access==='paid'?'(للمشتركين)':'(مجاني)'}</div>
+                <div id="vcComments" style="flex:1;overflow:auto;padding:10px;display:flex;flex-direction:column;gap:7px"></div>
+                <div style="display:flex;gap:6px;padding:9px;border-top:1px solid #1e293b"><input id="vcCommentInput" placeholder="اكتب تعليقًا..." style="flex:1;min-width:0;background:#1e293b;color:#fff;border:1px solid #334155;border-radius:9px;padding:8px;font-family:Cairo,sans-serif"><button onclick="window.sendLiveComment()" style="background:#2563eb;border:0;color:#fff;border-radius:9px;width:38px;cursor:pointer"><i class="fas fa-paper-plane"></i></button></div>
+            </aside>
+        </div>
+            <div id="vcControls" style="${role === 'listener' ? 'display:none' : ''}">
             <button class="vc-btn on" id="btnMic" onclick="window.toggleMic()" title="كتم الصوت">
                 <i class="fas fa-microphone"></i>
             </button>
@@ -364,6 +390,13 @@ const joinCall = async (commId, roomName, commName) => {
         if (el) el.innerText = `${String(Math.floor(secs/60)).padStart(2,'0')}:${String(secs%60).padStart(2,'0')}`;
     }, 1000);
     modal._timer = vcTimerInterval;
+
+    if (currentCommentsUnsub) currentCommentsUnsub();
+    currentCommentsUnsub = onValue(ref(db, `communityLiveComments/${commId}`), snap => {
+        const box = document.getElementById('vcComments'); if (!box) return;
+        let html = ''; if (snap.exists()) { let rows=[]; snap.forEach(x=>rows.push(x.val())); rows.sort((a,b)=>(a.timestamp||0)-(b.timestamp||0)); rows.slice(-100).forEach(x => { const name=window.getDisplayName?.(x.author)||x.author||'عضو'; html += `<div style="background:#1e293b;border-radius:9px;padding:7px 9px;font-size:12px;line-height:1.5"><strong style="color:#93c5fd">${name}</strong><div>${String(x.text||'').replace(/[&<>\"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]))}</div></div>`; }); }
+        box.innerHTML = html || '<div style="color:#64748b;text-align:center;padding:20px 5px;font-size:12px">ابدأ أول تعليق في البث.</div>'; box.scrollTop = box.scrollHeight;
+    });
 
     // تحميل Metered SDK
     await loadMeteredSDK();
@@ -413,10 +446,12 @@ const joinCall = async (commId, roomName, commName) => {
 
     // الانضمام
     try {
-        // محاولة الحصول على الكاميرا والميكروفون بالتدريج
+        // المسؤول مقدم البث؛ باقي الأعضاء يدخلون كمستمعين بلا كاميرا أو ميكروفون.
         let videoOk = false, audioOk = false;
 
-        try {
+        if (role === 'listener') {
+            localStream = new MediaStream();
+        } else try {
             localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             videoOk = true; audioOk = true;
         } catch(e1) {
@@ -434,7 +469,7 @@ const joinCall = async (commId, roomName, commName) => {
             }
         }
 
-        addLocalTile(localStream, userName);
+        if (role === 'host') addLocalTile(localStream, userName);
         updateGridLayout();
 
         // الانضمام للغرفة
@@ -444,7 +479,7 @@ const joinCall = async (commId, roomName, commName) => {
         });
 
         // مشاركة المسارات المتاحة فقط
-        const tracks = localStream.getTracks();
+        const tracks = role === 'host' ? localStream.getTracks() : [];
         for (const track of tracks) {
             try {
                 if (track.kind === 'video') await meeting.startVideo({ videoTrack: track });
@@ -558,6 +593,7 @@ window.endCall = async () => {
     }
     document.body.style.overflow = 'auto';
     micOn = true; camOn = true;
+    if (currentCommentsUnsub) { currentCommentsUnsub(); currentCommentsUnsub = null; }
 
     // حذف المكالمة من Firebase إذا كنت من بدأها
     if (currentCommId) {
@@ -592,22 +628,23 @@ const enhanceCommunityView = (commId) => {
         const comm     = window.allCommunities?.[commId] || {};
         const commName = comm.name || window.currentCommunityName || commId;
 
-        const callBtn = document.createElement('button');
-        callBtn.id = 'startCallBtn';
-        callBtn.className = 'btn-primary';
-        callBtn.style.cssText = 'background:#1d4ed8;border-color:#1d4ed8;color:#fff;margin-left:8px;';
-        callBtn.innerHTML = '<i class="fas fa-video"></i> بدء اجتماع';
-        callBtn.onclick = () => window.startCommunityCall(commId, commName);
-
         const joinBtn = document.createElement('button');
         joinBtn.id = 'joinCallBtn';
         joinBtn.className = 'btn-secondary';
         joinBtn.style.cssText = 'margin-left:8px;';
-        joinBtn.innerHTML = '<i class="fas fa-sign-in-alt"></i> انضمام';
+        joinBtn.innerHTML = '<i class="fas fa-headphones"></i> دخول كمستمع';
         joinBtn.onclick = () => window.joinActiveCommunityCall(commId);
 
         actionsDiv.insertBefore(joinBtn, actionsDiv.firstChild);
-        actionsDiv.insertBefore(callBtn, actionsDiv.firstChild);
+        if (comm.admin === window.currentUser) {
+            const callBtn = document.createElement('button');
+            callBtn.id = 'startCallBtn';
+            callBtn.className = 'btn-primary';
+            callBtn.style.cssText = 'background:#1d4ed8;border-color:#1d4ed8;color:#fff;margin-left:8px;';
+            callBtn.innerHTML = '<i class="fas fa-broadcast-tower"></i> بدء بث مباشر';
+            callBtn.onclick = () => window.startCommunityCall(commId, commName);
+            actionsDiv.insertBefore(callBtn, actionsDiv.firstChild);
+        }
 
         // بادج مكالمة نشطة
         get(ref(db, `communityCalls/${commId}`)).then(snap => {
@@ -616,7 +653,7 @@ const enhanceCommunityView = (commId) => {
             if (!call.roomName || Date.now() - call.startTime > 3600000) return;
             const badge = document.createElement('span');
             badge.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:#1d4ed8;color:#fff;font-size:12px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:8px;cursor:pointer;';
-            badge.innerHTML = '<i class="fas fa-circle" style="font-size:8px;animation:ciPulse 1.5s infinite;"></i> مكالمة نشطة — انضم';
+            badge.innerHTML = `<i class="fas fa-circle" style="font-size:8px;animation:ciPulse 1.5s infinite;"></i> بث نشط — ${call.access === 'paid' ? 'للمشتركين' : 'مجاني'} — ادخل كمستمع`;
             badge.onclick = () => window.joinActiveCommunityCall(commId);
             document.getElementById('communityViewTitle')?.insertAdjacentElement('afterend', badge);
         });
