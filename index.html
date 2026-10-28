@@ -675,6 +675,9 @@ body { padding-top: 70px !important; }
                 <div onclick="window.openProfile(window.currentUser)" class="dropdown-item">
                     <em class="fas fa-cog" style="color:var(--text-muted);font-size:16px;"></em> تعديل البيانات
                 </div>
+                <div onclick="window.openWalletPage()" class="dropdown-item" style="color:#2563eb;">
+                    <em class="fas fa-wallet" style="font-size:16px;"></em> المحفظة والمدفوعات
+                </div>
                 <div onclick="window.openRewardsModal()" class="dropdown-item" style="color:var(--violet);">
                     <em class="fas fa-gem" style="font-size:16px;"></em> اربح نقاط
                     <span id="navPointsBadge" style="background:linear-gradient(135deg,#f59e0b,#ef4444);color:#fff;padding:2px 8px;border-radius:var(--r-pill);font-size:11px;font-weight:800;margin-right:6px;">0</span>
@@ -733,6 +736,9 @@ body { padding-top: 70px !important; }
             <div onclick="window.openProfile(window.currentUser)" class="dropdown-item">
                 <em class="fas fa-cog" style="color:var(--accent);"></em> تعديل
             </div>
+            <div onclick="window.openWalletPage()" class="dropdown-item" style="color:#2563eb;">
+                <em class="fas fa-wallet"></em> المحفظة والمدفوعات
+            </div>
             <div onclick="window.openRewardsModal()" class="dropdown-item" style="color:var(--violet);">
                 <em class="fas fa-gem"></em> اربح نقاط
             </div>
@@ -740,6 +746,19 @@ body { padding-top: 70px !important; }
                 <em class="fas fa-sign-out-alt"></em> خروج
             </div>
         </div>
+    </div>
+</div>
+
+<!-- صفحة المحفظة والمدفوعات -->
+<div id="walletPage">
+    <div class="wallet-wrap">
+        <div class="wallet-top">
+            <div><h1><i class="fas fa-wallet" style="color:#2563eb"></i> المحفظة والمدفوعات</h1><p>تابع أرصدة الإعلانات وأرباح المجتمعات وسجل العمليات.</p></div>
+            <button class="wallet-close" onclick="window.closeWalletPage()"><i class="fas fa-arrow-right"></i> العودة</button>
+        </div>
+        <section class="wallet-hero"><h2>ملخص محفظتك</h2><p>الأرصدة المؤكدة فقط تظهر كرصيد قابل للاستخدام أو السحب.</p><div class="wallet-balances"><div class="wallet-balance"><small>الرصيد المتاح</small><strong id="walletAvailable">0 ج.م</strong></div><div class="wallet-balance"><small>قيد المعالجة</small><strong id="walletPending">0 ج.م</strong></div><div class="wallet-balance"><small>ميزانية الإعلانات</small><strong id="walletAds">0 ج.م</strong></div><div class="wallet-balance"><small>أرباح المجتمعات</small><strong id="walletEarnings">0 ج.م</strong></div></div><div id="walletUsdHint" style="font-size:12px;margin-top:12px;opacity:.85">الدولار: متاح 0 USD — أرباح 0 USD</div></section>
+        <div class="wallet-grid"><section class="wallet-card"><h3><i class="fas fa-money-check-dollar" style="color:#2563eb"></i> العمليات المالية</h3><p class="wallet-muted">الإيداع الحقيقي سيعمل بعد ربط حساب التاجر والتحقق من Webhook بوابة الدفع.</p><div class="wallet-actions"><button class="wallet-action" onclick="window.openWalletDeposit()"><i class="fas fa-plus-circle"></i><br>إيداع للإعلانات أو المجتمع</button><button class="wallet-action withdraw" onclick="document.getElementById('walletWithdrawAmount').focus()"><i class="fas fa-arrow-up-right-from-square"></i><br>طلب سحب الأرباح</button></div><div class="wallet-notice"><i class="fas fa-shield-halved"></i> لن يتم إنشاء رصيد من المتصفح. إضافة الرصيد ستتم فقط بعد تأكيد العملية من بوابة الدفع.</div><div class="wallet-methods" style="margin-top:13px"><span class="wallet-method"><i class="fab fa-cc-visa"></i> Visa</span><span class="wallet-method"><i class="fab fa-cc-mastercard"></i> Mastercard</span><span class="wallet-method"><i class="fas fa-building-columns"></i> البنك الأهلي المصري</span></div></section><section class="wallet-card"><h3><i class="fas fa-building-columns" style="color:#15803d"></i> طلب سحب الأرباح</h3><p class="wallet-muted">السحب متاح من أرباح المجتمعات المؤكدة، وليس من الأموال المودعة للإعلانات.</p><div class="wallet-form"><label>المبلغ</label><div style="display:flex;gap:7px"><input id="walletWithdrawAmount" class="wallet-input" type="number" min="50" step="0.01" placeholder="مثال: 500" /><select id="walletWithdrawCurrency" class="wallet-input" style="width:100px"><option value="EGP">ج.م</option><option value="USD">USD</option></select></div><label>طريقة السحب</label><select id="walletWithdrawMethod" class="wallet-input"><option value="bank_nbe">حساب بنكي — البنك الأهلي المصري</option><option value="bank_other">حساب بنكي آخر</option><option value="wallet">محفظة إلكترونية</option></select><label>رقم الحساب أو IBAN أو رقم المحفظة</label><input id="walletWithdrawAccount" class="wallet-input" placeholder="أدخل البيانات بدقة" dir="ltr" /><button id="walletWithdrawBtn" class="wallet-submit" onclick="window.submitWalletWithdrawal()"><i class="fas fa-paper-plane"></i> إرسال طلب السحب</button></div><div class="wallet-lock"><i class="fas fa-lock"></i> تتم مراجعة الطلب يدويًا قبل التحويل.</div></section></div>
+        <section class="wallet-card" style="margin-top:16px"><h3><i class="fas fa-clock-rotate-left" style="color:#7c3aed"></i> سجل العمليات</h3><p class="wallet-muted">سجل موحد للإيداعات والأرباح وطلبات السحب.</p><div class="wallet-tabs"><button class="wallet-tab active">كل العمليات</button><button class="wallet-tab" disabled>الإعلانات</button><button class="wallet-tab" disabled>الاشتراكات</button><button class="wallet-tab" disabled>السحب</button></div><div id="walletHistory"><div class="wallet-empty">جارٍ تحميل السجل...</div></div></section>
     </div>
 </div>
 
@@ -992,6 +1011,7 @@ body { padding-top: 70px !important; }
 <script type="module" src="app.js?v=20261002-suggested-follow"></script>
 <script type="module" src="paid-communities.js?v=20261028-mvp"></script>
 <script type="module" src="community-experience.js?v=20261028-preview"></script>
+<script type="module" src="wallet.js?v=20261028-wallet-mvp"></script>
 
 <!-- ══════════════════════════════════════════════
      القائمة الكاملة (Full Menu Overlay)
