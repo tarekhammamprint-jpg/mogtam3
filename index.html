@@ -46,6 +46,15 @@
         img.avatar-small{display:block;max-width:100%;object-fit:cover;flex:0 0 auto;}
         img.avatar-small[data-image-fallback="1"]{background:#e2e8f0;object-fit:cover;}
         img.post-media[data-image-fallback="1"]{display:none!important;}
+        /* صور قوائم المحادثات والمتابعات: مربع ثابت حتى مع رابط صورة مكسور */
+        .user-row img.avatar-small,
+        #friendsList img.avatar-small,
+        #msgRequestsList img.avatar-small,
+        #sidebarTopSection img.avatar-small{
+            width:42px!important;height:42px!important;min-width:42px!important;max-width:42px!important;
+            min-height:42px!important;max-height:42px!important;aspect-ratio:1/1;
+            border-radius:50%;object-fit:cover;display:block;flex:0 0 42px;
+        }
     </style>
 
 <style>

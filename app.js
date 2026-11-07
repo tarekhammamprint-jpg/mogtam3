@@ -313,8 +313,9 @@ document.addEventListener('error', (event) => {
     image.dataset.imageFallback = '1';
     if (image.classList.contains('avatar-small')) {
         const computed = getComputedStyle(image);
-        const width = parseFloat(image.style.width) || parseFloat(computed.width) || 40;
-        const height = parseFloat(image.style.height) || parseFloat(computed.height) || width;
+        const inUserRow = image.closest('.user-row, #friendsList, #msgRequestsList, #sidebarTopSection');
+        const width = inUserRow ? 42 : (parseFloat(image.style.width) || parseFloat(computed.width) || 40);
+        const height = inUserRow ? 42 : (parseFloat(image.style.height) || parseFloat(computed.height) || width);
         image.style.width = `${Math.min(Math.max(width, 24), 80)}px`;
         image.style.height = `${Math.min(Math.max(height, 24), 80)}px`;
         image.style.objectFit = 'cover';
