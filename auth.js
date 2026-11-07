@@ -405,7 +405,7 @@ window.fL = function(u, d) {
     // زر الأدمن
     let ab = $('adminBtn'); 
     if(ab){ 
-        ab.style.display = (u.toLowerCase() === 'admin21') ? 'flex' : 'none'; 
+        ab.style.display = window.isPlatformAdmin?.(u) ? 'flex' : 'none'; 
     } 
     
     // تعيين الحالة اونلاين

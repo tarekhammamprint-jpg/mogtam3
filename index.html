@@ -1011,6 +1011,13 @@ body { padding-top: 70px !important; }
      سكريبتات
 ══════════════════════════════════════════════ -->
 <script>window.FontAwesomeConfig={autoReplaceSvg:false};</script>
+<script>
+    // حسابات الإدارة العامة — استخدم معرّف تسجيل الدخول، وليس الاسم الظاهر.
+    window.PLATFORM_ADMIN_HANDLES = ['اسلام', '@اسلام'];
+    window.isPlatformAdmin = function(handle) {
+        return window.PLATFORM_ADMIN_HANDLES.includes(String(handle || '').trim().toLowerCase());
+    };
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
 <script src="hovercard.js?v=20260808a"></script>
 <script type="module" src="video-call.js?v=20260728f"></script>

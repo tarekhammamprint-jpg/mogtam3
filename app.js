@@ -303,7 +303,24 @@ const reelPoster = "https://placehold.co/300x500/1e293b/ffffff?text=Reel+Video";
 const $ = (id) => document.getElementById(id);
 
 window.addEventListener('load', () => { setTimeout(() => { let il = $('initialLoader'); if (il && il.style.display !== 'none') { il.classList.add('hidden'); setTimeout(() => il.style.display = 'none', 400); } }, 4000); });
+if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
+const routeScrollPositions = Object.create(null);
+const routeKey = () => window.location.hash || '#/';
+window.saveRouteScrollPosition = () => { routeScrollPositions[routeKey()] = window.scrollY || window.pageYOffset || 0; };
+window.restoreRouteScrollPosition = () => {
+    const y = routeScrollPositions[routeKey()];
+    if (typeof y !== 'number') return false;
+    window.scrollTo({ top: y, left: 0, behavior: 'auto' });
+    setTimeout(() => window.scrollTo({ top: y, left: 0, behavior: 'auto' }), 120);
+    return true;
+};
+document.addEventListener('click', (event) => {
+    const link = event.target.closest?.('a[href]');
+    const href = link?.getAttribute('href') || '';
+    if (href.startsWith('#/@') || href.startsWith('#/post/')) window.saveRouteScrollPosition?.();
+}, true);
 window.addEventListener('hashchange', handleRouting);
+window.addEventListener('hashchange', () => { setTimeout(() => window.restoreRouteScrollPosition?.(), 40); });
 
 // =============== نظام روابط المجتمعات الفرعية وإصلاح الرجوع ===============
 
@@ -408,6 +425,7 @@ function updateFeedFilterVisibility() {
 function handleRouting() {
     let hash = window.location.hash;
     updateFeedFilterVisibility();
+    if (hash !== '#/wallet') window.closeWalletPageDirect?.();
 
     // إغلاق نافذة البروفايل المحسّنة قبل أي توجيه آخر لمنع تعارض الطبقات (z-index)
     // هذا يحل مشكلة عدم عمل اللايك/التعليق/أزرار النافبار عند فتح صفحة أخرى من داخل البروفايل
@@ -442,6 +460,14 @@ function handleRouting() {
         if (sidebar) sidebar.classList.remove('mobile-show');
     }
     
+    // معالج صفحة المحفظة المستقلة
+    if (hash === '#/wallet') {
+        if (!window.currentUser) { window.location.hash = '#/login'; return; }
+        document.querySelectorAll('.modal').forEach(m => m.classList.remove('show'));
+        window.openWalletPageDirect?.();
+        return;
+    }
+
     // معالج صفحة المجتمع
     if (hash.startsWith('#/community/')) {
         let slug = decodeURIComponent(hash.replace('#/community/', ''));
@@ -503,7 +529,7 @@ function handleRouting() {
     
     if(hash === '' || hash === '#/') { 
         if(!window.currentUser) return window.location.replace('#/login'); 
-        window.scrollTo({top:0, behavior:'smooth'}); 
+        if (!window.restoreRouteScrollPosition?.()) window.scrollTo({top:0, behavior:'auto'}); 
     } 
     else if(hash.startsWith('#/@')) {
         let user = decodeURIComponent(hash.replace('#/@', ''));
@@ -535,6 +561,7 @@ function handleRouting() {
 window.openCommunityView = (commId) => {
     let comm = window.allCommunities[commId];
     if (comm) {
+        window.saveRouteScrollPosition?.();
         let slug = window.generateCommunitySlug(comm.name);
         if (window.location.hash !== '#/community/' + slug) {
             window.location.hash = '#/community/' + slug;
@@ -545,6 +572,7 @@ window.openCommunityView = (commId) => {
 };
 
 window.openCommunitiesModal = () => {
+    window.saveRouteScrollPosition?.();
     if (window.location.hash !== '#/communities') {
         window.location.hash = '#/communities';
     } else {
@@ -638,8 +666,8 @@ window.addEventListener('popstate', () => {
     }
 });
 
-window.openProfile = (u) => { window.location.hash = '#/@' + u; }; 
-window.openPostModal = (id) => { window.location.hash = '#/post/' + id; }; 
+window.openProfile = (u) => { window.saveRouteScrollPosition?.(); window.location.hash = '#/@' + u; }; 
+window.openPostModal = (id) => { window.saveRouteScrollPosition?.(); window.location.hash = '#/post/' + id; }; 
 window.openShareModal = (id) => {
     if(!window.currentUser) return window.showRegisterModal();
     let p = window.postCache[id] || window.allPosts.find(x => x.id === id);
@@ -693,10 +721,10 @@ window.closeSharePopup = () => {
     if(box) box.style.transform = 'scale(0.9) translateY(20px)';
     setTimeout(() => { if(overlay) overlay.style.display = 'none'; document.body.style.overflow = 'auto'; }, 220);
 };
-window.openRequestsModal = () => { if(!window.currentUser) return window.showRegisterModal(); window.location.hash = '#/requests'; }; 
-window.openAdminStats = () => { window.location.hash = '#/stats'; }; 
-window.openEditProfileModal = () => { window.location.hash = '#/edit-profile'; }; 
-window.openReelsViewer = (idx) => { if(!window.currentUser) return window.showRegisterModal(); window.currentReelIdx = idx; window.location.hash = '#/reels'; };
+window.openRequestsModal = () => { if(!window.currentUser) return window.showRegisterModal(); window.saveRouteScrollPosition?.(); window.location.hash = '#/requests'; }; 
+window.openAdminStats = () => { window.saveRouteScrollPosition?.(); window.location.hash = '#/stats'; }; 
+window.openEditProfileModal = () => { window.saveRouteScrollPosition?.(); window.location.hash = '#/edit-profile'; }; 
+window.openReelsViewer = (idx) => { if(!window.currentUser) return window.showRegisterModal(); window.saveRouteScrollPosition?.(); window.currentReelIdx = idx; window.location.hash = '#/reels'; };
 window.closeReelsViewer = () => { window.location.hash = ''; let m = $('reelsViewerModal'); if(m) m.classList.remove('show'); document.body.style.overflow = 'auto'; };
 
 window.goHome = () => {
@@ -1050,6 +1078,7 @@ window.messagesReturnHash = '#/';
 window.openMessagesPage = () => {
     if (!window.currentUser) return window.showRegisterModal();
     if (window.location.hash !== '#/messages') {
+        window.saveRouteScrollPosition?.();
         window.messagesReturnHash = window.location.hash || '#/';
         history.pushState({ ...(history.state || {}), __messagesRoute: true, returnHash: window.messagesReturnHash }, '', '#/messages');
         handleRouting();
@@ -1437,7 +1466,7 @@ document.addEventListener('keydown', (e) => {
 
 function createPostHTML(p, cp, it=false, im=false) {
     let dt = window.timeAgo(p.timestamp), dtFull = window.fullDateTime(p.timestamp), ap = window.allUsersData[p.author]?.profilePic || dA, ism = p.author === window.currentUser, ad = window.getDisplayName(p.author), ah = `<span style="font-size:12px;color:var(--text-muted);font-weight:normal;">@${p.author}</span>`, af = '';
-    let abg = p.author.toLowerCase() === 'admin21' ? '<span style="background:#7c3aed;color:#fff;padding:2px 6px;border-radius:6px;font-size:10px;margin-right:5px;font-weight:bold;">إدارة</span>' : '';
+    let abg = window.isPlatformAdmin?.(p.author) ? '<span style="background:#7c3aed;color:#fff;padding:2px 6px;border-radius:6px;font-size:10px;margin-right:5px;font-weight:bold;">إدارة</span>' : '';
     if(window.currentUser && !ism && !window.myFriends.includes(p.author)) { let rr = window.currentRequests && window.currentRequests[p.author]; if(window.sentRequests && window.sentRequests[p.author]) af = `<button class="btn-primary" style="padding:2px 10px;font-size:11px;border-radius:6px;margin-right:10px;background:#e2e8f0;color:#0f172a;" disabled><i class="fas fa-clock"></i> تم</button>`; else if(rr) af = `<button class="btn-primary" style="padding:2px 10px;font-size:11px;border-radius:6px;margin-right:10px;background:#10b981;" onclick="event.stopPropagation();window.acceptRequestFromFeed('${p.author}')"><i class="fas fa-check"></i> قبول</button>`; else af = `<button class="btn-primary" data-action="add" data-target="${p.author}" style="padding:2px 10px;font-size:11px;border-radius:6px;margin-right:10px;" onclick="event.stopPropagation();window.sendFriendRequestToFromFeed('${p.author}',this)"><i class="fas fa-user-plus"></i> إضافة</button>`; }
     let tbg = it ? `<span style="background:#ff9800;color:#fff;padding:2px 8px;border-radius:12px;font-size:11px;margin-right:10px;font-weight:bold;"><i class="fas fa-fire"></i> رائج</span>` : '', ch = `<div class="post-options-wrap"><button class="post-options-btn" onclick="event.stopPropagation();window.togglePostOptionsMenu('${p.id}')"><i class="fas fa-ellipsis-h"></i></button><div class="post-options-menu" id="postOptMenu_${p.id}">${ism ? `<div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.editPost('${p.id}')"><i class="fas fa-edit"></i> تعديل المنشور</div><div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.deletePost('${p.id}')"><i class="fas fa-trash"></i> حذف المنشور</div><div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.copyPostLink('${p.id}')"><i class="fas fa-link"></i> نسخ رابط المنشور</div>` : `<div onclick="event.stopPropagation();window.closeAllPostOptMenus();window.reportPost('${p.id}','${p.author}')"><i class="fas fa-flag"></i> الإبلاغ عن المنشور</div>`}</div></div>`;
     let hl = window.currentUser ? (p.likes && p.likes[window.currentUser]) : false, hi = hl ? '<i class="fas fa-heart" style="color:#ef4444;"></i>' : '<i class="far fa-heart" style="color:#64748b;"></i>', lc = p.likes ? Object.keys(p.likes).length : 0, lt = lc > 0 ? `<span style="font-size:14px;margin-right:5px;color:#64748b;">${lc}</span>` : `<span style="font-size:14px;margin-right:5px;color:#64748b;">إعجاب</span>`;
@@ -1460,7 +1489,7 @@ function createPostHTML(p, cp, it=false, im=false) {
     let cmh = ''; if(p.comments && typeof p.comments === 'object') { let ca = Object.entries(p.comments).map(([id,val]) => ({id,...val})).sort((a,b) => a.timestamp - b.timestamp), cs = im ? ca : ca.slice(-2); cs.forEach(c => { let cPic = window.allUsersData[c.author]?.profilePic || dA, cD = window.getDisplayName(c.author), sct = window.formatMentions(c.text), rh = ''; let cLikes = c.likes && typeof c.likes === 'object' ? c.likes : {}, cLc = Object.keys(cLikes).length, cLiked = window.currentUser && !!cLikes[window.currentUser]; let cLb = window.currentUser ? `<span class="reply-btn" onclick="window.toggleCommentLike('${p.id}','${c.id}',null,this)" style="margin-right:5px;color:${cLiked?'#ef4444':'inherit'};font-weight:${cLiked?'800':'inherit'};">إعجاب${cLc>0?` <span class="lc-count">${cLc}</span>`:''}</span>` : ''; if(c.replies && typeof c.replies === 'object') { Object.entries(c.replies).map(([rid,val]) => ({rid,...val})).sort((a,b) => a.timestamp - b.timestamp).forEach(r => { let rPic = window.allUsersData[r.author]?.profilePic || dA, rD = window.getDisplayName(r.author), srt = window.formatMentions(r.text), srb = im ? `<span class="reply-btn" onclick="window.prepareReply('${c.id}','${r.author}')" style="margin-top:4px;display:inline-block;margin-right:5px;">رد</span>` : ''; let rLikes = r.likes && typeof r.likes === 'object' ? r.likes : {}, rLc = Object.keys(rLikes).length, rLiked = window.currentUser && !!rLikes[window.currentUser]; let rLb = window.currentUser ? `<span class="reply-btn" onclick="window.toggleCommentLike('${p.id}','${c.id}','${r.rid}',this)" style="margin-top:4px;display:inline-block;margin-right:5px;color:${rLiked?'#ef4444':'inherit'};font-weight:${rLiked?'800':'inherit'};">إعجاب${rLc>0?` <span class="lc-count">${rLc}</span>`:''}</span>` : ''; rh += `<div class="comment reply-block" style="margin-bottom:8px;"><a href="#/@${r.author}"><img src="${rPic}" class="avatar-small" style="width:24px;height:24px;"></a><div style="flex:1;"><div class="comment-text-box" style="background:#fff;border:1px solid #e2e8f0;margin-bottom:2px;padding:8px 12px;"><a href="#/@${r.author}" class="comment-author" data-hc="${r.author}" style="color:inherit; text-decoration:none; display:block;">${rD}</a><div>${srt}</div></div>${rLb}${srb}</div></div>`; }); } let rb = im ? `<span class="reply-btn" onclick="window.prepareReply('${c.id}','${c.author}')">رد</span>` : ''; cmh += `<div class="comment"><a href="#/@${c.author}"><img src="${cPic}" class="avatar-small" style="width:28px;height:28px;"></a><div style="flex:1;"><div class="comment-text-box"><a href="#/@${c.author}" class="comment-author" data-hc="${c.author}" style="color:inherit; text-decoration:none; display:block;">${cD}</a><div>${sct}</div></div>${cLb}${rb}<div id="replies_${c.id}">${rh}</div></div></div>`; }); if(!im && ca.length > 2) cmh += `<div style="font-size:13px;color:#64748b;cursor:pointer;font-weight:700;margin-top:5px;text-align:center;padding:5px;background:#f1f5f9;border-radius:8px;" onclick="window.openPostModal('${p.id}')">عرض كل التعليقات (${ca.length})</div>`; }
     let myPic = (window.allUsersData && window.allUsersData[window.currentUser]?.profilePic) || dA;
     let cia = (!window.currentUser || cp === 'modal') ? '' : `<div class="comment-input-area"><img src="${myPic}" class="avatar-small" style="width:32px;height:32px;" onerror="this.src='${dA}'"><input type="text" oninput="window.handleMentionInput(this)" id="commentInp_${cp}_${p.id}" class="comment-input" placeholder="اكتب تعليقاً..." onkeypress="if(event.key==='Enter') window.addComment('${p.id}','${p.author}','${cp}')"><button class="btn-primary" style="padding:8px 15px;border-radius:20px;" onclick="window.addComment('${p.id}','${p.author}','${cp}')"><i class="fas fa-paper-plane"></i></button></div>`;
-    let admC = (window.currentUser && window.currentUser.toLowerCase() === 'admin21') ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #cbd5e1;display:flex;gap:10px;justify-content:flex-end;"><button onclick="window.warnUser('${p.author}')" style="background:#f59e0b;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-exclamation-triangle"></i> تحذير</button><button onclick="window.adminDeletePost('${p.id}')" style="background:#ef4444;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-trash"></i> حذف إداري</button></div>` : '';
+    let admC = (window.currentUser && window.isPlatformAdmin?.(window.currentUser)) ? `<div style="margin-top:10px;padding-top:10px;border-top:1px dashed #cbd5e1;display:flex;gap:10px;justify-content:flex-end;"><button onclick="window.warnUser('${p.author}')" style="background:#f59e0b;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-exclamation-triangle"></i> تحذير</button><button onclick="window.adminDeletePost('${p.id}')" style="background:#ef4444;color:#fff;border:0;padding:5px 12px;border-radius:6px;cursor:pointer;font-weight:bold;font-family:inherit;font-size:12px;"><i class="fas fa-trash"></i> حذف إداري</button></div>` : '';
     return `<div class="post" data-post-id="${p.id}"><div class="post-header">${headerLeft}${ch}</div>${pb}<div class="post-actions-bar"><button class="action-btn" data-count="${lc}" onclick="window.toggleLike('${p.id}','${p.author}',this)"><i class="${hl?'fas':'far'} fa-heart" style="${hl ? 'color:#ef4444;' : 'color:#64748b;'}"></i> <span class="lc-count">${lt}</span></button><button class="action-btn" onclick="${im ? `$('modalCommentInput').focus()` : `window.openPostModal('${p.id}')`}"><i class="far fa-comment-alt"></i> تعليق</button><button class="action-btn" onclick="window.openShareModal('${p.id}')"><i class="fas fa-share"></i> مشاركة</button></div><div class="comments-section" id="commentsSection_${p.id}">${cmh}${cia}</div>${admC}</div>`;
 }
 
@@ -3678,7 +3707,7 @@ window.fL = function(u, d) {
     
     let ab = $('adminBtn'); 
     if(ab){ 
-        ab.style.display = (u.toLowerCase() === 'admin21') ? 'flex' : 'none'; 
+        ab.style.display = window.isPlatformAdmin?.(u) ? 'flex' : 'none'; 
     } 
     
     try {
@@ -3965,13 +3994,13 @@ window.checkFriendsBirthdays = () => {
 };
 
 window.warnUser = (uid) => {
-    if(!window.currentUser || window.currentUser.toLowerCase() !== 'admin21') return;
+    if(!window.currentUser || !window.isPlatformAdmin?.(window.currentUser)) return;
     window.dlgPrompt(`رسالة تحذير لـ ${window.getDisplayName(uid)}:`, '', 'اكتب رسالة التحذير...').then(msg => {
     if(msg) push(ref(db, `users/${uid}/notifications`), {type:'system', text:'⚠️ تحذير من الإدارة: ' + msg, timestamp:Date.now(), read:false}); });
 };
 
 window.adminDeletePost = (id) => {
-    if(!window.currentUser || window.currentUser.toLowerCase() !== 'admin21') return;
+    if(!window.currentUser || !window.isPlatformAdmin?.(window.currentUser)) return;
     window.dlgDanger('حذف هذا المنشور إدارياً؟', 'حذف إداري').then(ok => { if(ok) remove(ref(db, `posts/${id}`)); });
 };
 
