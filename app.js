@@ -865,7 +865,7 @@ window._renderNotifications = (rawVal) => {
                 let uS = x.read === false ? 'background:#eef2ff;' : 'background:#fff;',
                     uD = x.read === false ? `<div style="width:10px;height:10px;background:var(--primary);border-radius:50%;flex-shrink:0;box-shadow:0 0 5px rgba(37,99,235,0.4);"></div>` : '',
                     tm = window.timeAgo(x.timestamp);
-                h += `<div class="notif-item" onclick="window.handleNotifClick('${x.id}','${x.type}','${x.from}','${x.postId}','${x.communityId || ''}')" style="display:flex; align-items:center; gap:14px; padding:14px 18px; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.2s; ${uS}">
+                h += `<div class="notif-item" onclick="window.handleNotifClick('${x.id}','${x.type}','${x.from}','${x.postId}','${x.communityId || ''}','${x.depositRequestId || ''}')" style="display:flex; align-items:center; gap:14px; padding:14px 18px; border-bottom:1px solid #f1f5f9; cursor:pointer; transition:background 0.2s; ${uS}">
                     <div style="position:relative; flex-shrink:0;">
                         <img src="${pic}" style="width:52px;height:52px;border-radius:50%;object-fit:cover;border:1px solid #e2e8f0;">
                         <div style="position:absolute; bottom:-4px; right:-4px; background:#fff; border-radius:50%; width:24px;height:24px; font-size:12px; display:flex; align-items:center; justify-content:center; box-shadow:0 1px 3px rgba(0,0,0,0.15);">${icon}</div>
@@ -896,7 +896,7 @@ window._renderNotifications = (rawVal) => {
 window.rerenderNotifications = () => { if (window.currentUser) window._renderNotifications(window._lastNotifRaw); };
 
 function listenToNotifications() { onValue(ref(db, `users/${window.currentUser}/notifications`), s => { window._renderNotifications(s.exists() ? s.val() : null); }); }
-window.handleNotifClick = (id, t, f, p, communityId) => {
+window.handleNotifClick = (id, t, f, p, communityId, depositRequestId) => {
     update(ref(db, `users/${window.currentUser}/notifications/${id}`), {read:true});
     window.closeNotifPanel();
     if (t === 'friend_req' || t === 'follow_request') {
@@ -909,6 +909,8 @@ window.handleNotifClick = (id, t, f, p, communityId) => {
         if (window.openCommunityView) window.openCommunityView(communityId);
     } else if (t === 'ad_approved' || t === 'ad_rejected') {
         window.location.href = 'ads.html';
+    } else if (t === 'deposit_request') {
+        window.openDepositAdminPage?.(depositRequestId || '');
     } else if (['comment','like','share','reply','mention','comment_like'].includes(t) && p && p !== 'undefined') {
         window.openPostModal(p);
     }
