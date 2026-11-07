@@ -302,6 +302,29 @@ const videoPoster = "https://placehold.co/600x400/1e293b/ffffff?text=Video+Loadi
 const reelPoster = "https://placehold.co/300x500/1e293b/ffffff?text=Reel+Video";
 const $ = (id) => document.getElementById(id);
 
+// منع ظهور أيقونة الصورة المكسورة بحجم كبير، خصوصًا في قائمة المحادثات.
+// نحافظ على أبعاد العنصر قبل استبدال المصدر بصورة افتراضية آمنة.
+const brokenImageFallback = 'data:image/svg+xml;charset=UTF-8,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="#e2e8f0"/><circle cx="50" cy="38" r="18" fill="#94a3b8"/><path d="M18 86c4-20 18-30 32-30s28 10 32 30" fill="#94a3b8"/></svg>'
+);
+document.addEventListener('error', (event) => {
+    const image = event.target;
+    if (!(image instanceof HTMLImageElement) || image.dataset.imageFallback === '1') return;
+    image.dataset.imageFallback = '1';
+    if (image.classList.contains('avatar-small')) {
+        const computed = getComputedStyle(image);
+        const width = parseFloat(image.style.width) || parseFloat(computed.width) || 40;
+        const height = parseFloat(image.style.height) || parseFloat(computed.height) || width;
+        image.style.width = `${Math.min(Math.max(width, 24), 80)}px`;
+        image.style.height = `${Math.min(Math.max(height, 24), 80)}px`;
+        image.style.objectFit = 'cover';
+        image.style.borderRadius = '50%';
+    } else if (image.classList.contains('post-media')) {
+        image.style.display = 'none';
+    }
+    image.src = brokenImageFallback;
+}, true);
+
 window.addEventListener('load', () => { setTimeout(() => { let il = $('initialLoader'); if (il && il.style.display !== 'none') { il.classList.add('hidden'); setTimeout(() => il.style.display = 'none', 400); } }, 4000); });
 if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
 const routeScrollPositions = Object.create(null);

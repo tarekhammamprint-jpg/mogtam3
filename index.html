@@ -42,6 +42,10 @@
             display:flex;align-items:center;justify-content:center;transition:all .2s;
         }
         .post-modal-close-btn:hover{background:var(--accent-soft);color:var(--accent)}
+        /* تثبيت صور الحسابات حتى لا تتمدد صورة مكسورة داخل صفوف المحادثات */
+        img.avatar-small{display:block;max-width:100%;object-fit:cover;flex:0 0 auto;}
+        img.avatar-small[data-image-fallback="1"]{background:#e2e8f0;object-fit:cover;}
+        img.post-media[data-image-fallback="1"]{display:none!important;}
     </style>
 
 <style>
