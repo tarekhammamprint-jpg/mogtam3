@@ -1,4 +1,4 @@
-import { ref, get, set, update, push } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+import { ref, get, set, update, push, remove } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
 
 /*
@@ -17,6 +17,18 @@ const community = (id) => window.allCommunities?.[id] || null;
 const isOwner = (c) => c && c.admin === current();
 const isMember = (c) => !!(c?.members && c.members[current()]);
 const hasPending = (c) => !!(c?.requests && c.requests[current()]);
+
+async function availableWalletBalance(uid, currency) {
+    const snap = await get(ref(db, `wallets/${uid}/ledger`));
+    let confirmed = 0, held = 0;
+    if (snap.exists()) snap.forEach(x => {
+        const v = x.val() || {}, amount = Number(v.amount || 0);
+        if ((v.currency || 'EGP') !== currency) return;
+        if (v.status === 'held') held += amount;
+        else if (['confirmed', 'available', 'paid'].includes(v.status || 'confirmed')) confirmed += v.direction === 'debit' ? -amount : amount;
+    });
+    return confirmed - held;
+}
 
 function injectStyle() {
     if ($('paidCommunitiesStyle')) return;
@@ -44,7 +56,7 @@ function ensureJoinModal() {
       <label style="display:block;font-size:13px;font-weight:800;margin:12px 0 6px">ملاحظة لصاحب المجتمع (اختياري)</label>
       <textarea id="paidJoinNote" class="modal-input" rows="3" placeholder="اكتب هدفك أو أي معلومات يحتاجها صاحب المجتمع..."></textarea>
       <button id="paidJoinSubmit" class="btn-primary" style="width:100%;padding:13px"><i class="fas fa-paper-plane"></i> إرسال طلب الاشتراك</button>
-      <p style="font-size:11px;color:#64748b;line-height:1.7;margin:12px 0 0">هذا الإصدار يسجل طلب الاشتراك للمراجعة. لا يعتبر الطلب عملية دفع إلكترونية حتى يتم ربط بوابة دفع موثقة.</p>
+      <p style="font-size:11px;color:#64748b;line-height:1.7;margin:12px 0 0">سيتم حجز قيمة الاشتراك من رصيدك عند إرسال الطلب. لا تتحول القيمة إلى صاحب المجتمع إلا بعد الموافقة، وتُعاد إليك عند الرفض.</p>
     </div>`;
     document.body.appendChild(modal);
     $('paidJoinClose').onclick = () => modal.classList.remove('show');
@@ -66,15 +78,25 @@ window.openPaidJoinModal = (id) => {
 window.submitPaidJoinRequest = async (id) => {
     const c = community(id); if (!c || !current()) return;
     const btn = $('paidJoinSubmit'); const old = btn.innerHTML; btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الإرسال...';
+    let holdLedgerId = '';
     try {
+        const amount = Number(c.price || 0), currency = c.currency || 'USD', now = Date.now();
+        let balance = 0;
+        if (amount > 0) {
+            balance = await availableWalletBalance(current(), currency);
+            if (balance < amount) return window.dlgAlert?.(`رصيدك المتاح ${money(balance, currency)} وهو أقل من سعر الاشتراك ${money(amount, currency)}.`, 'warning', 'الرصيد غير كافٍ');
+            const hold = push(ref(db, `wallets/${current()}/ledger`)); holdLedgerId = hold.key;
+            await set(hold, { amount, currency, bucket: 'reserved', direction: 'debit', status: 'held', title: `حجز اشتراك ${c.name || 'مجتمع'}`, communityId: id, createdAt: now });
+        }
         await set(ref(db, `communities/${id}/requests/${current()}`), {
-            type: 'paid_subscription', status: 'pending', amount: Number(c.price || 0), currency: c.currency || 'USD', billingCycle: c.billingCycle || 'monthly', note: $('paidJoinNote').value.trim(), createdAt: Date.now()
+            type: 'paid_subscription', status: 'pending', paymentStatus: amount > 0 ? 'reserved' : 'free', amount, currency, holdLedgerId, billingCycle: c.billingCycle || 'monthly', note: $('paidJoinNote').value.trim(), createdAt: now
         });
         await push(ref(db, `users/${c.admin}/notifications`), { type:'community_paid_request', from:current(), communityId:id, communityName:c.name || '', timestamp:Date.now(), read:false });
         $('paidJoinModal').classList.remove('show');
-        window.showToast?.('تم إرسال طلب الاشتراك', 'سينتظر طلبك مراجعة صاحب المجتمع', '');
+        window.showToast?.('تم حجز المبلغ وإرسال الطلب', 'لن يتحول لصاحب المجتمع إلا بعد قبولك', '');
         window.renderCommunitiesList?.();
     } catch (e) {
+        if (holdLedgerId) await remove(ref(db, `wallets/${current()}/ledger/${holdLedgerId}`)).catch(() => {});
         console.error('[PaidCommunities]', e);
         window.dlgAlert?.('تعذر إرسال الطلب. حاول مرة أخرى.', 'danger', 'خطأ');
     } finally { btn.disabled = false; btn.innerHTML = old; }
