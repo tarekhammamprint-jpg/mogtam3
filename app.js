@@ -1583,14 +1583,9 @@ function renderFeed() {
         }
     });
 
-    let t_i = 0, final = [...vp];
-    if (mode !== 'following') {
-        if (!iN) {
-            for (let i = 0; i < vp.length; i++) {
-                if ((i + 1) % 8 === 0 && t_i < tr.length) { final.splice(i + 1, 0, tr[t_i]); t_i++; }
-            }
-        } else { final = [...vp, ...tr]; }
-    }
+    // مقالات القنوات جزء من الفيد العام، ولا ينبغي إخفاؤها لمجرد وجود أصدقاء؛
+    // في وضع «المتابَعون» فقط نلتزم بالقنوات التي يتابعها العضو.
+    let final = mode === 'following' ? [...vp] : [...vp, ...tr];
 
     // ── الترتيب حسب الوضع المختار ──
     if (mode === 'top') {
@@ -1962,7 +1957,7 @@ window.publishPost = async () => {
         const userData = window.allUsersData?.[window.currentUser] || {};
         const isBot = userData.isNewsBot === true || userData.accountType === 'newsBot' || userData.role === 'newsBot';
         const postsPath = isBot ? 'newsPosts' : 'posts';
-        if (isBot) d.isNewsBot = true;
+        if (isBot) { d.isNewsBot = true; d.channelId = window.currentUser; }
         console.log('[Publish] isBot:', isBot, '| path:', postsPath, '| userData:', JSON.stringify(userData).slice(0,100));
         let nr = push(ref(db, postsPath)); await set(nr, d);
         window.myFriends.forEach(f => { if (c.includes('@' + f)) push(ref(db, `users/${f}/notifications`), { type: 'mention', from: window.currentUser, postId: nr.key, timestamp: Date.now(), read: false }); });
@@ -3569,7 +3564,7 @@ function listenToNewsBotPosts() {
     onValue(query(ref(db, 'newsPosts'), orderByChild('timestamp'), limitToLast(50)), s => {
         window.allNewsPosts = [];
         if (s.exists()) {
-            s.forEach(c => { let p = c.val(); p.id = c.key; window.allNewsPosts.push(p); window.postCache[p.id] = p; });
+            s.forEach(c => { let p = c.val(); p.id = c.key; p.channelId = p.channelId || p.author; window.allNewsPosts.push(p); window.postCache[p.id] = p; });
         }
         // دمج منشورات البوتات من posts القديمة (isNewsBot=true)
         (window.allPosts || []).forEach(p => {
@@ -4228,37 +4223,25 @@ document.addEventListener('error', e => {
 
 
 // ═══════════════════════════════════════════════════════
-//  تنظيف منشورات البوتات القديمة (أكثر من 7 أيام)
+//  تنظيف منشورات القنوات القديمة (أكثر من 4 أيام)
 //  يعمل مرة واحدة عند تسجيل الدخول
 // ═══════════════════════════════════════════════════════
 window.cleanOldBotPosts = async () => {
     if (!window.currentUser) return;
-    const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
-    const cutoff = Date.now() - SEVEN_DAYS;
+    const FOUR_DAYS = 4 * 24 * 60 * 60 * 1000;
+    const cutoff = Date.now() - FOUR_DAYS;
 
     try {
         // جلب المنشورات القديمة فقط بـ query محدود
-        const oldPostsSnap = await get(
-            query(ref(db, 'newsPosts'), orderByChild('timestamp'), limitToLast(200))
-        );
-        if (!oldPostsSnap.exists()) return;
-
-        const toDelete = [];
-        oldPostsSnap.forEach(child => {
-            const post = child.val();
-            if (post.timestamp && post.timestamp < cutoff) {
-                toDelete.push(child.key);
-            }
-        });
-
-        if (toDelete.length === 0) return;
-
-        // حذف دفعات
+        const [newsSnap, legacySnap] = await Promise.all([
+            get(query(ref(db, 'newsPosts'), orderByChild('timestamp'), limitToLast(500))),
+            get(query(ref(db, 'posts'), orderByChild('timestamp'), limitToLast(500)))
+        ]);
         const updates = {};
-        toDelete.forEach(id => { updates[id] = null; });
-        await update(ref(db, 'newsPosts'), updates);
-
-        console.log(`[BotCleanup] حُذف ${toDelete.length} منشور قديم`);
+        if (newsSnap.exists()) newsSnap.forEach(child => { const post = child.val(); if (post.timestamp && post.timestamp < cutoff) updates[`newsPosts/${child.key}`] = null; });
+        if (legacySnap.exists()) legacySnap.forEach(child => { const post = child.val(); if (post.isNewsBot && post.timestamp && post.timestamp < cutoff) updates[`posts/${child.key}`] = null; });
+        const ids = Object.keys(updates);
+        if (ids.length) { await update(ref(db), updates); console.log(`[BotCleanup] حُذف ${ids.length} مقال قناة أقدم من 4 أيام`); }
     } catch(e) {
         console.error('[BotCleanup] خطأ:', e);
     }
@@ -4267,6 +4250,6 @@ window.cleanOldBotPosts = async () => {
 // تشغيل التنظيف مرة واحدة بعد 10 ثوان من تسجيل الدخول
 window.scheduleBotCleanup = () => {
     setTimeout(window.cleanOldBotPosts, 10000);
-    // وكل 24 ساعة
-    setInterval(window.cleanOldBotPosts, 24 * 60 * 60 * 1000);
+    // فحص دوري كل نصف ساعة؛ الحذف يعتمد على عمر المقال وليس على وقت تشغيل الصفحة.
+    setInterval(window.cleanOldBotPosts, 30 * 60 * 1000);
 };
