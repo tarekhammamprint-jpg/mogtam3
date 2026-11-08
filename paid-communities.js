@@ -91,6 +91,8 @@ window.submitPaidJoinRequest = async (id) => {
         await set(ref(db, `communities/${id}/requests/${current()}`), {
             type: 'paid_subscription', status: 'pending', paymentStatus: amount > 0 ? 'reserved' : 'free', amount, currency, holdLedgerId, billingCycle: c.billingCycle || 'monthly', note: $('paidJoinNote').value.trim(), createdAt: now
         });
+        c.requests = c.requests || {};
+        c.requests[current()] = {type:'paid_subscription', status:'pending', paymentStatus:amount > 0 ? 'reserved' : 'free', amount, currency, holdLedgerId, createdAt:now};
         await push(ref(db, `users/${c.admin}/notifications`), { type:'community_paid_request', from:current(), communityId:id, communityName:c.name || '', timestamp:Date.now(), read:false });
         $('paidJoinModal').classList.remove('show');
         window.showToast?.('تم حجز المبلغ وإرسال الطلب', 'لن يتحول لصاحب المجتمع إلا بعد قبولك', '');

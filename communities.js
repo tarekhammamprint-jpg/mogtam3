@@ -97,8 +97,53 @@ window.manageCommunityRequests = (commId) => {
     $('communityFeedArea').innerHTML = h;
 };
 
-window.approveCommRequest = async (commId, uid) => { const comm = window.allCommunities[commId] || {}; const reqSnap = await get(ref(db, `communities/${commId}/requests/${uid}`)); if(!reqSnap.exists()) return; const req = reqSnap.val() || {}, now = Date.now(), updates = {}; updates[`communities/${commId}/members/${uid}`] = true; updates[`communities/${commId}/requests/${uid}`] = null; updates[`communitySubscriptionHistory/${commId}/${uid}`] = {...req, status:'approved', approvedBy:window.currentUser, approvedAt:now}; if(req.holdLedgerId && Number(req.amount||0)>0){ const ownerLedger=push(ref(db, `wallets/${comm.admin}/ledger`)); updates[`wallets/${uid}/ledger/${req.holdLedgerId}/status`] = 'confirmed'; updates[`wallets/${uid}/ledger/${req.holdLedgerId}/paymentStatus`] = 'paid'; updates[`wallets/${comm.admin}/ledger/${ownerLedger.key}`] = {amount:Number(req.amount),currency:req.currency||'EGP',bucket:'earnings',direction:'credit',status:'confirmed',title:`اشتراك مجتمع ${comm.name||''}`,communityId:commId,memberId:uid,createdAt:now}; updates[`communitySubscriptionHistory/${commId}/${uid}/paymentStatus`] = 'paid'; } await update(ref(db), updates); await notifyCommunityUser(uid, { type: 'community_approved', from: window.currentUser, communityId: commId, communityName: comm.name || '' }); window.manageCommunityRequests(commId); };
-window.rejectCommRequest = async (commId, uid) => { const comm = window.allCommunities[commId] || {}, reqSnap = await get(ref(db, `communities/${commId}/requests/${uid}`)); if(!reqSnap.exists()) return; const req = reqSnap.val() || {}, now = Date.now(), updates = {}; updates[`communities/${commId}/requests/${uid}`] = null; updates[`communitySubscriptionHistory/${commId}/${uid}`] = {...req, status:'rejected', rejectedBy:window.currentUser, rejectedAt:now}; if(req.holdLedgerId && Number(req.amount||0)>0){ const refund=push(ref(db,`wallets/${uid}/ledger`)); updates[`wallets/${uid}/ledger/${req.holdLedgerId}/status`]='reversed'; updates[`wallets/${uid}/ledger/${refund.key}`]={amount:Number(req.amount),currency:req.currency||'EGP',bucket:'earnings',direction:'credit',status:'confirmed',title:`استرداد اشتراك مجتمع ${comm.name||''}`,communityId:commId,createdAt:now}; updates[`communitySubscriptionHistory/${commId}/${uid}/paymentStatus`]='refunded'; } await update(ref(db),updates); await notifyCommunityUser(uid,{type:'system',from:window.currentUser,text:'تم رفض طلب الاشتراك وإعادة المبلغ المحجوز إلى رصيدك.',timestamp:now,read:false}); window.manageCommunityRequests(commId); };
+window.approveCommRequest = async (commId, uid) => {
+    try {
+        const comm = window.allCommunities[commId] || {}, reqSnap = await get(ref(db, `communities/${commId}/requests/${uid}`));
+        if (!reqSnap.exists()) return;
+        const req = reqSnap.val() || {}, amount = Number(req.amount || 0), now = Date.now(), updates = {};
+        updates[`communities/${commId}/members/${uid}`] = true;
+        updates[`communities/${commId}/requests/${uid}`] = null;
+        updates[`communitySubscriptionHistory/${commId}/${uid}`] = {...req, status:'approved', approvedBy:window.currentUser, approvedAt:now};
+        if (amount > 0) {
+            const ownerLedger = push(ref(db, `wallets/${comm.admin}/ledger`));
+            if (req.holdLedgerId) {
+                updates[`wallets/${uid}/ledger/${req.holdLedgerId}/status`] = 'confirmed';
+                updates[`wallets/${uid}/ledger/${req.holdLedgerId}/paymentStatus`] = 'paid';
+            } else {
+                const memberDebit = push(ref(db, `wallets/${uid}/ledger`));
+                updates[`wallets/${uid}/ledger/${memberDebit.key}`] = {amount, currency:req.currency||'EGP', bucket:'reserved', direction:'debit', status:'confirmed', title:`اشتراك مجتمع ${comm.name||''}`, communityId:commId, createdAt:now};
+            }
+            updates[`wallets/${comm.admin}/ledger/${ownerLedger.key}`] = {amount, currency:req.currency||'EGP', bucket:'earnings', direction:'credit', status:'confirmed', title:`اشتراك مجتمع ${comm.name||''}`, communityId:commId, memberId:uid, createdAt:now};
+            updates[`communitySubscriptionHistory/${commId}/${uid}/paymentStatus`] = 'paid';
+        }
+        await update(ref(db), updates);
+        comm.members = comm.members || {}; comm.members[uid] = true; if (comm.requests) delete comm.requests[uid];
+        await notifyCommunityUser(uid, {type:'community_approved', from:window.currentUser, communityId:commId, communityName:comm.name || ''});
+        window.dlgAlert?.(amount > 0 ? 'تم قبول العضو وتحويل قيمة الاشتراك إلى أرباحك.' : 'تم قبول العضو بنجاح.', 'success', 'تمت الموافقة');
+        window.manageCommunityRequests(commId);
+    } catch (e) { console.error(e); window.dlgAlert?.('تعذر تنفيذ الموافقة ولم يتم تغيير الأرصدة.', 'danger', 'خطأ في التحويل'); }
+};
+window.rejectCommRequest = async (commId, uid) => {
+    try {
+        const comm = window.allCommunities[commId] || {}, reqSnap = await get(ref(db, `communities/${commId}/requests/${uid}`));
+        if (!reqSnap.exists()) return;
+        const req = reqSnap.val() || {}, amount = Number(req.amount || 0), now = Date.now(), updates = {};
+        updates[`communities/${commId}/requests/${uid}`] = null;
+        updates[`communitySubscriptionHistory/${commId}/${uid}`] = {...req, status:'rejected', rejectedBy:window.currentUser, rejectedAt:now};
+        if (req.holdLedgerId && amount > 0) {
+            const refund = push(ref(db, `wallets/${uid}/ledger`));
+            updates[`wallets/${uid}/ledger/${req.holdLedgerId}/status`] = 'reversed';
+            updates[`wallets/${uid}/ledger/${refund.key}`] = {amount, currency:req.currency||'EGP', bucket:'earnings', direction:'credit', status:'confirmed', title:`استرداد اشتراك مجتمع ${comm.name||''}`, communityId:commId, createdAt:now};
+            updates[`communitySubscriptionHistory/${commId}/${uid}/paymentStatus`] = 'refunded';
+        }
+        await update(ref(db), updates);
+        if (comm.requests) delete comm.requests[uid];
+        await notifyCommunityUser(uid, {type:'system', from:window.currentUser, text:'تم رفض طلب الاشتراك وإعادة المبلغ المحجوز إلى رصيدك.', timestamp:now, read:false});
+        window.dlgAlert?.(amount > 0 ? 'تم رفض الطلب وإعادة المبلغ للعضو.' : 'تم رفض الطلب.', 'success', 'تم الرفض');
+        window.manageCommunityRequests(commId);
+    } catch (e) { console.error(e); window.dlgAlert?.('تعذر رفض الطلب.', 'danger', 'خطأ'); }
+};
 
 // startCommunityCall مُعرَّفة في video-call.js
 
