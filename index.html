@@ -61,6 +61,29 @@
         #communityViewModal .avatar-small{width:40px!important;height:40px!important;min-width:40px!important;max-width:40px!important;min-height:40px!important;max-height:40px!important;border-radius:50%;object-fit:cover;display:block;}
         .r-author-pic{width:28px!important;height:28px!important;min-width:28px!important;max-width:28px!important;min-height:28px!important;max-height:28px!important;border-radius:50%;object-fit:cover;display:block;}
         .r-author-hdr img{width:40px!important;height:40px!important;min-width:40px!important;max-width:40px!important;min-height:40px!important;max-height:40px!important;border-radius:50%;object-fit:cover;display:block;}
+        /* ── نظام المراسلة الجديد: سطح مكتب وهاتف ── */
+        .messages-page-modal{background:rgba(15,23,42,.58)!important;backdrop-filter:blur(8px);padding:0!important;align-items:stretch!important;justify-content:center;}
+        .messages-page-inner{width:min(1180px,100%);height:min(860px,100vh);margin:auto;background:#f8fafc;display:grid;grid-template-columns:350px minmax(0,1fr);overflow:hidden;box-shadow:0 22px 70px rgba(15,23,42,.28);border:1px solid rgba(255,255,255,.55);}
+        .messages-page-list-col{background:#fff;border-left:1px solid #e2e8f0;display:flex;flex-direction:column;min-width:0;}
+        .messages-page-list-header{height:78px;padding:0 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #eef2f7;background:#fff;}
+        .messages-page-list-header h3{margin:0;font-size:20px;font-weight:900;color:#0f172a;display:flex;align-items:center;gap:9px;}
+        .messages-page-search-wrap{margin:16px 16px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:13px;height:43px;display:flex;align-items:center;gap:9px;padding:0 13px;color:#94a3b8;}
+        .messages-page-search-wrap input{border:0;outline:0;background:transparent;width:100%;font-family:inherit;color:#0f172a;font-size:13px;}
+        .messages-page-conv-list{overflow-y:auto;padding:4px 9px 18px;}
+        .mp-conv-row{display:flex;align-items:center;gap:11px;padding:12px 10px;border-radius:14px;cursor:pointer;transition:.18s;direction:rtl;position:relative;}
+        .mp-conv-row:hover{background:#f8fafc;}.mp-conv-row.active{background:#eef2ff;}.mp-conv-row.unread{background:#fffbeb;}
+        .mp-conv-row>img{width:48px;height:48px;min-width:48px;border-radius:50%;object-fit:cover;border:2px solid #fff;box-shadow:0 2px 8px rgba(15,23,42,.1);}
+        .mp-conv-info{min-width:0;flex:1;display:flex;flex-direction:column;gap:4px;}.mp-name{font-weight:800;color:#0f172a;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.mp-preview{color:#94a3b8;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}.mp-conv-time{font-size:10px;color:#94a3b8;white-space:nowrap;}.mp-unread-dot{width:9px;height:9px;border-radius:50%;background:#6366f1;box-shadow:0 0 0 4px #e0e7ff;}
+        .messages-page-thread-col{min-width:0;display:flex;background:linear-gradient(180deg,#f8fafc,#f1f5f9);}
+        .messages-page-empty{margin:auto;text-align:center;color:#94a3b8;padding:30px;}.messages-page-empty>em{width:82px;height:82px;border-radius:28px;display:flex;align-items:center;justify-content:center;margin:0 auto 18px;background:#e0e7ff;color:#6366f1;font-size:34px;}.messages-page-empty h4{margin:0 0 7px;color:#334155;font-size:20px;}.messages-page-empty p{margin:0;font-size:13px;}
+        .messages-page-thread{width:100%;height:100%;min-height:0;display:flex;flex-direction:column;}
+        .messages-page-thread-header{height:78px;flex:0 0 78px;display:flex;align-items:center;gap:12px;padding:0 22px;background:#fff;border-bottom:1px solid #e2e8f0;box-shadow:0 2px 10px rgba(15,23,42,.04);}.mp-thread-user{display:flex;align-items:center;gap:10px;cursor:pointer;}.mp-thread-user img{width:44px!important;height:44px!important;border-radius:50%;object-fit:cover;}.mp-typing-status{color:#6366f1;font-size:11px;margin-top:3px;}.mp-mobile-back{display:none;border:0;background:#eef2ff;color:#4f46e5;border-radius:10px;width:36px;height:36px;cursor:pointer;}
+        .messages-page-messages{flex:1;min-height:0;overflow-y:auto;padding:24px 6%;scroll-behavior:smooth;}.chat-bubble-row{display:flex;margin:5px 0;direction:rtl;}.chat-bubble-row.mine{justify-content:flex-start;}.chat-bubble-row.theirs{justify-content:flex-end;}.chat-bubble{max-width:min(72%,540px);padding:10px 14px;border-radius:18px 18px 5px 18px;background:#fff;color:#1e293b;box-shadow:0 3px 12px rgba(15,23,42,.06);font-size:13px;line-height:1.75;word-break:break-word;}.chat-bubble-row.theirs .chat-bubble{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;border-radius:18px 18px 18px 5px;}.chat-meta{font-size:10px;opacity:.62;display:flex;align-items:center;gap:5px;margin-top:3px;direction:rtl;}.chat-bubble-row.mine .chat-meta{justify-content:flex-start;}.chat-bubble-row.theirs .chat-meta{justify-content:flex-end;}.chat-ticks{font-weight:900;letter-spacing:-3px;}.chat-media{display:block;max-width:260px;max-height:260px;border-radius:12px;object-fit:cover;margin-bottom:4px;}
+        .chat-empty-state{height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94a3b8;gap:10px;font-size:13px;}.chat-empty-state i{font-size:38px;color:#c7d2fe;}
+        .messages-page-input-area,.chat-input-area{display:flex;align-items:center;gap:8px;padding:13px 18px;background:#fff;border-top:1px solid #e2e8f0;}.chat-input{height:42px;min-width:0;flex:1;border:1px solid #e2e8f0;background:#f8fafc;border-radius:22px;padding:0 15px;outline:0;font-family:inherit;font-size:13px;transition:.2s;}.chat-input:focus{border-color:#818cf8;background:#fff;box-shadow:0 0 0 3px #eef2ff;}.chat-send{width:42px;height:42px;border:0;border-radius:50%;background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 5px 13px rgba(79,70,229,.25);}.mp-media-btn{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;border-radius:50%;cursor:pointer;background:#f1f5f9;transition:.2s;}.mp-media-btn:hover{background:#e0e7ff;transform:translateY(-1px);}
+        .floating-chat{width:58px!important;height:58px!important;border-radius:50%!important;background:#fff!important;border:3px solid #6366f1!important;box-shadow:0 9px 25px rgba(15,23,42,.2)!important;}.floating-chat img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+        @media(max-width:900px){.messages-page-inner{height:100vh;grid-template-columns:1fr;border:0;border-radius:0;}.messages-page-thread-col{display:none;}.messages-page-modal.mobile-thread-open .messages-page-list-col{display:none;}.messages-page-modal.mobile-thread-open .messages-page-thread-col{display:flex;}.mp-mobile-back{display:inline-flex;align-items:center;justify-content:center;}.messages-page-thread-header{padding:0 12px;height:68px;flex-basis:68px;}.messages-page-messages{padding:18px 12px;}.chat-bubble{max-width:84%;}.messages-page-input-area{padding:10px 9px;gap:5px;}.mp-media-btn{width:32px;height:32px;}.messages-page-list-header{height:68px;}.messages-page-list-header h3{font-size:18px;}}
+        @media(min-width:901px){.messages-page-modal{padding:22px!important;}.messages-page-inner{border-radius:24px;}.messages-page-thread-header{border-radius:0 24px 0 0;}}
     </style>
 
 <style>
@@ -790,29 +813,7 @@ body { padding-top: 70px !important; }
 
 <!-- ══════════════════════════════════════════════
      المحتوى الرئيسي
-═══════════════════════════════════════════════ -->
-<section class="live-magazine-masthead" aria-label="المجلة الحية">
-    <div class="magazine-kicker">مجتمعنا / إصدار حي</div>
-    <div class="magazine-masthead-grid">
-        <div class="magazine-title-block">
-            <h1>أصوات<br><em>تتحرك.</em></h1>
-            <p>مساحة اجتماعية عربية تُرتّب الحوار كقصة، وتترك للمجتمع أن يكتب الصفحة التالية.</p>
-        </div>
-        <div class="magazine-index-block">
-            <span class="magazine-index-label">الآن في مساحتك</span>
-            <div class="magazine-index-line"><b>01</b><span>الموجز</span><i class="fas fa-arrow-left"></i></div>
-            <div class="magazine-index-line"><b>02</b><span>المتابَعون</span><i class="fas fa-arrow-left"></i></div>
-            <div class="magazine-index-line"><b>03</b><span>الأكثر تفاعلاً</span><i class="fas fa-arrow-left"></i></div>
-        </div>
-    </div>
-    <div class="magazine-toolbar">
-        <span class="toolbar-label">تصفّح الفكرة</span>
-        <button class="magazine-filter active" data-mode="latest" onclick="window.setFeedMode('latest')">الأحدث</button>
-        <button class="magazine-filter" data-mode="top" onclick="window.setFeedMode('top')">الأكثر تفاعلاً</button>
-        <button class="magazine-filter" data-mode="following" onclick="window.setFeedMode('following')">المتابَعون</button>
-        <span class="toolbar-rule"></span><span class="toolbar-note">كل منشور يفتح حواراً</span>
-    </div>
-</section>
+══════════════════════════════════════════════ -->
 <div class="main-container">
     <!-- منطقة الفيد -->
     <div class="feed-area">
@@ -1221,12 +1222,6 @@ window.showAboutPage = () => {
     document.body.style.overflow = 'hidden';
     m.addEventListener('click', e => { if(e.target === m) { m.style.display='none'; document.body.style.overflow='auto'; } }, {once:true});
 };
-document.querySelectorAll('.magazine-filter').forEach(btn => {
-    btn.addEventListener('click', () => {
-        document.querySelectorAll('.magazine-filter').forEach(item => item.classList.remove('active'));
-        btn.classList.add('active');
-    });
-});
 </script>
 
 </body>

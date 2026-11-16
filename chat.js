@@ -1,67 +1,66 @@
-import { ref, set, get, update, push, remove, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
+import { ref, get, set, update, push, onValue } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js";
 import { db } from "./firebase-config.js";
 
-const $ = (id) => document.getElementById(id);
-const dA = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
-let tT = null;
+const DEFAULT_AVATAR = "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+const escChat = v => String(v ?? '').replace(/[&<>\"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[c]));
+let chatUnsubscribe = null;
+let chatTypingUnsubscribe = null;
+let chatTypingTimer = null;
 
-window.openChatFromProfile = () => { if(!window.currentUser) return window.showRegisterModal(); let t = $('profHandle').innerText.replace('@', ''); window.location.hash=''; setTimeout(() => window.openChat(t), 300); };
+function roomWith(uid) { return [window.currentUser, uid].sort().join('_'); }
+function userName(uid) { return window.getDisplayName ? window.getDisplayName(uid) : uid; }
+function touchConversation(uid, timestamp) {
+    if (!uid || !window.currentUser) return Promise.resolve();
+    return Promise.all([
+        update(ref(db, `users/${window.currentUser}/recentChats`), {[uid]: timestamp}),
+        update(ref(db, `users/${uid}/recentChats`), {[window.currentUser]: timestamp}),
+        get(ref(db, `users/${uid}/unreadChats/${window.currentUser}`)).then(s => set(ref(db, `users/${uid}/unreadChats/${window.currentUser}`), (s.exists() ? Number(s.val()) : 0) + 1))
+    ]);
+}
 
-window.openChat = (t) => {
-    if(!window.currentUser) return window.showRegisterModal();
-    window.location.hash = ''; 
-    document.querySelectorAll('.modal').forEach(m => { if(m.id!=='interestsModal' && m.id!=='communitiesModal' && m.id!=='communityViewModal') m.classList.remove('show'); }); 
-    document.body.style.overflow = 'auto';
-    $('sidebarArea').classList.remove('mobile-show'); $('floatingChat').style.display = 'none';
-    window.currentChatTarget = t; window.isChatBoxVisible = true; $('chatTargetName').innerText = window.getDisplayName(t);
-    let td = window.allUsersData[t]; $('chatHeaderAvatar').src = td ? (td.profilePic || dA) : dA; $('chatBox').classList.add('show');
-    remove(ref(db, `users/${window.currentUser}/unreadChats/${t}`));
-    let rid = [window.currentUser, t].sort().join('_');
-    if(window.chatUnsubscribe) window.chatUnsubscribe();
-    window.chatUnsubscribe = onValue(ref(db, `chats/${rid}`), s => {
-        let h = '', ur = {}, hu = false, fuc = 0, to = window.allUsersData[t]?.online || false;
-        if(s.exists()) {
-            s.forEach(c => {
-                let m = c.val(), mid = c.key, mc = m.sender === window.currentUser ? 'me' : 'other', ts = new Date(m.timestamp).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'});
-                if(m.sender !== window.currentUser && !m.read) { if(window.isChatBoxVisible) { ur[mid+'/read'] = true; hu = true; } else fuc++; }
-                let ci = ''; if(mc === 'me') { if(m.read) ci = '<i class="fas fa-check-double" style="color:#38bdf8;opacity:1;margin-right:4px;"></i>'; else if(to) ci = '<i class="fas fa-check-double" style="color:#cbd5e1;opacity:0.9;margin-right:4px;"></i>'; else ci = '<i class="fas fa-check" style="color:#cbd5e1;opacity:0.9;margin-right:4px;"></i>'; }
-                let th = `<div style="font-size:10px;opacity:0.9;margin-top:4px;display:flex;align-items:center;justify-content:${mc==='me'?'flex-end':'flex-start'};gap:4px;">${ci} ${ts}</div>`;
-                let co = m.text || '';
-                if(m.image) co = `<img src="${m.image}" data-file-id="${m.imageFid||''}" style="max-width:100%;border-radius:10px;margin-bottom:5px;cursor:pointer;" onerror="if(this.dataset.fileId&&!this.dataset.fixed){this.dataset.fixed=1;this.src=(window.MEDIA_WORKER_URL||'')+'/media/'+this.dataset.fileId;}" onclick="window.open('${m.image}','_blank')"><br>${co}`;
-                if(m.video) co = `<video src="${m.video}" controls style="max-width:100%;border-radius:10px;margin-bottom:5px;background:#1e293b;"></video><br>${co}`;
-                h += `<div class="msg ${mc}">${co}${th}</div>`;
-            });
-        }
-        if(hu && window.isChatBoxVisible) update(ref(db, `chats/${rid}`), ur);
-        let fb = $('floatingChatBadge');
-        if(!window.isChatBoxVisible && fuc > 0) { fb.innerText = fuc; fb.style.display = 'block'; } else fb.style.display = 'none';
-        let cd = $('chatMessages'); cd.innerHTML = h; setTimeout(() => cd.scrollTop = cd.scrollHeight, 50);
+function renderFloatingMessages(snap, uid) {
+    const box = document.getElementById('chatMessages'); if (!box) return;
+    let html = '', unread = {}, mark = false;
+    const online = !!window.allUsersData?.[uid]?.online;
+    if (snap.exists()) snap.forEach(child => {
+        const m = child.val() || {}, mine = m.sender === window.currentUser;
+        if (!mine && !m.read) { unread[`${child.key}/read`] = true; mark = true; }
+        const time = m.timestamp ? new Date(m.timestamp).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'}) : '';
+        let body = escChat(m.text || '');
+        if (m.image) body = `<img src="${escChat(m.image)}" class="chat-media" alt="صورة" onclick="window.open('${escChat(m.image)}','_blank')">${body ? `<div>${body}</div>` : ''}`;
+        if (m.video) body = `<video src="${escChat(m.video)}" class="chat-media" controls></video>${body ? `<div>${body}</div>` : ''}`;
+        const ticks = mine ? `<span class="chat-ticks">${m.read ? '✓✓' : (online ? '✓✓' : '✓')}</span>` : '';
+        html += `<div class="chat-bubble-row ${mine ? 'mine' : 'theirs'}"><div class="chat-bubble">${body}<div class="chat-meta">${ticks}<span>${time}</span></div></div></div>`;
     });
-    if(window.typingUnsubscribe) window.typingUnsubscribe();
-    window.typingUnsubscribe = onValue(ref(db, `chats_typing/${rid}/${t}`), s => { $('chatTypingStatus').style.display = s.val() ? 'flex' : 'none'; });
-};
+    box.innerHTML = html || `<div class="chat-empty-state"><i class="fas fa-comments"></i><span>ابدأ المحادثة مع ${escChat(userName(uid))}</span></div>`;
+    if (mark) update(ref(db, `chats/${roomWith(uid)}`), unread);
+    requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
+}
 
-window.minimizeChat = (e) => { e.stopPropagation(); window.isChatBoxVisible = false; $('chatBox').classList.remove('show'); $('floatingChat').style.display = 'flex'; $('floatingChatAvatar').src = window.allUsersData[window.currentChatTarget]?.profilePic || dA; };
-window.restoreChat = () => { $('floatingChat').style.display = 'none'; $('chatBox').classList.add('show'); window.isChatBoxVisible = true; if(window.currentChatTarget) window.openChat(window.currentChatTarget); };
-window.closeChat = (e) => { e.stopPropagation(); window.isChatBoxVisible = false; $('chatBox').classList.remove('show'); $('floatingChat').style.display = 'none'; if(window.currentChatTarget) set(ref(db, `chats_typing/${[window.currentUser, window.currentChatTarget].sort().join('_')}/${window.currentUser}`), false); window.currentChatTarget = null; };
-
-window.sendChatMedia = async (e, type) => {
-    let f = e.target.files[0]; if(!f || !window.currentChatTarget) return;
-    if(type === 'video' && f.size > 50*1024*1024) return window.dlgAlert('الفيديو كبير جداً! الحد الأقصى 50 ميجا.', 'warning', 'تنبيه');
-    let t = window.currentChatTarget, rid = [window.currentUser, t].sort().join('_'), n = Date.now();
-    try {
-        let url = await window.uploadToCloudinary(f, type);
-        let d = {sender:window.currentUser, timestamp:n, read:false};
-        if(type==='image'){d.image=url; if(window._lastFileId){d.imageFid=window._lastFileId;window._lastFileId=null;}}
-        else{d.video=url; if(window._lastFileId){d.videoFid=window._lastFileId;window._lastFileId=null;}}
-        push(ref(db, `chats/${rid}`), d).then(() => { update(ref(db, `users/${window.currentUser}/recentChats`), {[t]:n}); update(ref(db, `users/${t}/recentChats`), {[window.currentUser]:n}); let ur = ref(db, `users/${t}/unreadChats/${window.currentUser}`); get(ur).then(s => set(ur, (s.exists() ? s.val() : 0) + 1)); });
-    } catch(err) { window.dlgAlert('فشل رفع الملف، يرجى المحاولة مجدداً.', 'danger', 'خطأ'); }
+window.openChat = (uid) => {
+    if (!window.currentUser) return window.showRegisterModal?.();
+    if (!uid || uid === window.currentUser) return;
+    if (document.getElementById('messagesPageModal')?.classList.contains('show')) return window.openMessagesPageChat?.(uid);
+    window.currentChatTarget = uid; window.isChatBoxVisible = true;
+    const data = window.allUsersData?.[uid] || {};
+    const box = document.getElementById('chatBox');
+    document.getElementById('chatTargetName').textContent = userName(uid);
+    document.getElementById('chatHeaderAvatar').src = data.profilePic || DEFAULT_AVATAR;
+    box?.classList.add('show'); document.getElementById('floatingChat')?.style.setProperty('display','none');
+    if (chatUnsubscribe) chatUnsubscribe();
+    chatUnsubscribe = onValue(ref(db, `chats/${roomWith(uid)}`), snap => renderFloatingMessages(snap, uid));
+    document.getElementById('chatInput')?.focus();
 };
+window.closeChat = (event) => { event?.stopPropagation(); window.isChatBoxVisible = false; document.getElementById('chatBox')?.classList.remove('show'); if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; } };
+window.minimizeChat = (event) => { event?.stopPropagation(); window.isChatBoxVisible = false; document.getElementById('chatBox')?.classList.remove('show'); const f = document.getElementById('floatingChat'); if (f) { f.style.display = 'flex'; const d = window.allUsersData?.[window.currentChatTarget] || {}; document.getElementById('floatingChatAvatar').src = d.profilePic || DEFAULT_AVATAR; } };
+window.restoreChat = () => { if (window.currentChatTarget) window.openChat(window.currentChatTarget); };
+window.handleChatInput = () => { const uid = window.currentChatTarget; if (!uid) return; const room = roomWith(uid); set(ref(db, `chats_typing/${room}/${window.currentUser}`), true); clearTimeout(chatTypingTimer); chatTypingTimer = setTimeout(() => set(ref(db, `chats_typing/${room}/${window.currentUser}`), false), 1500); };
+window.sendMessage = () => { const input = document.getElementById('chatInput'), text = input?.value.trim(), uid = window.currentChatTarget; if (!text || !uid) return; const now = Date.now(), room = roomWith(uid); set(ref(db, `chats_typing/${room}/${window.currentUser}`), false); push(ref(db, `chats/${room}`), {sender:window.currentUser, text, timestamp:now, read:false}).then(() => { input.value=''; return touchConversation(uid, now); }); };
+window.sendChatMedia = async (event, type) => { const file = event.target.files?.[0], uid = window.currentChatTarget; if (!file || !uid) return; if (type === 'video' && file.size > 50 * 1024 * 1024) return window.dlgAlert?.('الفيديو كبير جدًا، الحد الأقصى 50 ميجابايت.', 'warning', 'الملف كبير'); try { const url = await window.uploadToCloudinary(file, type), now = Date.now(), data = {sender:window.currentUser, timestamp:now, read:false}; if (type === 'image') data.image = url; else data.video = url; await push(ref(db, `chats/${roomWith(uid)}`), data); await touchConversation(uid, now); event.target.value=''; } catch (e) { console.error(e); window.dlgAlert?.('تعذر إرسال الملف.', 'danger', 'خطأ'); } };
 
-window.handleChatInput = () => { if(!window.currentChatTarget) return; let r = [window.currentUser, window.currentChatTarget].sort().join('_'); set(ref(db, `chats_typing/${r}/${window.currentUser}`), true); clearTimeout(tT); tT = setTimeout(() => set(ref(db, `chats_typing/${r}/${window.currentUser}`), false), 1500); };
-window.sendMessage = () => {
-    let t = $('chatInput').value.trim(); if(!t || !window.currentChatTarget) return;
-    let tg = window.currentChatTarget, r = [window.currentUser, tg].sort().join('_'), n = Date.now();
-    set(ref(db, `chats_typing/${r}/${window.currentUser}`), false); clearTimeout(tT);
-    push(ref(db, `chats/${r}`), {sender:window.currentUser, text:t, timestamp:n, read:false}).then(() => { $('chatInput').value = ''; update(ref(db, `users/${window.currentUser}/recentChats`), {[tg]:n}); update(ref(db, `users/${tg}/recentChats`), {[window.currentUser]:n}); let ur = ref(db, `users/${tg}/unreadChats/${window.currentUser}`); get(ur).then(s => set(ur, (s.exists() ? s.val() : 0) + 1)); });
-};
+function startTypingListener() {
+    if (chatTypingUnsubscribe || !window.currentUser) return;
+    const check = () => { const uid = window.currentChatTarget; if (!uid) return; if (chatTypingUnsubscribe) chatTypingUnsubscribe(); chatTypingUnsubscribe = onValue(ref(db, `chats_typing/${roomWith(uid)}/${uid}`), s => { const el = document.getElementById('chatTypingStatus'); if (el) el.style.display = s.val() ? 'flex' : 'none'; }); };
+    setInterval(check, 1000);
+}
+window.addEventListener('load', startTypingListener);
