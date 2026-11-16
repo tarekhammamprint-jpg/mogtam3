@@ -790,7 +790,29 @@ body { padding-top: 70px !important; }
 
 <!-- ══════════════════════════════════════════════
      المحتوى الرئيسي
-══════════════════════════════════════════════ -->
+═══════════════════════════════════════════════ -->
+<section class="live-magazine-masthead" aria-label="المجلة الحية">
+    <div class="magazine-kicker">مجتمعنا / إصدار حي</div>
+    <div class="magazine-masthead-grid">
+        <div class="magazine-title-block">
+            <h1>أصوات<br><em>تتحرك.</em></h1>
+            <p>مساحة اجتماعية عربية تُرتّب الحوار كقصة، وتترك للمجتمع أن يكتب الصفحة التالية.</p>
+        </div>
+        <div class="magazine-index-block">
+            <span class="magazine-index-label">الآن في مساحتك</span>
+            <div class="magazine-index-line"><b>01</b><span>الموجز</span><i class="fas fa-arrow-left"></i></div>
+            <div class="magazine-index-line"><b>02</b><span>المتابَعون</span><i class="fas fa-arrow-left"></i></div>
+            <div class="magazine-index-line"><b>03</b><span>الأكثر تفاعلاً</span><i class="fas fa-arrow-left"></i></div>
+        </div>
+    </div>
+    <div class="magazine-toolbar">
+        <span class="toolbar-label">تصفّح الفكرة</span>
+        <button class="magazine-filter active" data-mode="latest" onclick="window.setFeedMode('latest')">الأحدث</button>
+        <button class="magazine-filter" data-mode="top" onclick="window.setFeedMode('top')">الأكثر تفاعلاً</button>
+        <button class="magazine-filter" data-mode="following" onclick="window.setFeedMode('following')">المتابَعون</button>
+        <span class="toolbar-rule"></span><span class="toolbar-note">كل منشور يفتح حواراً</span>
+    </div>
+</section>
 <div class="main-container">
     <!-- منطقة الفيد -->
     <div class="feed-area">
@@ -1199,6 +1221,12 @@ window.showAboutPage = () => {
     document.body.style.overflow = 'hidden';
     m.addEventListener('click', e => { if(e.target === m) { m.style.display='none'; document.body.style.overflow='auto'; } }, {once:true});
 };
+document.querySelectorAll('.magazine-filter').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.magazine-filter').forEach(item => item.classList.remove('active'));
+        btn.classList.add('active');
+    });
+});
 </script>
 
 </body>
