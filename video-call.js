@@ -162,6 +162,7 @@ window.sendLiveComment = async () => { const input=document.getElementById('vcCo
 // ══════════════════════════════════════════════
 window.startCallListener = () => {
     if (!window.currentUser) return;
+    window.startPersonalCallListener?.();
     if (callNotifyUnsub) { callNotifyUnsub(); callNotifyUnsub = null; }
 
     const callsRef = ref(db, 'communityCalls');
@@ -667,3 +668,80 @@ const _hookEnhance = () => {
     } else { setTimeout(_hookEnhance, 100); }
 };
 _hookEnhance();
+
+
+// ══════════════════════════════════════════════════════════════
+// المكالمات الشخصية: WebRTC + Firebase signaling
+// الصوت والصورة لا تمر عبر Firebase؛ Firebase ينقل إشارات الاتصال فقط.
+// ══════════════════════════════════════════════════════════════
+const PERSONAL_ICE_SERVERS = [
+    {urls:'stun:stun.l.google.com:19302'},
+    {urls:'stun:stun1.l.google.com:19302'}
+];
+let personalPc = null, personalStream = null, personalCallId = null, personalTarget = null, personalType = 'video';
+let personalSessionUnsub = null, personalRemoteCandidatesUnsub = null, personalIncomingUnsub = null;
+const personalIncomingShown = new Set();
+const personalPath = id => ref(db, `personalCallSessions/${id}`);
+const personalRoom = (id, side) => ref(db, `personalCallSessions/${id}/${side}`);
+
+(function injectPersonalCallStyles(){
+    const s=document.createElement('style'); s.id='personalCallStyles'; s.textContent=`
+    #personalCallModal{position:fixed;inset:0;z-index:2147483000;background:#050816;color:#fff;display:flex;flex-direction:column;font-family:Cairo,sans-serif;direction:rtl}
+    #personalCallTop{height:68px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;background:rgba(15,23,42,.95);border-bottom:1px solid rgba(255,255,255,.08)}
+    #personalCallStage{position:relative;flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 30%,#1e293b,#050816 70%);overflow:hidden}
+    #personalRemoteVideo{width:100%;height:100%;object-fit:contain;background:#0f172a}.personal-local-video{position:absolute;bottom:20px;left:20px;width:min(230px,30vw);aspect-ratio:16/10;object-fit:cover;border:2px solid rgba(255,255,255,.8);border-radius:16px;background:#1e293b;box-shadow:0 10px 30px rgba(0,0,0,.4)}
+    #personalAudioAvatar{display:flex;width:110px;height:110px;border-radius:50%;align-items:center;justify-content:center;background:linear-gradient(135deg,#6366f1,#0ea5e9);font-size:42px;box-shadow:0 0 0 14px rgba(99,102,241,.14)}
+    #personalCallControls{height:88px;display:flex;align-items:center;justify-content:center;gap:13px;background:rgba(15,23,42,.98)}.personal-call-btn{width:48px;height:48px;border:0;border-radius:50%;background:#1e293b;color:#fff;cursor:pointer;font-size:17px}.personal-call-btn.off{background:#ef4444}.personal-call-btn.end{width:58px;height:58px;background:#ef4444}.personal-call-btn:hover{transform:scale(1.07)}
+    #personalIncomingOverlay{position:fixed;inset:0;z-index:2147483001;display:none;align-items:center;justify-content:center;background:rgba(2,6,23,.72);backdrop-filter:blur(9px);font-family:Cairo,sans-serif;direction:rtl}#personalIncomingOverlay.show{display:flex}.personal-incoming-card{width:min(380px,92%);background:#fff;color:#0f172a;border-radius:25px;overflow:hidden;text-align:center;box-shadow:0 25px 70px rgba(0,0,0,.35)}.personal-incoming-head{padding:28px 18px 22px;background:linear-gradient(135deg,#4f46e5,#0ea5e9);color:#fff}.personal-incoming-head img{width:82px;height:82px;border-radius:50%;object-fit:cover;border:4px solid rgba(255,255,255,.75);margin-bottom:10px}.personal-incoming-body{padding:20px}.personal-incoming-actions{display:flex;gap:10px}.personal-incoming-actions button{flex:1;border:0;border-radius:13px;padding:13px;font-family:inherit;font-weight:800;cursor:pointer}.personal-accept{background:#10b981;color:#fff}.personal-decline{background:#fee2e2;color:#dc2626}
+    @media(max-width:600px){#personalCallTop{height:60px;padding:0 13px}#personalCallControls{height:78px;gap:9px}.personal-call-btn{width:44px;height:44px}.personal-call-btn.end{width:53px;height:53px}.personal-local-video{width:125px;bottom:14px;left:12px;border-radius:11px}}
+    `; document.head.appendChild(s);
+})();
+
+function ensurePersonalIncomingDom(){
+    if(document.getElementById('personalIncomingOverlay')) return;
+    const el=document.createElement('div'); el.id='personalIncomingOverlay'; el.innerHTML=`<div class="personal-incoming-card"><div class="personal-incoming-head"><img id="personalIncomingAvatar" src="${DEFAULT_AVATAR}"><div id="personalIncomingName" style="font-size:19px;font-weight:900"></div><div id="personalIncomingType" style="font-size:12px;opacity:.85;margin-top:4px"></div></div><div class="personal-incoming-body"><p style="margin:0 0 16px;color:#64748b;font-size:13px">لديك مكالمة واردة</p><div class="personal-incoming-actions"><button id="personalAcceptBtn" class="personal-accept"><i class="fas fa-phone"></i> قبول</button><button id="personalDeclineBtn" class="personal-decline"><i class="fas fa-phone-slash"></i> رفض</button></div></div></div>`; document.body.appendChild(el);
+}
+function personalMessage(uid, text){ if(window.showToast) window.showToast('مكالمة',text,window.allUsersData?.[uid]?.profilePic||''); }
+function closePersonalResources(){
+    if(personalSessionUnsub){personalSessionUnsub();personalSessionUnsub=null} if(personalRemoteCandidatesUnsub){personalRemoteCandidatesUnsub();personalRemoteCandidatesUnsub=null}
+    if(personalPc){personalPc.ontrack=null;personalPc.onicecandidate=null;personalPc.onconnectionstatechange=null;personalPc.close();personalPc=null}
+    if(personalStream){personalStream.getTracks().forEach(t=>t.stop());personalStream=null}
+}
+function renderPersonalCallModal(){
+    document.getElementById('personalCallModal')?.remove(); const d=window.allUsersData?.[personalTarget]||{};
+    const modal=document.createElement('div'); modal.id='personalCallModal'; modal.innerHTML=`<div id="personalCallTop"><div style="display:flex;align-items:center;gap:10px"><img src="${d.profilePic||DEFAULT_AVATAR}" style="width:38px;height:38px;border-radius:50%;object-fit:cover"><div><div style="font-weight:900" id="personalCallName">${window.getDisplayName?.(personalTarget)||personalTarget}</div><div id="personalCallStatus" style="font-size:11px;color:#94a3b8">جاري الاتصال...</div></div></div><button onclick="window.endPersonalCall()" style="border:0;background:rgba(239,68,68,.15);color:#fca5a5;border-radius:10px;padding:8px 11px;font-family:inherit;cursor:pointer"><i class="fas fa-times"></i> إنهاء</button></div><div id="personalCallStage"><div id="personalAudioAvatar"><i class="fas fa-user"></i></div><video id="personalRemoteVideo" autoplay playsinline style="display:none"></video><video id="personalLocalVideo" class="personal-local-video" autoplay muted playsinline style="display:none"></video></div><div id="personalCallControls"><button id="personalMuteBtn" class="personal-call-btn" title="كتم الميكروفون"><i class="fas fa-microphone"></i></button><button id="personalCameraBtn" class="personal-call-btn" title="الكاميرا"><i class="fas fa-video"></i></button><button onclick="window.endPersonalCall()" class="personal-call-btn end" title="إنهاء المكالمة"><i class="fas fa-phone-slash"></i></button></div>`; document.body.appendChild(modal);
+    document.getElementById('personalMuteBtn').onclick=()=>{const t=personalStream?.getAudioTracks()[0];if(!t)return;t.enabled=!t.enabled;document.getElementById('personalMuteBtn').classList.toggle('off',!t.enabled);document.getElementById('personalMuteBtn').innerHTML=`<i class="fas fa-microphone${t.enabled?'':'-slash'}"></i>`};
+    document.getElementById('personalCameraBtn').onclick=()=>{const t=personalStream?.getVideoTracks()[0];if(!t)return;t.enabled=!t.enabled;document.getElementById('personalCameraBtn').classList.toggle('off',!t.enabled)};
+    return modal;
+}
+function configurePersonalPeer(isCaller){
+    personalPc=new RTCPeerConnection({iceServers:PERSONAL_ICE_SERVERS}); personalStream?.getTracks().forEach(t=>personalPc.addTrack(t,personalStream));
+    personalPc.ontrack=e=>{const v=document.getElementById('personalRemoteVideo');if(v){v.srcObject=e.streams[0];v.style.display='block';document.getElementById('personalAudioAvatar').style.display='none'}};
+    personalPc.onicecandidate=e=>{if(e.candidate) push(personalRoom(personalCallId,isCaller?'callerCandidates':'calleeCandidates'),e.candidate.toJSON())};
+    personalPc.onconnectionstatechange=()=>{const st=personalPc?.connectionState, el=document.getElementById('personalCallStatus');if(el)el.textContent=st==='connected'?'متصل بجودة WebRTC':st==='disconnected'?'إعادة الاتصال...':st==='failed'?'تعذر الاتصال':'جاري الاتصال...';if(st==='failed')personalPc.restartIce?.()};
+}
+
+window.startPersonalCall=async(type='video',uid)=>{
+    uid=uid||window.currentChatTarget||window.mpCurrentTarget; if(!window.currentUser||!uid||uid===window.currentUser)return;
+    if(!window.isSecureContext && location.hostname!=='localhost') return window.dlgAlert?.('المكالمات تحتاج HTTPS للسماح بالكاميرا والميكروفون.','warning','الاتصال غير آمن');
+    if(personalPc)return window.dlgAlert?.('لديك مكالمة نشطة بالفعل.','warning','مكالمة نشطة');
+    personalType=type; personalTarget=uid; personalCallId=`${window.currentUser}_${uid}_${Date.now()}_${Math.random().toString(36).slice(2,7)}`;
+    try{
+        personalStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:type==='video'?{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}}:false});
+        const modal=renderPersonalCallModal(), lv=document.getElementById('personalLocalVideo'); if(type==='video'){lv.srcObject=personalStream;lv.style.display='block';document.getElementById('personalCameraBtn').style.display='flex'} else {document.getElementById('personalCameraBtn').style.display='none'};
+        await set(personalPath(personalCallId),{caller:window.currentUser,callee:uid,type,createdAt:Date.now(),status:'ringing'});
+        configurePersonalPeer(true); const offer=await personalPc.createOffer({offerToReceiveAudio:true,offerToReceiveVideo:type==='video'}); await personalPc.setLocalDescription(offer);
+        await update(personalPath(personalCallId),{offer:{type:offer.type,sdp:offer.sdp}});
+        await set(ref(db,`users/${uid}/incomingPersonalCalls/${personalCallId}`),{caller:window.currentUser,callerName:window.getDisplayName?.(window.currentUser)||window.currentUser,type,createdAt:Date.now(),status:'ringing'});
+        personalSessionUnsub=onValue(personalPath(personalCallId),snap=>{const d=snap.val()||{};if(d.answer&&!personalPc.currentRemoteDescription)personalPc.setRemoteDescription(new RTCSessionDescription(d.answer));if(d.status==='ended')window.endPersonalCall(true)});
+        personalRemoteCandidatesUnsub=onValue(personalRoom(personalCallId,'calleeCandidates'),snap=>{if(snap.exists())snap.forEach(c=>personalPc?.addIceCandidate(new RTCIceCandidate(c.val())).catch(()=>{}))});
+    }catch(e){console.error('[PersonalCall]',e);closePersonalResources();document.getElementById('personalCallModal')?.remove();window.dlgAlert?.('تعذر تشغيل الكاميرا أو الميكروفون. تحقق من الصلاحيات ثم حاول مرة أخرى.','danger','تعذر بدء المكالمة')}
+};
+
+window.startPersonalCallListener=()=>{
+    if(!window.currentUser)return; ensurePersonalIncomingDom(); if(personalIncomingUnsub)personalIncomingUnsub();
+    const r=ref(db,`users/${window.currentUser}/incomingPersonalCalls`); personalIncomingUnsub=onValue(r,snap=>{if(!snap.exists())return;snap.forEach(c=>{const d=c.val()||{};if(d.status==='ringing'&&!personalIncomingShown.has(c.key)){personalIncomingShown.add(c.key);showPersonalIncoming(c.key,d)}})});
+};
+function showPersonalIncoming(id,d){const overlay=document.getElementById('personalIncomingOverlay'),u=d.caller,ud=window.allUsersData?.[u]||{};document.getElementById('personalIncomingAvatar').src=ud.profilePic||DEFAULT_AVATAR;document.getElementById('personalIncomingName').textContent=d.callerName||window.getDisplayName?.(u)||u;document.getElementById('personalIncomingType').textContent=d.type==='video'?'مكالمة فيديو شخصية':'مكالمة صوتية شخصية';overlay.classList.add('show');let timer=setTimeout(()=>{overlay.classList.remove('show');remove(ref(db,`users/${window.currentUser}/incomingPersonalCalls/${id}`));},30000);document.getElementById('personalDeclineBtn').onclick=()=>{clearTimeout(timer);overlay.classList.remove('show');remove(ref(db,`personalCallSessions/${id}`));remove(ref(db,`users/${window.currentUser}/incomingPersonalCalls/${id}`));};document.getElementById('personalAcceptBtn').onclick=async()=>{clearTimeout(timer);overlay.classList.remove('show');await acceptPersonalCall(id,d)};}
+async function acceptPersonalCall(id,d){if(personalPc)return;personalCallId=id;personalTarget=d.caller;personalType=d.type||'audio';try{personalStream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:personalType==='video'?{width:{ideal:1280},height:{ideal:720},frameRate:{ideal:30,max:30}}:false});renderPersonalCallModal();const lv=document.getElementById('personalLocalVideo');if(personalType==='video'){lv.srcObject=personalStream;lv.style.display='block'}else document.getElementById('personalCameraBtn').style.display='none';configurePersonalPeer(false);const snap=await get(personalPath(id));const session=snap.val()||{};await personalPc.setRemoteDescription(new RTCSessionDescription(session.offer));const answer=await personalPc.createAnswer();await personalPc.setLocalDescription(answer);await update(personalPath(id),{answer:{type:answer.type,sdp:answer.sdp},status:'active'});await remove(ref(db,`users/${window.currentUser}/incomingPersonalCalls/${id}`));personalSessionUnsub=onValue(personalPath(id),s=>{if(s.val()?.status==='ended')window.endPersonalCall(true)});personalRemoteCandidatesUnsub=onValue(personalRoom(id,'callerCandidates'),s=>{if(s.exists())s.forEach(c=>personalPc?.addIceCandidate(new RTCIceCandidate(c.val())).catch(()=>{}))});}catch(e){console.error('[PersonalCall accept]',e);closePersonalResources();document.getElementById('personalCallModal')?.remove();window.dlgAlert?.('تعذر قبول المكالمة. تحقق من صلاحيات الكاميرا والميكروفون.','danger','تعذر الاتصال')}}
+window.endPersonalCall=async(silent=false)=>{const id=personalCallId,uid=personalTarget;try{if(id)await update(personalPath(id),{status:'ended',endedAt:Date.now()});if(uid&&window.currentUser)await remove(ref(db,`users/${window.currentUser}/incomingPersonalCalls/${id}`));}catch(e){}closePersonalResources();document.getElementById('personalCallModal')?.remove();personalCallId=null;personalTarget=null;if(!silent&&uid)personalMessage(uid,'تم إنهاء المكالمة');};
