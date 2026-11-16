@@ -776,6 +776,17 @@ body { padding-top: 70px !important; }
 </div>
 
 <!-- صفحة المحفظة والمدفوعات -->
+<!-- تنقل مجتمعنا العالمي — أوامر حقيقية مرتبطة بوظائف المنصة -->
+<div class="global-command-bar" id="globalCommandBar" aria-label="التنقل الرئيسي">
+    <div class="global-command-brand"><span class="command-orbit"></span><div><strong>الموجز العالمي</strong><small>مساحتك · مجتمعك · عالمك</small></div></div>
+    <div class="global-command-actions">
+        <button class="command-action active" onclick="window.goHome()"><i class="fas fa-house"></i><span>الرئيسية</span></button>
+        <button class="command-action" onclick="window.openCommunitiesModal()"><i class="fas fa-compass"></i><span>استكشف</span></button>
+        <button class="command-action" onclick="window.openMessagesPage()"><i class="fas fa-message"></i><span>الرسائل</span></button>
+        <button class="command-action" onclick="window.openWalletPage()"><i class="fas fa-wallet"></i><span>المحفظة</span></button>
+        <button class="command-action" onclick="window.openRequestsModal()"><i class="fas fa-user-plus"></i><span>العلاقات</span></button>
+    </div>
+</div>
 <div id="walletPage">
     <div class="wallet-wrap">
         <div class="wallet-top">
@@ -799,38 +810,6 @@ body { padding-top: 70px !important; }
         </div>
         <!-- ريلز أعلى الفيد -->
         <div id="reelsTopBar" class="reels-container" style="display:none;"></div>
-        <!-- يوميات مجتمعنا — طبقة واجهة مستقلة لا تؤثر على وظائف الخلاصة -->
-        <section class="stories-shell" aria-label="اليوميات">
-            <div class="stories-heading">
-                <div>
-                    <span class="eyebrow"><i class="fas fa-sparkles"></i> لحظات حيّة</span>
-                    <h2>اليوميات</h2>
-                </div>
-                <button class="stories-link" type="button" onclick="window.showAllStories && window.showAllStories()">عرض الكل <i class="fas fa-arrow-left"></i></button>
-            </div>
-            <div class="stories-rail" id="storiesRail">
-                <button class="story-card story-create" type="button" onclick="document.getElementById('storyUploadInput').click()">
-                    <span class="story-create-media"><img id="storyCreateAvatar" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" alt="صورتك"><b><i class="fas fa-plus"></i></b></span>
-                    <span class="story-label">يوميتك</span>
-                </button>
-                <button class="story-card" type="button" data-story-title="سارة أحمد" data-story-image="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=700&q=85">
-                    <span class="story-media"><img src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=700&q=85" alt="سارة أحمد"><i class="fas fa-play"></i></span><span class="story-label">سارة أحمد</span>
-                </button>
-                <button class="story-card" type="button" data-story-title="رحّالة" data-story-image="https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=700&q=85">
-                    <span class="story-media"><img src="https://images.unsplash.com/photo-1500534623283-312aade485b7?auto=format&fit=crop&w=700&q=85" alt="رحّالة"><i class="fas fa-play"></i></span><span class="story-label">رحّالة</span>
-                </button>
-                <button class="story-card" type="button" data-story-title="مطبخنا" data-story-image="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=700&q=85">
-                    <span class="story-media"><img src="https://images.unsplash.com/photo-1547592180-85f173990554?auto=format&fit=crop&w=700&q=85" alt="مطبخنا"><i class="fas fa-play"></i></span><span class="story-label">مطبخنا</span>
-                </button>
-                <button class="story-card" type="button" data-story-title="ليان" data-story-image="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=700&q=85">
-                    <span class="story-media"><img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?auto=format&fit=crop&w=700&q=85" alt="ليان"><i class="fas fa-play"></i></span><span class="story-label">ليان</span>
-                </button>
-                <button class="story-card" type="button" data-story-title="صنّاع" data-story-image="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=700&q=85">
-                    <span class="story-media"><img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=700&q=85" alt="صنّاع"><i class="fas fa-play"></i></span><span class="story-label">صنّاع</span>
-                </button>
-            </div>
-            <input id="storyUploadInput" type="file" accept="image/*,video/*" hidden onchange="window.previewStory && window.previewStory(event)">
-        </section>
         <!-- قنوات الأخبار -->
         <div id="newsChannelsArea" style="margin-bottom:16px;"></div>
         <!-- صندوق الكتابة -->
@@ -1216,29 +1195,8 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') window.closeFul
         </div>
     </div>
 </div>
-<div class="story-viewer" id="storyViewer" role="dialog" aria-modal="true" aria-label="عارض اليومية" onclick="if(event.target===this)window.closeStoryViewer()">
-    <div class="story-viewer-card">
-        <div class="story-progress"><i></i></div>
-        <img id="storyViewerImage" src="" alt="">
-        <div class="story-viewer-top"><span class="story-viewer-title" id="storyViewerTitle"></span><button class="story-viewer-close" type="button" onclick="window.closeStoryViewer()"><i class="fas fa-times"></i></button></div>
-    </div>
-</div>
 <script>
 // تفعيل أزرار سياسة الخصوصية ومن نحن
-window.openStoryViewer = function(title, image){
-    const viewer=document.getElementById('storyViewer');
-    document.getElementById('storyViewerTitle').textContent=title||'يومية';
-    document.getElementById('storyViewerImage').src=image||'';
-    viewer.classList.add('open'); document.body.style.overflow='hidden';
-};
-window.closeStoryViewer = function(){ document.getElementById('storyViewer').classList.remove('open'); document.body.style.overflow=''; };
-window.showAllStories = function(){ const first=document.querySelector('.story-card[data-story-title]'); if(first) window.openStoryViewer(first.dataset.storyTitle,first.dataset.storyImage); };
-window.previewStory = function(event){
-    const file=event.target.files&&event.target.files[0]; if(!file) return;
-    const url=URL.createObjectURL(file); window.openStoryViewer('يوميتك الجديدة',url);
-    const rail=document.getElementById('storiesRail'); const card=document.createElement('button'); card.className='story-card'; card.type='button'; card.innerHTML='<span class="story-media"><img alt="يوميتك الجديدة"></span><span class="story-label">يوميتك الآن</span>'; card.querySelector('img').src=url; card.onclick=()=>window.openStoryViewer('يوميتك الجديدة',url); rail.insertBefore(card,rail.children[1]);
-};
-document.querySelectorAll('.story-card[data-story-title]').forEach(card=>card.addEventListener('click',()=>window.openStoryViewer(card.dataset.storyTitle,card.dataset.storyImage)));
 window.showPrivacyPage = () => {
     const m = document.getElementById('privacyModal');
     m.style.display = 'flex';
